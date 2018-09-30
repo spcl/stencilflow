@@ -3,11 +3,12 @@ import collections
 
 class BoundedQueue:
 
-    def __init__(self, maxsize):
+    def __init__(self, name, maxsize):
         # check input
         assert maxsize > 0
-        # save param
+        # save params
         self.maxsize = maxsize
+        self.name = name
         # create queue
         self.queue = collections.dequeue(maxsize)
         # init current size
@@ -22,7 +23,7 @@ class BoundedQueue:
     def enqueue(self, item):
         # check bound
         if self.currentsize >= self.maxsize:
-            raise Exception("queue overflow")
+            raise RuntimeError("buffer {} overflow occurred".format(self.name))
         # add a new item to the left side
         self.queue.appendleft(item)
         # adjust counter
@@ -36,7 +37,7 @@ class BoundedQueue:
             # return and remove the rightmost item
             return self.queue.pop()
         else:
-            raise Exception("queue underflow")
+            raise RuntimeError("buffer [] underflow occurred".format(self.name))
 
     def try_enqueue(self, item):
         # check bound, do not raise exception in case of an overflow
