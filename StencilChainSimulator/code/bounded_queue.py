@@ -62,4 +62,5 @@ Notes:
     - implementation:               Uses two stacks as underlying datastructure to ensure overall complexity of O(1) for appendleft() and pop().
     - maxsize for bounded queue:    Default behaviour is to remove oldest element of queue, therefore we have to check 
                                     it and raise an exception.
+    - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
 '''
