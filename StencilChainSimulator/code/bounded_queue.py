@@ -42,11 +42,14 @@ class BoundedQueue:
     def try_enqueue(self, item):
         # check bound, do not raise exception in case of an overflow
         if self.currentsize >= self.maxsize:
-            return
+            # report: unsuccessful
+            return False
         # add a new item to the left side
         self.queue.appendleft(item)
         # adjust counter
         self.currentsize += 1
+        # report: successful
+        return True
 
     def try_dequeue(self):
         # check bound, do not raise exception in case of an underflow
@@ -55,6 +58,9 @@ class BoundedQueue:
             self.currentsize -= 1
             # return and remove the rightmost item
             return self.queue.pop()
+        else:
+            # report: unsuccessful
+            return False
 
 
 '''
