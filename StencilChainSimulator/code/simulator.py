@@ -5,28 +5,27 @@ class Simulator:
         self.kernels = kernels
 
     def stepexecution(self):
-        # read all kernel inputs
+        # try to read all kernel inputs
         for kernel in self.kernels:
             try:
-                kernel.read()
+                kernel.try_read()
             except Exception as ex:
                 self.diagnostics(ex)
-        # execute all executable kernels
+        # try to execute all kernels
         for kernel in self.kernels:
-            if kernel.canexecute():
-                try:
-                    kernel.execute()
-                except Exception as ex:
-                    self.diagnostics(ex)
-        # write all writable kernels
+            try:
+                kernel.try_execute()
+            except Exception as ex:
+                self.diagnostics(ex)
+        # try to write all kernel outputs
         for kernel in self.kernels:
-            if kernel.canwrite():
-                try:
-                    kernel.write()
-                except Exception as ex:
-                    self.diagnostics(ex)
+            try:
+                kernel.try_write()
+            except Exception as ex:
+                self.diagnostics(ex)
 
     def diagnostics(self, exception):
-        # get info from all kernels
+        # gather info from all kernels
         for kernel in self.kernels:
             kernel.diagnostics()
+        raise exception
