@@ -27,6 +27,12 @@ class Kernel:
     def write(self):
         raise NotImplementedError()
 
+    def canexecute(self):
+        raise NotImplementedError()
+
+    def canwrite(self):
+        raise NotImplementedError()
+
     '''
         interface for error overview reporting (gets called in case of an exception)
 
