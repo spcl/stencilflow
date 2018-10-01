@@ -4,7 +4,6 @@ class Kernel:
     def __init__(self, name):
         self.name = name
 
-
     '''
         interface for FPGA-like execution (get called from the scheduler)
             - read: 
@@ -17,20 +16,18 @@ class Kernel:
                     - saturation phase: do nothing
                     - execution phase: write result from execution to output buffers 
                         --> if output buffer overflows: assumptions about size were wrong!
+                        
+            - return:
+                    - True  iff successful
+                    - False otherwise 
     '''
-    def read(self):
+    def try_read(self):
         raise NotImplementedError()
 
-    def execute(self):
+    def try_execute(self):
         raise NotImplementedError()
 
-    def write(self):
-        raise NotImplementedError()
-
-    def canexecute(self):
-        raise NotImplementedError()
-
-    def canwrite(self):
+    def try_write(self):
         raise NotImplementedError()
 
     '''
@@ -38,9 +35,9 @@ class Kernel:
 
         - goal:
                 - get an overview over the whole stencil chain state in case of an error
-                    - current size of all buffers
+                    - maximal and current size of all buffers
                     - type of phase (saturation/execution)
-                    - efficiency (#execution cycles / # total cycles)
+                    - efficiency (#execution cycles / #total cycles)
     '''
     def diagnostics(self):
         raise NotImplementedError()
