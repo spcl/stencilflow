@@ -1,8 +1,9 @@
 import sys
 import getopt
-
+import os
 
 def main(argv):
+    options = set()
     inputfile = ""
     try:
         # argument with value needs colon, -h, -i <value>, --input=<value>
@@ -15,17 +16,31 @@ def main(argv):
             usage()
             sys.exit()
         elif opt in ("-i", "--input"):
+            options.add("input")
             inputfile = arg
-            print("Input file is", inputfile)
         elif opt in ("-g", "--graph"):
-            print("Generate graph.")
+            options.add("graph")
         elif opt in ("-s", "--sim"):
+            options.add("sim")
+    execute(options, inputfile)
+
+
+def execute(options, inputfile):
+    # check if input file is available
+    if "input" in options:
+        print("Parsing input from " + os.path.dirname(sys.argv[0]) + "/" + inputfile)
+        # check if caller requests graph
+        if "graph" in options:
+            print("Generate graph.")
+        # check if caller requests sim
+        if "sim" in options:
             print("Run simulation.")
-    return
+    else:
+        print("Nothing to parse. Exit.")
 
 
 def usage():
-    print("usage: main.py -h -i <inputfile> -graph -sim")
+    print("usage: main.py --help --input <inputfile> --graph --sim")
 
 
 if __name__ == "__main__":
