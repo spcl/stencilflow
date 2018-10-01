@@ -28,7 +28,7 @@ def main(argv):
 def execute(options, inputfile):
     # check if input file is available
     if "input" in options:
-        print("Parsing input from " + os.path.dirname(sys.argv[0]) + "/" + inputfile)
+        print("Parsing input from " + inputfile)
         # check if caller requests graph
         if "graph" in options:
             print("Generate graph.")
