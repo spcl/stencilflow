@@ -34,10 +34,10 @@ def execute(options, input_file):
         ''' do the parsing process here'''
 
         # inform user about task
-        print("Parsing input from " + inputfile)
+        print("Parsing input from " + input_file)
 
         # do the parsing
-        parser = Parser(inputfile)
+        parser = Parser(input_file)
 
         # check if caller requests graph
         if "graph" in options:
