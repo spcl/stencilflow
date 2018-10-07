@@ -1,6 +1,7 @@
 import sys
 import getopt
 import os
+from StencilChainSimulator.code.parser import Parser
 
 def main(argv):
     options = set()
@@ -28,7 +29,15 @@ def main(argv):
 def execute(options, inputfile):
     # check if input file is available
     if "input" in options:
+
+        ''' do the parsing process here'''
+
+        # inform user about task
         print("Parsing input from " + inputfile)
+
+        # do the parsing
+        parser = Parser(inputfile)
+
         # check if caller requests graph
         if "graph" in options:
             print("Generate graph.")
