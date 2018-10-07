@@ -7,9 +7,10 @@ from StencilChainSimulator.code.parser import Parser
 def main(argv):
     options = set()
     input_file = ""
+    dimension = ""
     try:
         # argument with value needs colon, -h, -i <value>, --input=<value>
-        opts, args = getopt.getopt(argv, "hi:gs", ["help", "input=", "graph", "sim"])
+        opts, args = getopt.getopt(argv, "hi:gsd:", ["help", "input=", "graph", "sim", "dimension"])
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -24,10 +25,13 @@ def main(argv):
             options.add("graph")
         elif opt in ("-s", "--sim"):
             options.add("sim")
-    execute(options, input_file)
+        elif opt in ("-d", "--dimension"):
+            options.add("dimension")
+            dimension = arg
+    execute(options, input_file, dimension)
 
 
-def execute(options, input_file):
+def execute(options, input_file, dimension):
     # check if input file is available
     if "input" in options:
 
