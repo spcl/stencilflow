@@ -4,7 +4,7 @@ class Simulator:
     def __init__(self, kernels):
         self.kernels = kernels
 
-    def stepexecution(self):
+    def step_execution(self):
         # try to read all kernel inputs
         for kernel in self.kernels:
             try:
