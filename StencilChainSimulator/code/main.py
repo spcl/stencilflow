@@ -3,9 +3,10 @@ import getopt
 import os
 from StencilChainSimulator.code.parser import Parser
 
+
 def main(argv):
     options = set()
-    inputfile = ""
+    input_file = ""
     try:
         # argument with value needs colon, -h, -i <value>, --input=<value>
         opts, args = getopt.getopt(argv, "hi:gs", ["help", "input=", "graph", "sim"])
@@ -18,15 +19,15 @@ def main(argv):
             sys.exit()
         elif opt in ("-i", "--input"):
             options.add("input")
-            inputfile = arg
+            input_file = arg
         elif opt in ("-g", "--graph"):
             options.add("graph")
         elif opt in ("-s", "--sim"):
             options.add("sim")
-    execute(options, inputfile)
+    execute(options, input_file)
 
 
-def execute(options, inputfile):
+def execute(options, input_file):
     # check if input file is available
     if "input" in options:
 
