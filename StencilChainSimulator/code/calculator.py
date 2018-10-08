@@ -22,25 +22,25 @@ class Calculator:
 
 class Calc(ast.NodeVisitor):
 
-     def visit_BinOp(self, node):
-         left = self.visit(node.left)
-         right = self.visit(node.right)
-         return Calculator._OP_MAP[type(node.op)](left, right)
+    def visit_BinOp(self, node):
+        left = self.visit(node.left)
+        right = self.visit(node.right)
+        return Calculator._OP_MAP[type(node.op)](left, right)
 
-     def visit_Num(self, node):
-         return node.n
+    def visit_Num(self, node):
+        return node.n
 
-     def visit_Expr(self, node):
-         return self.visit(node.value)
+    def visit_Expr(self, node):
+        return self.visit(node.value)
 
-     def visit_Name(self, node):
-         return variables[node.id];
+    def visit_Name(self, node):
+        return variables[node.id];
 
-     @classmethod
-     def evaluate(cls, expression):
-         tree = ast.parse(expression)
-         calc = cls()
-         return calc.visit(tree.body[0])
+    @classmethod
+    def evaluate(cls, expression):
+        tree = ast.parse(expression)
+        calc = cls()
+        return calc.visit(tree.body[0])
 
 
 '''
@@ -49,7 +49,7 @@ class Calc(ast.NodeVisitor):
             - map: variable name -> value
             - computation string
         - output: resulting value
-        
+
     credits: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
 
 '''
