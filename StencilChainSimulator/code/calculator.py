@@ -1,6 +1,6 @@
 import ast
 import operator
-
+import math
 
 class Calculator:
 
@@ -13,7 +13,11 @@ class Calculator:
         ast.Mult: operator.mul,
         ast.Div: operator.truediv,
         ast.Invert: operator.neg
-        # TODO: add sin, cos
+    }
+
+    _CALL_MAP = {
+        "sin": math.sin,
+        "cos": math.cos
     }
 
     def eval_expr(self, computation_string):
@@ -36,6 +40,9 @@ class Calc(ast.NodeVisitor):
     def visit_Name(self, node):
         return variables[node.id];
 
+    def visit_Call(self, node):
+        return Calculator._CALL_MAP[node.func.id](self.visit(node.args[0]))
+
     @classmethod
     def evaluate(cls, expression):
         tree = ast.parse(expression)
@@ -56,6 +63,10 @@ class Calc(ast.NodeVisitor):
 
 if __name__ == "__main__":
 
+    '''
+        simple example for debugging purpose
+    '''
+
     variables = dict()
     variables["a"] = 7
     variables["b"] = 2
@@ -63,7 +74,7 @@ if __name__ == "__main__":
     for var in variables:
         print("name: " + var + " value: " + str(variables[var]))
 
-    computation = "(a + 5) * b"
+    computation = "(a + 5) * cos(a + b)"
 
     calculator = Calculator(variables)
     result = calculator.eval_expr(computation)
