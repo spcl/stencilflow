@@ -1,6 +1,9 @@
 import os
 import ast
 import json
+import re
+import networkx as nx
+
 
 class Kernel:
 
@@ -14,6 +17,10 @@ class Kernel:
         self.config_path = "kernel.config"
         self.op_latency = None
         self.parse_config()
+
+        # analyse input
+        self.parse_kernel_string()
+        self.graph = nx.DiGraph()  # create empty directed graph
 
     ''' 
         import config 
@@ -40,8 +47,16 @@ class Kernel:
         analyse input kernel string 
     '''
 
-    def parse_inputs(self):
-        return
+    def parse_kernel_string(self):
+
+        # remove "auto res =" from input string
+        equation = re.sub("auto res = ", "", self.kernel_string)
+
+        # TODO: kernel_string can be of format: "auto res = c + d(i,j,k); c = a(i,j,k) + b(i,j,k);"
+
+        node = ast.parse(equation)
+        
+        print("dummy")
 
     '''  
         interface for FPGA-like execution (get called from the scheduler)
