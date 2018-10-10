@@ -1,45 +1,210 @@
 import ast
 import networkx as nx
 import matplotlib.pyplot as plt
+from enum import Enum
+
+
+class NodeType(Enum):
+    NAME = 1,
+    NUM = 2,
+    BINOP = 3,
+    CALL = 4,
+    OUTPUT = 5
+
+
+class Node:
+
+    def __init__(self, node, number):
+        self.number = number
+
+        if node is not None:
+            self.node_type = self.get_type(node)
+            self.name = self.generate_name(node)
+
+    @staticmethod
+    def get_type(node):
+
+        if isinstance(node, ast.Name):
+            return NodeType.NAME
+        elif isinstance(node, ast.Num):
+            return NodeType.NUM
+        elif isinstance(node, ast.BinOp):
+            return NodeType.BINOP
+        elif isinstance(node, ast.Call):
+            return NodeType.CALL
+        else:
+            return None
+
+    _OP_NAME_MAP = {
+        ast.Add: "add",
+        ast.Sub: "sub",
+        ast.Mult: "mult",
+        ast.Div: "div",
+        ast.Invert: "neg"
+    }
+
+    def generate_name(self, node):
+
+        if self.node_type == NodeType.NAME:
+            return node.id
+        elif self.node_type == NodeType.NUM:
+            return node.n
+        elif self.node_type == NodeType.BINOP:
+            return Node._OP_NAME_MAP[type(node.op)]
+        elif self.node_type == NodeType.CALL:
+            return node.func.id
+
+    def generate_label(self):
+        return str(self.name)
 
 
 class ComputeGraph:
 
-    def __init__(self, path):
-        self.path = path
+    def __init__(self):
         self.graph = nx.DiGraph()
-
+        self.tree = None
 
     def generate_graph(self, computation_string):
-        return
 
+        # generate abstract syntax tree
+        self.tree = ast.parse(computation_string)
 
-class GraphGenerator(ast.NodeVisitor):
+        # TODO: support of the following input: "(a + out) * cos(out); out = a + b"
 
-    def visit_BinOp(self, node):
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-        # return Calculator._OP_MAP[type(node.op)](left, right)
+        last = self.tree_walk(self.tree.body[0].value, 1)
 
-    def visit_Num(self, node):
-        return node.n
+        # add output node
+        outp = Node(None, 0)
+        outp.name = "out"
+        outp.node_type = NodeType.OUTPUT
+        self.graph.add_node(outp)
 
-    def visit_Expr(self, node):
-        return self.visit(node.value)
+        # add edge to first op
+        self.graph.add_edge(last, outp)
 
-    def visit_Name(self, node):
-        return
-        # TODO return variables[node.id];
+        return self.graph
 
-    def visit_Call(self, node):
-        return
-        # TODO return Calculator._CALL_MAP[node.func.id](self.visit(node.args[0]))
+    def tree_walk(self, node, number):
 
-    @classmethod
-    def evaluate(cls, expression):
-        tree = ast.parse(expression)
-        calc = cls()
-        return calc.visit(tree.body[0])
+        # create node
+        new_node = Node(node, number)
+
+        # add node to graph
+        self.graph.add_node(new_node)
+
+        if isinstance(node, ast.BinOp):
+
+            # do tree-walk recursively and get references to children (to create the edges to them)
+            left = self.tree_walk(node.left, ComputeGraph.child_left_number(number))
+            right = self.tree_walk(node.right, ComputeGraph.child_right_number(number))
+
+            # add edges from parent to children
+            self.graph.add_edge(left, new_node)
+            self.graph.add_edge(right, new_node)
+
+        elif isinstance(node, ast.Call):
+
+            # do tree-walk for all arguments
+            if len(node.args) > 2:
+                raise NotImplementedError("Current implementation does not support more than two arguments due"
+                                          " to the binary tree numbering convention")
+
+            # process first argument
+            first = self.tree_walk(node.args[0], ComputeGraph.child_left_number(number))
+            self.graph.add_edge(first, new_node)
+
+            # check if second argument exist
+            if len(node.args) >= 2:
+                second = self.tree_walk(node.args[1], ComputeGraph.child_right_number(number))
+                self.graph.add_edge(second, new_node)
+
+        elif isinstance(node, ast.Name):
+            # nothing to do
+            pass
+        elif isinstance(node, ast.Num):
+            # nothing to do
+            pass
+
+        # return node for reference purpose
+        return new_node
+
+    # tree.body[i] : i-th computation_string
+    # tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
+    # tree.body[i].value = Name     -> subtree: .id (name)
+    # tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
+
+    @staticmethod
+    def child_left_number(n):
+        return 2*n + 1
+
+    @staticmethod
+    def child_right_number(n):
+        return 2*n
+
+    def plot_graph(self):
+
+        # create drawing area
+        plt.figure(figsize=(20, 20))
+        plt.axis('off')
+
+        # generate positions
+        positions = nx.nx_pydot.graphviz_layout(self.graph, prog='dot')
+
+        # divide nodes into different lists for colouring purpose
+        nums = list()
+        names = list()
+        ops = list()
+        outs = list()
+
+        for node in self.graph.nodes:
+            if node.node_type == NodeType.NUM:
+                nums.append(node)
+            elif node.node_type == NodeType.NAME:
+                names.append(node)
+            elif node.node_type == NodeType.BINOP or node.node_type == NodeType.CALL:
+                ops.append(node)
+            elif node.node_type == NodeType.OUTPUT:
+                outs.append(node)
+
+        # create dictionary of labels
+        labels = dict()
+        for node in self.graph.nodes:
+            labels[node] = node.generate_label()
+
+        # add nodes and edges
+        nx.draw_networkx_nodes(self.graph, positions, nodelist=names, node_color='orange',
+                               node_size=3000, node_shape='s', edge_color='black')
+
+        nx.draw_networkx_nodes(self.graph, positions, nodelist=outs, node_color='green',
+                               node_size=3000, node_shape='s')
+
+        nx.draw_networkx_nodes(self.graph, positions, nodelist=nums, node_color='#007acc',
+                               node_size=3000, node_shape='s')
+
+        nx.draw_networkx(self.graph, positions, nodelist=ops, node_color='red', node_size=3000,
+                         node_shape='o', font_weight='bold', font_size=16, edge_color='black', arrows=True,
+                         arrowsize=36,
+                         arrowstyle='-|>', width=6, linwidths=1, with_labels=False)
+
+        nx.draw_networkx_labels(self.graph, positions, labels=labels, font_weight='bold', font_size=16)
+
+        '''
+            merge draw nodes together with draw edges: using the hack of adding nodes/edges together in nx.draw_networkx(), the arrows are 
+            getting aligned correctly 
+
+            nx.draw_networkx_edges(G, positions, edge_color='black', arrows=True, arrowsize=48,
+                                   arrowstyle='-|>', width=6, linewidths=0)                                             
+        '''
+
+        # save plot to file
+        # plt.savefig(filename)
+
+        # plot it
+        plt.show()
+
+    def calculate_latency(self):
+        # TODO: implement it
+        raise NotImplementedError()
 
 
 '''
@@ -59,10 +224,7 @@ if __name__ == "__main__":
     '''
 
     computation = "(a + 5) * cos(a + b)"
+    graph = ComputeGraph()
+    graph.generate_graph(computation)
+    graph.plot_graph()
 
-    G = nx.DiGraph()
-    G.add_node(0)
-    G.add_node(1)
-    G.add_edge(0,1)
-    nx.draw(G)
-    plt.savefig("path.png")
