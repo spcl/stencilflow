@@ -2,6 +2,7 @@ import ast
 import operator
 import math
 
+
 class Calculator:
 
     def __init__(self, variable_map):
@@ -17,7 +18,10 @@ class Calculator:
 
     _CALL_MAP = {
         "sin": math.sin,
-        "cos": math.cos
+        "cos": math.cos,
+        "tan": math.tan,
+        "sinh": math.sinh,
+        "cosh": math.cosh
     }
 
     def eval_expr(self, computation_string):
