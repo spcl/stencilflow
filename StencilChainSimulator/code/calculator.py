@@ -5,8 +5,8 @@ import math
 
 class Calculator:
 
-    def __init__(self, variable_map):
-        self.variables = variable_map
+    def __init__(self):
+        self.variables = None
 
     _OP_MAP = {
         ast.Add: operator.add,
@@ -24,7 +24,8 @@ class Calculator:
         "cosh": math.cosh
     }
 
-    def eval_expr(self, computation_string):
+    def eval_expr(self, variable_map, computation_string):
+        self.variables = variable_map
         return Calc.evaluate(computation_string)
 
 
