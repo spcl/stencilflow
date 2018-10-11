@@ -15,7 +15,6 @@ class Kernel:
 
         # read static parameters from config
         self.config_path = "kernel.config"
-        self.op_latency = None
         self.parse_config()
 
         # analyse input
