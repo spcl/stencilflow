@@ -141,7 +141,7 @@ class ComputeGraph:
     def child_right_number(n):
         return 2*n
 
-    def plot_graph(self):
+    def plot_graph(self, save_path=None):
 
         # create drawing area
         plt.figure(figsize=(20, 20))
@@ -196,8 +196,9 @@ class ComputeGraph:
                                    arrowstyle='-|>', width=6, linewidths=0)                                             
         '''
 
-        # save plot to file
-        # plt.savefig(filename)
+        # save plot to file if save_path has been specified
+        if save_path is not None:
+            plt.savefig(save_path)
 
         # plot it
         plt.show()
