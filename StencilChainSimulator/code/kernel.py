@@ -3,6 +3,7 @@ import ast
 import json
 import re
 import networkx as nx
+from StencilChainSimulator.code.helper import Helper
 
 
 class Kernel:
@@ -14,33 +15,11 @@ class Kernel:
         self.kernel_string = kernel_string  # raw kernel string input
 
         # read static parameters from config
-        self.config_path = "kernel.config"
-        self.parse_config()
+        self.config = Helper.parse_config("kernel.config")
 
         # analyse input
         self.parse_kernel_string()
         self.graph = nx.DiGraph()  # create empty directed graph
-
-    ''' 
-        import config 
-    '''
-    def parse_config(self):
-
-        # check file exist and readable
-        if not os.access(self.config_path, os.R_OK):
-            raise Exception("Config does not exist or is not readable.")
-
-        # open the file read-only
-        file_handle = open(self.config_path, "r")
-
-        # try to parse it
-        config = json.loads(file_handle.read())  # type: dict
-
-        # close the file handle
-        file_handle.close()
-
-        # fill in information
-        self.op_latency = config["op_latency"]
 
     ''' 
         analyse input kernel string 
