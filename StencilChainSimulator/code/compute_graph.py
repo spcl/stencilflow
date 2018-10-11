@@ -75,7 +75,7 @@ class ComputeGraph:
         # generate abstract syntax tree
         self.tree = ast.parse(computation_string)
 
-        # TODO: support of the following input: "(a + out) * cos(out); out = a + b"
+        # TODO: support of the following input: "res = (a + out) * cos(out); out = a + b"
 
         last = self.ast_tree_walk(self.tree.body[0].value, 1)
 
