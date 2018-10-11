@@ -2,6 +2,7 @@ import ast
 import networkx as nx
 import matplotlib.pyplot as plt
 from enum import Enum
+from StencilChainSimulator.code.helper import Helper
 
 
 class NodeType(Enum):
@@ -16,7 +17,7 @@ class Node:
 
     def __init__(self, node, number):
         self.number = number
-
+        self.latency = None
         if node is not None:
             self.node_type = self.get_type(node)
             self.name = self.generate_name(node)
@@ -61,8 +62,13 @@ class Node:
 class ComputeGraph:
 
     def __init__(self):
+
+        # read static parameters from config
+        self.config = Helper.parse_config("compute_graph.config")
+
         self.graph = nx.DiGraph()
         self.tree = None
+        self.root = None
 
     def generate_graph(self, computation_string):
 
@@ -71,7 +77,7 @@ class ComputeGraph:
 
         # TODO: support of the following input: "(a + out) * cos(out); out = a + b"
 
-        last = self.tree_walk(self.tree.body[0].value, 1)
+        last = self.ast_tree_walk(self.tree.body[0].value, 1)
 
         # add output node
         outp = Node(None, 0)
@@ -79,12 +85,15 @@ class ComputeGraph:
         outp.node_type = NodeType.OUTPUT
         self.graph.add_node(outp)
 
+        # add root to class
+        self.root = outp
+
         # add edge to first op
         self.graph.add_edge(last, outp)
 
         return self.graph
 
-    def tree_walk(self, node, number):
+    def ast_tree_walk(self, node, number):
 
         # create node
         new_node = Node(node, number)
@@ -95,8 +104,8 @@ class ComputeGraph:
         if isinstance(node, ast.BinOp):
 
             # do tree-walk recursively and get references to children (to create the edges to them)
-            left = self.tree_walk(node.left, ComputeGraph.child_left_number(number))
-            right = self.tree_walk(node.right, ComputeGraph.child_right_number(number))
+            left = self.ast_tree_walk(node.left, ComputeGraph.child_left_number(number))
+            right = self.ast_tree_walk(node.right, ComputeGraph.child_right_number(number))
 
             # add edges from parent to children
             self.graph.add_edge(left, new_node)
@@ -110,12 +119,12 @@ class ComputeGraph:
                                           " to the binary tree numbering convention")
 
             # process first argument
-            first = self.tree_walk(node.args[0], ComputeGraph.child_left_number(number))
+            first = self.ast_tree_walk(node.args[0], ComputeGraph.child_left_number(number))
             self.graph.add_edge(first, new_node)
 
             # check if second argument exist
             if len(node.args) >= 2:
-                second = self.tree_walk(node.args[1], ComputeGraph.child_right_number(number))
+                second = self.ast_tree_walk(node.args[1], ComputeGraph.child_right_number(number))
                 self.graph.add_edge(second, new_node)
 
         elif isinstance(node, ast.Name):
@@ -204,8 +213,30 @@ class ComputeGraph:
         plt.show()
 
     def calculate_latency(self):
-        # TODO: implement it
-        raise NotImplementedError()
+        # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
+        # efficiently
+        self.root.latency = 0
+        self.latency_tree_walk(self.root)
+
+    def latency_tree_walk(self, node):
+
+        # check node type
+        if node.node_type == NodeType.NAME or node.node_type == NodeType.NUM:
+            return
+        elif node.node_type == NodeType.BINOP or node.node_type == NodeType.CALL:
+
+            # get op latency
+            op_latency = self.config["op_latency"][node.name]
+
+            for child in self.graph.pred[node]:
+                child.latency = node.latency + op_latency
+                self.latency_tree_walk(child)
+
+        elif node.node_type == NodeType.OUTPUT:
+
+            for child in self.graph.pred[node]:
+                child.latency = node.latency
+                self.latency_tree_walk(child)
 
 
 '''
@@ -227,5 +258,6 @@ if __name__ == "__main__":
     computation = "(a + 5) * cos(a + b)"
     graph = ComputeGraph()
     graph.generate_graph(computation)
+    graph.calculate_latency()
     graph.plot_graph()
 
