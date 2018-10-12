@@ -17,7 +17,7 @@ class Node:
 
     def __init__(self, node, number):
         self.number = number
-        self.latency = None
+        self.latency = -1
         if node is not None:
             self.node_type = self.get_type(node)
             self.name = self.generate_name(node)
@@ -33,6 +33,8 @@ class Node:
             return NodeType.BINOP
         elif isinstance(node, ast.Call):
             return NodeType.CALL
+        elif isinstance(node, ast.Assign):
+            return NodeType.OUTPUT
         else:
             return None
 
@@ -54,6 +56,8 @@ class Node:
             return Node._OP_NAME_MAP[type(node.op)]
         elif self.node_type == NodeType.CALL:
             return node.func.id
+        elif self.node_type == NodeType.OUTPUT:
+            return node.targets[0].id
 
     def generate_label(self):
         return str(self.name)
@@ -65,31 +69,52 @@ class ComputeGraph:
 
         # read static parameters from config
         self.config = Helper.parse_config("compute_graph.config")
-
         self.graph = nx.DiGraph()
         self.tree = None
-        self.root = None
+
+    def contract_edge(self, u, v):
+
+        # add edges of v to u
+        for edge in self.graph.succ[v]:
+            self.graph.add_edge(u, edge)
+        for edge in self.graph.pred[v]:
+            self.graph.add_edge(edge, u)
+
+        # remove v
+        self.graph.remove_node(v)
 
     def generate_graph(self, computation_string):
 
         # generate abstract syntax tree
         self.tree = ast.parse(computation_string)
 
-        # TODO: support of the following input: "res = (a + out) * cos(out); out = a + b"
+        for equation in self.tree.body:
 
-        last = self.ast_tree_walk(self.tree.body[0].value, 1)
+            # check if base node is of type Expr or Assign
+            if isinstance(equation, ast.Assign):
+                lhs = Node(equation, 0)
+                rhs = self.ast_tree_walk(equation.value, 1)
+                self.graph.add_edge(rhs, lhs)
 
-        # add output node
-        outp = Node(None, 0)
-        outp.name = "out"
-        outp.node_type = NodeType.OUTPUT
-        self.graph.add_node(outp)
+        # merge ambiguous variables in tree (implies: merge of ast.Assign trees into a single tree)
+        '''
+            NOTE: This nested loop runs in O(n^2), which is NOT the optimal solution (e.g. HashMap would be more 
+            appropriate).
+        '''
+        outp_nodes = list(self.graph.nodes)
+        for outp in outp_nodes:
+            if outp.node_type == NodeType.NAME:
+                inp_nodes = list(self.graph.nodes)
+                for inp in inp_nodes:
+                    if outp is not inp and outp.name == inp.name:
+                        # contract nodes
+                        outp.node_type = NodeType.NAME
+                        self.contract_edge(outp, inp)
 
-        # add root to class
-        self.root = outp
-
-        # add edge to first op
-        self.graph.add_edge(last, outp)
+        # test if graph is now one component (for directed graph: each non-output must have at least one successor)
+        for node in self.graph.nodes:
+            if node.node_type != NodeType.OUTPUT and len(self.graph.succ[node]) == 0:
+                raise RuntimeError("Kernel-internal data flow is not single component.")
 
         return self.graph
 
@@ -137,10 +162,16 @@ class ComputeGraph:
         # return node for reference purpose
         return new_node
 
-    # tree.body[i] : i-th computation_string
-    # tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
-    # tree.body[i].value = Name     -> subtree: .id (name)
-    # tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
+    '''
+        tree.body[i] : i-th computation_string
+        tree.body[i] = Assign: of type: x = Expr
+        tree.body[i].targets          ->
+        tree.body[i].value = {BinOp, Name, Call}
+        tree.body[i] = Expr:
+        tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
+        tree.body[i].value = Name     -> subtree: .id (name)
+        tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
+    '''
 
     @staticmethod
     def child_left_number(n):
@@ -197,14 +228,6 @@ class ComputeGraph:
 
         nx.draw_networkx_labels(self.graph, positions, labels=labels, font_weight='bold', font_size=16)
 
-        '''
-            merge draw nodes together with draw edges: using the hack of adding nodes/edges together in nx.draw_networkx(), the arrows are 
-            getting aligned correctly 
-
-            nx.draw_networkx_edges(G, positions, edge_color='black', arrows=True, arrowsize=48,
-                                   arrowstyle='-|>', width=6, linewidths=0)                                             
-        '''
-
         # save plot to file if save_path has been specified
         if save_path is not None:
             plt.savefig(save_path)
@@ -215,21 +238,26 @@ class ComputeGraph:
     def calculate_latency(self):
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         # efficiently
-        self.root.latency = 0
-        self.latency_tree_walk(self.root)
+
+        for node in self.graph.nodes:
+            if node.node_type == NodeType.OUTPUT:
+                node.latency = 0
+                self.latency_tree_walk(node)
 
     def latency_tree_walk(self, node):
 
         # check node type
         if node.node_type == NodeType.NAME or node.node_type == NodeType.NUM:
-            return
+            for child in self.graph.pred[node]:
+                child.latency = node.latency
+                self.latency_tree_walk(child)
         elif node.node_type == NodeType.BINOP or node.node_type == NodeType.CALL:
 
             # get op latency
             op_latency = self.config["op_latency"][node.name]
 
             for child in self.graph.pred[node]:
-                child.latency = node.latency + op_latency
+                child.latency = max(child.latency, node.latency + op_latency)
                 self.latency_tree_walk(child)
 
         elif node.node_type == NodeType.OUTPUT:
@@ -247,6 +275,8 @@ class ComputeGraph:
     
     More info: https://networkx.github.io/
     
+    Note: 
+    
 '''
 
 if __name__ == "__main__":
@@ -255,7 +285,7 @@ if __name__ == "__main__":
         simple example for debugging purpose
     '''
 
-    computation = "(a + 5) * cos(a + b)"
+    computation = "res = (a + out) * cos(out); out = a + b"
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()
