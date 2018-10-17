@@ -1,4 +1,5 @@
 import ast
+import re
 import networkx as nx
 import matplotlib.pyplot as plt
 from enum import Enum
@@ -10,7 +11,8 @@ class NodeType(Enum):
     NUM = 2,
     BINOP = 3,
     CALL = 4,
-    OUTPUT = 5
+    OUTPUT = 5,
+    SUBSCRIPT = 6
 
 
 class Node:
@@ -18,9 +20,11 @@ class Node:
     def __init__(self, node, number):
         self.number = number
         self.latency = -1
+        self.index = list()
         if node is not None:
             self.node_type = self.get_type(node)
             self.name = self.generate_name(node)
+
 
     @staticmethod
     def get_type(node):
@@ -35,6 +39,8 @@ class Node:
             return NodeType.CALL
         elif isinstance(node, ast.Assign):
             return NodeType.OUTPUT
+        elif isinstance(node, ast.Subscript):
+            return NodeType.SUBSCRIPT
         else:
             return None
 
@@ -44,6 +50,11 @@ class Node:
         ast.Mult: "mult",
         ast.Div: "div",
         ast.Invert: "neg"
+    }
+
+    _OP_SYM_MAP = {
+        ast.Add: "+",
+        ast.Sub: "-"
     }
 
     def generate_name(self, node):
@@ -58,9 +69,22 @@ class Node:
             return node.func.id
         elif self.node_type == NodeType.OUTPUT:
             return node.targets[0].id
+        elif self.node_type == NodeType.SUBSCRIPT:
+            # create index
+            for slice in node.slice.value.elts:
+                if isinstance(slice, ast.Name):
+                    self.index.append(slice.id)
+                elif isinstance(slice, ast.BinOp):
+                    # only support for index variations [i, j+3,..]
+                    self.index.append(str(slice.left.id) + Node._OP_SYM_MAP[type(slice.op)] + str(slice.right.n))
+            return node.value.id
 
     def generate_label(self):
-        return str(self.name)
+
+        if self.node_type == NodeType.SUBSCRIPT:
+            return str(self.name) + str(self.index)
+        else:
+            return str(self.name)
 
 
 class ComputeGraph:
@@ -171,6 +195,8 @@ class ComputeGraph:
         tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
         tree.body[i].value = Name     -> subtree: .id (name)
         tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
+        
+        tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     '''
 
     @staticmethod
@@ -199,7 +225,7 @@ class ComputeGraph:
         for node in self.graph.nodes:
             if node.node_type == NodeType.NUM:
                 nums.append(node)
-            elif node.node_type == NodeType.NAME:
+            elif node.node_type == NodeType.NAME or node.node_type == NodeType.SUBSCRIPT:
                 names.append(node)
             elif node.node_type == NodeType.BINOP or node.node_type == NodeType.CALL:
                 ops.append(node)
@@ -268,15 +294,11 @@ class ComputeGraph:
 
 
 '''
-
     Creation of a proper graph representation for the computation data flow graph.
     
     Credits for node-visitor: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
     
-    More info: https://networkx.github.io/
-    
-    Note: 
-    
+    More info: https://networkx.github.io/  
 '''
 
 if __name__ == "__main__":
@@ -285,9 +307,10 @@ if __name__ == "__main__":
         simple example for debugging purpose
     '''
 
-    computation = "res = (a + out) * cos(out); out = a + b"
+    # computation = "res = (a + out) * cos(out); out = a + b"
+    computation = "res = A[i,j,k] + A[i,j,k-1]"
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()
+    # graph.plot_graph("compute_graph_example.png")
     graph.plot_graph()
-
