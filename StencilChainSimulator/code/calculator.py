@@ -6,7 +6,7 @@ import math
 class Calculator:
 
     def __init__(self):
-        self.variables = None
+        self.calc = self.Calc()
 
     _OP_MAP = {
         ast.Add: operator.add,
@@ -25,34 +25,36 @@ class Calculator:
     }
 
     def eval_expr(self, variable_map, computation_string):
-        self.variables = variable_map
-        return Calc.evaluate(computation_string)
+        return self.calc.evaluate(variable_map, computation_string)
 
+    class Calc(ast.NodeVisitor):
 
-class Calc(ast.NodeVisitor):
+        def __init__(self):
+            self.var_map = None
 
-    def visit_BinOp(self, node):
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-        return Calculator._OP_MAP[type(node.op)](left, right)
+        def visit_BinOp(self, node):
+            left = self.visit(node.left)
+            right = self.visit(node.right)
+            return Calculator._OP_MAP[type(node.op)](left, right)
 
-    def visit_Num(self, node):
-        return node.n
+        def visit_Num(self, node):
+            return node.n
 
-    def visit_Expr(self, node):
-        return self.visit(node.value)
+        def visit_Expr(self, node):
+            return self.visit(node.value)
 
-    def visit_Name(self, node):
-        return variables[node.id];
+        def visit_Name(self, node):
+            return self.var_map[node.id]
 
-    def visit_Call(self, node):
-        return Calculator._CALL_MAP[node.func.id](self.visit(node.args[0]))
+        def visit_Call(self, node):
+            return Calculator._CALL_MAP[node.func.id](self.visit(node.args[0]))
 
-    @classmethod
-    def evaluate(cls, expression):
-        tree = ast.parse(expression)
-        calc = cls()
-        return calc.visit(tree.body[0])
+        @classmethod
+        def evaluate(cls, variable_map, expression):
+            tree = ast.parse(expression)
+            calc = cls()
+            calc.var_map = variable_map
+            return calc.visit(tree.body[0])
 
 
 '''
@@ -81,8 +83,8 @@ if __name__ == "__main__":
 
     computation = "(a + 5) * cos(a + b)"
 
-    calculator = Calculator(variables)
-    result = calculator.eval_expr(computation)
+    calculator = Calculator()
+    result = calculator.eval_expr(variables, computation)
     print(computation + " = " + str(result))
 
 
