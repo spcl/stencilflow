@@ -1,9 +1,9 @@
 import ast
-import re
 import networkx as nx
 import matplotlib.pyplot as plt
 from enum import Enum
 from StencilChainSimulator.code.helper import Helper
+from StencilChainSimulator.code.calculator import Calculator
 
 
 class NodeType(Enum):
@@ -24,7 +24,6 @@ class Node:
         if node is not None:
             self.node_type = self.get_type(node)
             self.name = self.generate_name(node)
-
 
     @staticmethod
     def get_type(node):
@@ -57,6 +56,12 @@ class Node:
         ast.Sub: "-"
     }
 
+    _VAR_MAP = {
+        "i": 0,
+        "j": 0,
+        "k": 0
+    }
+
     def generate_name(self, node):
 
         if self.node_type == NodeType.NAME:
@@ -73,10 +78,16 @@ class Node:
             # create index
             for slice in node.slice.value.elts:
                 if isinstance(slice, ast.Name):
-                    self.index.append(slice.id)
+                    self.index.append(Node._VAR_MAP[slice.id])
                 elif isinstance(slice, ast.BinOp):
-                    # only support for index variations [i, j+3,..]
-                    self.index.append(str(slice.left.id) + Node._OP_SYM_MAP[type(slice.op)] + str(slice.right.n))
+                    # note: only support for index variations [i, j+3,..]
+                    # read index expression
+                    expression = str(slice.left.id) + Node._OP_SYM_MAP[type(slice.op)] + str(slice.right.n)
+
+                    # convert [i+1,j, k-1] into [1, 0, -1]
+                    calculator = Calculator()
+                    self.index.append(calculator.eval_expr(Node._VAR_MAP, expression))
+
             return node.value.id
 
     def generate_label(self):
@@ -187,7 +198,8 @@ class ComputeGraph:
         return new_node
 
     '''
-        tree.body[i] : i-th computation_string
+    ast structure:
+        tree.body[i] : i-th expression
         tree.body[i] = Assign: of type: x = Expr
         tree.body[i].targets          ->
         tree.body[i].value = {BinOp, Name, Call}
@@ -195,7 +207,6 @@ class ComputeGraph:
         tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
         tree.body[i].value = Name     -> subtree: .id (name)
         tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
-        
         tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     '''
 
@@ -306,11 +317,9 @@ if __name__ == "__main__":
     '''
         simple example for debugging purpose
     '''
-
-    # computation = "res = (a + out) * cos(out); out = a + b"
-    computation = "res = A[i,j,k] + A[i,j,k-1]"
+    computation = "res = (A[i,j,k] + out) * cos(out); out = A[i,j,k-1] + B[i-1,j,k+1]"
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()
-    # graph.plot_graph("compute_graph_example.png")
+    # graph.plot_graph("compute_graph_example.png")  # write graph to file
     graph.plot_graph()
