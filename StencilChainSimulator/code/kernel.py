@@ -4,6 +4,9 @@ import json
 import re
 import networkx as nx
 from StencilChainSimulator.code.helper import Helper
+from StencilChainSimulator.code.compute_graph import ComputeGraph
+from StencilChainSimulator.code.calculator import Calculator
+from StencilChainSimulator.code.bounded_queue import BoundedQueue
 
 
 class Kernel:
@@ -16,25 +19,21 @@ class Kernel:
 
         # read static parameters from config
         self.config = Helper.parse_config("kernel.config")
+        self.calculator = Calculator()
 
         # analyse input
-        self.parse_kernel_string()
-        self.graph = nx.DiGraph()  # create empty directed graph
+        self.graph = ComputeGraph()
+        self.graph.generate_graph(kernel_string)
+        self.graph.calculate_latency()
+        self.graph.plot_graph()
 
-    ''' 
-        analyse input kernel string 
-    '''
-
-    def parse_kernel_string(self):
-
-        # remove "auto res =" from input string
-        equation = re.sub("auto res = ", "", self.kernel_string)
-
-        # TODO: kernel_string can be of format: "auto res = c + d(i,j,k); c = a(i,j,k) + b(i,j,k);"
-
-        node = ast.parse(equation)
-        
-        print("dummy")
+        # init sim specific params
+        self.var_map = None  # var_map[var_name] = var_value
+        self.read_success = False
+        self.exec_success = False
+        self.result = None  # type: float
+        self.inputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
+        self.outputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
 
     '''  
         interface for FPGA-like execution (get called from the scheduler)
@@ -55,14 +54,61 @@ class Kernel:
                     - False otherwise 
     '''
 
+    def reset_old_state(self):
+        self.var_map = dict()
+        self.read_success = False
+        self.exec_success = False
+        self.result = None
+
     def try_read(self):
-        raise NotImplementedError()
+
+        # reset old state
+        self.reset_old_state()
+
+        # check if all inputs are available
+        all_available = True
+        for inp in self.inputs:
+            if inp.isEmpty():
+                all_available = False
+                break
+
+        # dequeue all of them into the variable map
+        if all_available:
+            for inp in self.inputs:
+                # read inputs into var_map
+                try:
+                    self.var_map[inp[0]] = inp[2].dequeue()
+                except Exception as ex:
+                    self.diagnostics(ex)
+
+        self.read_success = all_available
+        return all_available
 
     def try_execute(self):
-        raise NotImplementedError()
+
+        # check if read has been successful
+        if self.read_success:
+            # execute calculation
+            try:
+                self.result = self.calculator.eval_expr(self.var_map, self.kernel_string)
+            except Exception as ex:
+                self.diagnostics(ex)
+
+        self.exec_success = True
+        return self.exec_success
 
     def try_write(self):
-        raise NotImplementedError()
+
+        # check if execution has been successful
+        if self.exec_success:
+            # write result to all output queues
+            for outp in self.outputs:
+                try:
+                    outp.enqueue(self.result)
+                except Exception as ex:
+                    self.diagnostics(ex)
+
+        return self.available
 
     '''
         interface for error overview reporting (gets called in case of an exception)
@@ -73,7 +119,7 @@ class Kernel:
                     - type of phase (saturation/execution)
                     - efficiency (#execution cycles / #total cycles)
     '''
-    def diagnostics(self):
+    def diagnostics(self, ex):
         raise NotImplementedError()
 
     '''
@@ -82,4 +128,5 @@ class Kernel:
 
 
 if __name__ == "__main__":
-    kernel = Kernel("res1", "auto res = res1(i,j,k) + inC(i,j,k);")
+    kernel = Kernel("ppgk", "res = wgtfac[i,j,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];")
+
