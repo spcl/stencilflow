@@ -3,37 +3,37 @@ import collections
 
 class BoundedQueue:
 
-    def __init__(self, name, maxsize):
+    def __init__(self, name, maxsize, collection=[]):
         # check input
         assert maxsize > 0
         # save params
         self.maxsize = maxsize
         self.name = name
         # create queue
-        self.queue = collections.dequeue(maxsize)
+        self.queue = collections.deque(collection, maxsize)
         # init current size
-        self.currentsize = 0
+        self.current_size = 0
 
     def size(self):
-        return self.currentsize
+        return self.current_size
 
     def isempty(self):
         return self.size() == 0
 
     def enqueue(self, item):
         # check bound
-        if self.currentsize >= self.maxsize:
+        if self.current_size >= self.maxsize:
             raise RuntimeError("buffer {} overflow occurred".format(self.name))
         # add a new item to the left side
         self.queue.appendleft(item)
         # adjust counter
-        self.currentsize += 1
+        self.current_size += 1
 
     def dequeue(self):
         # check bound
-        if self.currentsize > 0:
+        if self.current_size > 0:
             # adjust size
-            self.currentsize -= 1
+            self.current_size -= 1
             # return and remove the rightmost item
             return self.queue.pop()
         else:
@@ -41,21 +41,21 @@ class BoundedQueue:
 
     def try_enqueue(self, item):
         # check bound, do not raise exception in case of an overflow
-        if self.currentsize >= self.maxsize:
+        if self.current_size >= self.maxsize:
             # report: unsuccessful
             return False
         # add a new item to the left side
         self.queue.appendleft(item)
         # adjust counter
-        self.currentsize += 1
+        self.current_size += 1
         # report: successful
         return True
 
     def try_dequeue(self):
         # check bound, do not raise exception in case of an underflow
-        if self.currentsize > 0:
+        if self.current_size > 0:
             # adjust size
-            self.currentsize -= 1
+            self.current_size -= 1
             # return and remove the rightmost item
             return self.queue.pop()
         else:
