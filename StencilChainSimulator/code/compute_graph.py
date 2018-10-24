@@ -106,6 +106,7 @@ class ComputeGraph:
         self.config = Helper.parse_config("compute_graph.config")
         self.graph = nx.DiGraph()
         self.tree = None
+        self.max_latency = -1
 
     def contract_edge(self, u, v):
 
@@ -272,13 +273,18 @@ class ComputeGraph:
         # plot it
         plt.show()
 
+    def try_set_max_latency(self, newVal):
+        if self.max_latency < newVal:
+            self.max_latency = newVal
+
     def calculate_latency(self):
+
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         # efficiently
-
         for node in self.graph.nodes:
             if node.node_type == NodeType.OUTPUT:
                 node.latency = 0
+                self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
 
     def latency_tree_walk(self, node):
@@ -302,6 +308,8 @@ class ComputeGraph:
             for child in self.graph.pred[node]:
                 child.latency = node.latency
                 self.latency_tree_walk(child)
+
+        self.try_set_max_latency(node.latency)
 
 
 '''
