@@ -37,7 +37,7 @@ class BoundedQueue:
             # return and remove the rightmost item
             return self.queue.pop()
         else:
-            raise RuntimeError("buffer [] underflow occurred".format(self.name))
+            raise RuntimeError("buffer {} underflow occurred".format(self.name))
 
     def try_enqueue(self, item):
         # check bound, do not raise exception in case of an overflow
@@ -61,6 +61,13 @@ class BoundedQueue:
         else:
             # report: unsuccessful
             return False
+
+    def peek(self, index):
+        # check bound
+        if self.current_size <= index:
+            raise RuntimeError("buffer {} index out of bound access occurred".format(self.name))
+        else:
+            return self.queue[index]
 
 
 '''
