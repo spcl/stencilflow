@@ -2,6 +2,7 @@ import os
 import ast
 import json
 import re
+from collections import deque
 import networkx as nx
 from StencilChainSimulator.code.helper import Helper
 from StencilChainSimulator.code.compute_graph import ComputeGraph
@@ -10,6 +11,25 @@ from StencilChainSimulator.code.bounded_queue import BoundedQueue
 
 
 class Kernel:
+
+    '''
+        interface for FPGA-like execution (get called from the scheduler)
+
+            - read:
+                    - saturation phase: read unconditionally
+                    - execution phase: read all inputs iff they are available
+            - execute:
+                    - saturation phase: do nothing
+                    - execution phase: if input read, execute stencil using the input
+            - write:
+                    - saturation phase: do nothing
+                    - execution phase: write result from execution to output buffers
+                        --> if output buffer overflows: assumptions about size were wrong!
+
+            - return:
+                    - True  iff successful
+                    - False otherwise
+    '''
 
     def __init__(self, name, kernel_string):
 
@@ -35,24 +55,8 @@ class Kernel:
         self.inputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
         self.outputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
 
-    '''  
-        interface for FPGA-like execution (get called from the scheduler)
-    
-            - read: 
-                    - saturation phase: read unconditionally
-                    - execution phase: read all inputs iff they are available
-            - execute:
-                    - saturation phase: do nothing
-                    - execution phase: if input read, execute stencil using the input
-            - write:
-                    - saturation phase: do nothing
-                    - execution phase: write result from execution to output buffers 
-                        --> if output buffer overflows: assumptions about size were wrong!
-                        
-            - return:
-                    - True  iff successful
-                    - False otherwise 
-    '''
+        # output delay queue: for simulation of calculation latency, fill it up with bubbles
+        self.out_delay_queue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
 
     def reset_old_state(self):
         self.var_map = dict()
@@ -91,16 +95,22 @@ class Kernel:
             # execute calculation
             try:
                 self.result = self.calculator.eval_expr(self.var_map, self.kernel_string)
+                # write result to latency-simulating buffer
+                self.out_delay_queue.enqueue(self.result)
             except Exception as ex:
                 self.diagnostics(ex)
+        else:
+            # write bubble to latency-simulating buffer
+            self.out_delay_queue.enqueue(None)
 
         self.exec_success = True
         return self.exec_success
 
     def try_write(self):
 
-        # check if execution has been successful
-        if self.exec_success:
+        # check if data (not a bubble) is available
+        data = self.out_delay_queue.dequeue()
+        if data is not None:
             # write result to all output queues
             for outp in self.outputs:
                 try:
@@ -108,7 +118,6 @@ class Kernel:
                 except Exception as ex:
                     self.diagnostics(ex)
 
-        # TODO: implement latency sim using buffer...
         return self.available
 
     '''
@@ -130,4 +139,5 @@ class Kernel:
 
 if __name__ == "__main__":
     kernel = Kernel("ppgk", "res = wgtfac[i,j,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];")
+    print("Critical path latency: " + str(kernel.graph.max_latency))
 
