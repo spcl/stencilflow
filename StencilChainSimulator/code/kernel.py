@@ -61,7 +61,7 @@ class Kernel:
         self.result = None
 
     def try_read(self):
-
+        # TODO: implement buffering for array access of the form: res = A[i,j,k] + A[i,j,k+1]
         # reset old state
         self.reset_old_state()
 
@@ -108,6 +108,7 @@ class Kernel:
                 except Exception as ex:
                     self.diagnostics(ex)
 
+        # TODO: implement latency sim using buffer...
         return self.available
 
     '''
