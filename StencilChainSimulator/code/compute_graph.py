@@ -116,6 +116,8 @@ class ComputeGraph:
         for edge in self.graph.pred[v]:
             self.graph.add_edge(edge, u)
 
+        # TODO: in case of a Subscript node: we have to enhance the buffer requirements
+
         # remove v
         self.graph.remove_node(v)
 
@@ -139,7 +141,7 @@ class ComputeGraph:
         '''
         outp_nodes = list(self.graph.nodes)
         for outp in outp_nodes:
-            if outp.node_type == NodeType.NAME:
+            if outp.node_type == NodeType.NAME or outp.node_type == NodeType.SUBSCRIPT: # TODO: check if this makes sense
                 inp_nodes = list(self.graph.nodes)
                 for inp in inp_nodes:
                     if outp is not inp and outp.name == inp.name:
@@ -150,7 +152,8 @@ class ComputeGraph:
         # test if graph is now one component (for directed graph: each non-output must have at least one successor)
         for node in self.graph.nodes:
             if node.node_type != NodeType.OUTPUT and len(self.graph.succ[node]) == 0:
-                raise RuntimeError("Kernel-internal data flow is not single component.")
+                raise RuntimeError("Kernel-internal data flow is not single component (must be connected in the sense "
+                                   "of a DAG).")
 
         return self.graph
 
@@ -273,9 +276,9 @@ class ComputeGraph:
         # plot it
         plt.show()
 
-    def try_set_max_latency(self, newVal):
-        if self.max_latency < newVal:
-            self.max_latency = newVal
+    def try_set_max_latency(self, new_val):
+        if self.max_latency < new_val:
+            self.max_latency = new_val
 
     def calculate_latency(self):
 
