@@ -31,11 +31,12 @@ class Kernel:
                     - False otherwise
     '''
 
-    def __init__(self, name, kernel_string):
+    def __init__(self, name, kernel_string, dimensions):
 
         # store arguments
         self.name = name  # kernel name
         self.kernel_string = kernel_string  # raw kernel string input
+        self.dimensions = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
 
         # read static parameters from config
         self.config = Helper.parse_config("kernel.config")
@@ -63,6 +64,11 @@ class Kernel:
         self.read_success = False
         self.exec_success = False
         self.result = None
+
+    def convert_3d_to_1d(self, index):
+        # convert [i, j, k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
+        # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
+        return (index[0]*self.dimensions[1] + index[1]*self.dimensions[2]) + index[2]
 
     def try_read(self):
         # TODO: implement buffering for array access of the form: res = A[i,j,k] + A[i,j,k+1]
