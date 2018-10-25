@@ -12,12 +12,12 @@ class BoundedQueue:
         # create queue
         self.queue = collections.deque(collection, maxsize)
         # init current size
-        self.current_size = 0
+        self.current_size = len(collection)
 
     def size(self):
         return self.current_size
 
-    def isempty(self):
+    def is_empty(self):
         return self.size() == 0
 
     def enqueue(self, item):
@@ -77,3 +77,12 @@ Notes:
                                     it and raise an exception.
     - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
 '''
+
+if __name__ == "__main__":
+    queue = BoundedQueue("debug", 5, [1, 2, 3, 4, 5])
+    try:
+        print("Enqueue element into full queue, should throw an exception.")
+        queue.enqueue(6)
+    except Exception as ex:
+        print("Exception has been thrown.")
+    print("Peek element at pos=3, value is: " + str(queue.peek(3)))
