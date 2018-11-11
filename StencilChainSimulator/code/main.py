@@ -1,6 +1,5 @@
 import sys
 import getopt
-import os
 from StencilChainSimulator.code.parser import Parser
 
 
