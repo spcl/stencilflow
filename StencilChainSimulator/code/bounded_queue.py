@@ -83,6 +83,6 @@ if __name__ == "__main__":
     try:
         print("Enqueue element into full queue, should throw an exception.")
         queue.enqueue(6)
+        print("Peek element at pos=3, value is: " + str(queue.peek(3)))
     except Exception as ex:
         print("Exception has been thrown.")
-    print("Peek element at pos=3, value is: " + str(queue.peek(3)))
