@@ -74,13 +74,14 @@ class Kernel:
         self.read_success = False
         self.exec_success = False
         self.result = None  # type: float
-        self.inputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
+        self.inputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...] # 
+        #  TODO: must be more flexible: e.g. multiple inputs access the same BoundedQueue: out = A[i,j,k] + A[i, j+1, k]
         self.outputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
         self.out_delay_queue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
 
-    def reset_old_state(self):
+    def reset_old_compute_state(self):
         self.var_map = dict()
         self.read_success = False
         self.exec_success = False
@@ -92,9 +93,14 @@ class Kernel:
         return (index[0]*self.dimensions[1] + index[1]*self.dimensions[2]) + index[2]
 
     def try_read(self):
-        # TODO: implement buffering for array access of the form: res = A[i,j,k] + A[i,j,k+1]
+
         # reset old state
-        self.reset_old_state()
+        self.reset_old_compute_state()
+
+        # TODO: implement buffering for array access of the form: res = A[i,j,k] + A[i,j,k+1]
+
+
+
 
         # check if all inputs are available
         all_available = True
