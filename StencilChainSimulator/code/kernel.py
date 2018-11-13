@@ -6,7 +6,7 @@ from StencilChainSimulator.code.bounded_queue import BoundedQueue
 
 class Kernel:
 
-    '''
+    """
         interface for FPGA-like execution (get called from the scheduler)
 
             - read:
@@ -23,7 +23,34 @@ class Kernel:
             - return:
                     - True  iff successful
                     - False otherwise
-    '''
+
+            - boundary condition:
+                    - We know that the stencil boundary conditions in the COSMO model are functions of the local
+                      neighbourhood (e.g. gradient, average, replicate value form n to n+1 (border replication),...)
+                    - Idea: We implement the border replication strategy for all scenarios statically (this is enough
+                      accuracy, since the latency would be most likely the same (the strategies mentioned above can be
+                      implemented in parallel in hardware), and the amount of buffer space does not change as well.
+                      Therefore this is a valid assumption and reduction of the problem complexity.
+
+            - note:
+                    - re-emptying of queue after reaching bound
+                    - scenario:
+                      suppose:  for i=1..N
+                                    for j=1..M
+                                        for k=1..P
+                                            out[i,j,k] = in[i-1,j,k] + in[i,j,k] + in[i+1,j,k]
+                                        end
+                                    end
+                                end
+                      the internal buffer is of size: 2*P*N
+                       j
+                      /
+                      --> i     in the case above we have to buffer 2 complete layers in i-j-direction till we can start
+                      |         doing meaning full pipeline operations
+                      k
+
+                      if we reach the bound i == N, TODO: special handling?
+    """
 
     def __init__(self, name, kernel_string, dimensions):
 
@@ -138,6 +165,6 @@ class Kernel:
 
 
 if __name__ == "__main__":
-    kernel = Kernel("ppgk", "res = wgtfac[i,j,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];")
+    kernel = Kernel("ppgk", "res = wgtfac[i,j,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", [10, 10, 10])
     print("Critical path latency: " + str(kernel.graph.max_latency))
 
