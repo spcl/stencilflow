@@ -115,9 +115,6 @@ class ComputeGraph:
             self.graph.add_edge(u, edge)
         for edge in self.graph.pred[v]:
             self.graph.add_edge(edge, u)
-
-        # TODO: in case of a Subscript node: we have to enhance the buffer requirements
-
         # remove v
         self.graph.remove_node(v)
 
@@ -144,7 +141,7 @@ class ComputeGraph:
             if outp.node_type == NodeType.NAME or outp.node_type == NodeType.SUBSCRIPT: # TODO: check if this makes sense
                 inp_nodes = list(self.graph.nodes)
                 for inp in inp_nodes:
-                    if outp is not inp and outp.name == inp.name:
+                    if outp is not inp and outp.name == inp.name and outp.index == inp.index: # only contract if the indices match too
                         # contract nodes
                         outp.node_type = NodeType.NAME
                         self.contract_edge(outp, inp)
@@ -332,5 +329,5 @@ if __name__ == "__main__":
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()
-    # graph.plot_graph("compute_graph_example.png")  # write graph to file
-    graph.plot_graph()
+    graph.plot_graph("compute_graph_example.png")  # write graph to file
+    # graph.plot_graph()
