@@ -107,6 +107,22 @@ class ComputeGraph:
         self.graph = nx.DiGraph()
         self.tree = None
         self.max_latency = -1
+        self.inputs = None
+        self.outputs = None
+
+    def determine_inputs_outputs(self):
+
+        # create empty sets
+        self.inputs = set()
+        self.outputs = set()
+
+        # idea: do a tree-walk: all node with cardinality(predecessor)=0 are inputs, all nodes with cardinality(
+        # successor)=0 are outputs
+        for node in self.graph.nodes:
+            if len(self.graph.pred[node]) == 0:
+                self.inputs.add(node)
+            if len(self.graph.succ[node]) == 0:
+                self.outputs.add(node)
 
     def contract_edge(self, u, v):
 
