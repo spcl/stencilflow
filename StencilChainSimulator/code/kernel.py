@@ -77,8 +77,8 @@ class Kernel:
         self.read_success = False
         self.exec_success = False
         self.result = None  # type: float
-        self.inputs = dict()  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
-        self.outputs = list()  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
+        self.inputs = dict()  # type: dict()  # self.inputs[name] = queue
+        self.outputs = list()  # type: dict()  # self.inputs[name] = queue
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
         self.out_delay_queue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
