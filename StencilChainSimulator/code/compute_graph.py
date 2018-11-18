@@ -28,17 +28,17 @@ class Node:
     @staticmethod
     def get_type(node):
 
-        if isinstance(node, ast.Name):
+        if isinstance(node, ast.Name):  # variables or array access
             return NodeType.NAME
-        elif isinstance(node, ast.Num):
+        elif isinstance(node, ast.Num):  # static value
             return NodeType.NUM
-        elif isinstance(node, ast.BinOp):
+        elif isinstance(node, ast.BinOp):  # binary operation
             return NodeType.BINOP
-        elif isinstance(node, ast.Call):
+        elif isinstance(node, ast.Call):  # function (e.g. sin, cos,..)
             return NodeType.CALL
-        elif isinstance(node, ast.Assign):
+        elif isinstance(node, ast.Assign):  # assign operator (var = expr;)
             return NodeType.OUTPUT
-        elif isinstance(node, ast.Subscript):
+        elif isinstance(node, ast.Subscript):  # array access (form: arr[i,j,k])
             return NodeType.SUBSCRIPT
         else:
             return None
@@ -87,12 +87,14 @@ class Node:
                     # convert [i+1,j, k-1] into [1, 0, -1]
                     calculator = Calculator()
                     self.index.append(calculator.eval_expr(Node._VAR_MAP, expression))
+            # merge SUBSCRIPT nodes with NAME nodes, since they are handled identically from this point of time on
+            self.node_type = NodeType.NAME
 
             return node.value.id
 
     def generate_label(self):
 
-        if self.node_type == NodeType.SUBSCRIPT:
+        if self.node_type == NodeType.NAME:
             return str(self.name) + str(self.index)
         else:
             return str(self.name)
@@ -109,6 +111,51 @@ class ComputeGraph:
         self.max_latency = -1
         self.inputs = None
         self.outputs = None
+        self.min_index = None
+        self.max_index = None
+        self.buffer_size = None
+
+    @staticmethod
+    def compare_to(indexA, indexB):  # A >= B ?
+        if indexA[0] > indexB[0]:
+            return True
+        elif indexA[1] == indexB[1]:
+            if indexA[1] > indexB[1]:
+                return True
+            elif indexA[1] == indexB[1]:
+                if indexA[2] > indexB[2]:
+                    return True
+                elif indexA[2] == indexB[2]:
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
+
+    def setup_internal_buffers(self):
+
+        # init dicts
+        self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
+        self.max_index = dict()
+        self.buffer_size = dict()  # buffer_size["buffer_name"] = size
+
+        # find min and max index
+        for inp in self.inputs:
+            if inp.name in self.min_index:
+                if not self.compare_to(inp.index, self.min_index[inp.name]):
+                    self.min_index[inp.name] = inp.index
+
+                if self.compare_to(inp.index, self.max_index[inp.name]):
+                    self.max_index[inp.name] = inp.index
+            else:  # first entry
+                self.min_index[inp.name] = inp.index
+                self.max_index[inp.name] = inp.index
+
+        # set buffer_size = max_index - min_index
+        for buffer_name in self.min_index:
+            self.buffer_size = [a_i - b_i for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
 
     def determine_inputs_outputs(self):
 
