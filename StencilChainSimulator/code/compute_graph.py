@@ -105,7 +105,7 @@ class ComputeGraph:
     def __init__(self):
 
         # read static parameters from config
-        self.config = Helper.parse_config("compute_graph.config")
+        self.config = Helper.parse_json("compute_graph.config")
         self.graph = nx.DiGraph()
         self.tree = None
         self.max_latency = -1
@@ -156,7 +156,7 @@ class ComputeGraph:
 
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
-            self.buffer_size[buffer_name] = [a_i - b_i for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
+            self.buffer_size[buffer_name] = [abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
 
     def determine_inputs_outputs(self):
 
