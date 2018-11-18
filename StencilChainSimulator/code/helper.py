@@ -8,7 +8,7 @@ class Helper:
         return
 
     @staticmethod
-    def parse_config(config_path):
+    def parse_json(config_path):
 
         # check file exist and readable
         if not os.access(config_path, os.R_OK):
