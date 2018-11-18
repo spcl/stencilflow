@@ -61,7 +61,7 @@ class Kernel:
         self.dimensions = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
 
         # read static parameters from config
-        self.config = Helper.parse_config("kernel.config")
+        self.config = Helper.parse_json("kernel.config")
         self.calculator = Calculator()
 
         # analyse input
