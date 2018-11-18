@@ -2,6 +2,7 @@ from StencilChainSimulator.code.helper import Helper
 from StencilChainSimulator.code.compute_graph import ComputeGraph
 from StencilChainSimulator.code.calculator import Calculator
 from StencilChainSimulator.code.bounded_queue import BoundedQueue
+from StencilChainSimulator.code.compute_graph import NodeType
 
 
 class Kernel:
@@ -67,6 +68,8 @@ class Kernel:
         self.graph = ComputeGraph()
         self.graph.generate_graph(kernel_string)
         self.graph.calculate_latency()
+        self.graph.determine_inputs_outputs()
+        self.graph.setup_internal_buffers()
         self.graph.plot_graph()
 
         # init sim specific params
@@ -74,12 +77,15 @@ class Kernel:
         self.read_success = False
         self.exec_success = False
         self.result = None  # type: float
-        self.inputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...] # 
-        #  TODO: must be more flexible: e.g. multiple inputs access the same BoundedQueue: out = A[i,j,k] + A[i, j+1, k]
-        self.outputs = None  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
+        self.inputs = dict()  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
+        self.outputs = list()  # type: [(str, BoundedQueue), ... ] # [(name, queue), ...]
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
         self.out_delay_queue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
+
+        # setup internal buffer queues
+        self.internal_buffer = dict()
+        self.setup_internal_buffers()
 
     def reset_old_compute_state(self):
         self.var_map = dict()
@@ -92,33 +98,53 @@ class Kernel:
         # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
         return (index[0]*self.dimensions[1] + index[1]*self.dimensions[2]) + index[2]
 
+    def setup_internal_buffers(self):
+
+        for buf_name in self.graph.buffer_size:
+            self.internal_buffer[buf_name] = BoundedQueue(name=buf_name,
+                                                          maxsize=self.convert_3d_to_1d(self.graph.buffer_size[buf_name])+1)
+
+    def buffer_position(self, access):
+        return self.convert_3d_to_1d(self.graph.min_index[access.name]) - self.convert_3d_to_1d(access.index)
+
     def try_read(self):
+
+        # TODO: test this method as soon as the kernel_chain_graph has linked the input queues with the output queues
+        # of different kernels
 
         # reset old state
         self.reset_old_compute_state()
 
-        # TODO: implement buffering for array access of the form: res = A[i,j,k] + A[i,j,k+1]
-
-
-
-
         # check if all inputs are available
         all_available = True
-        for inp in self.inputs:
-            if inp.isEmpty():
+        for inp in self.graph.inputs:
+            if inp.node_type == NodeType.NUM:  # static values are always available
+                pass
+            elif self.inputs[inp.name].peek(self.buffer_position(inp)) is None:  # check if array access location
+                #  is filled with a bubble
                 all_available = False
                 break
 
-        # dequeue all of them into the variable map
+        # get all values and put them into the variable map
         if all_available:
             for inp in self.inputs:
                 # read inputs into var_map
-                try:
-                    self.var_map[inp[0]] = inp[2].dequeue()
-                except Exception as ex:
-                    self.diagnostics(ex)
+                if inp.node_type == NodeType.NUM:
+                    self.var_map[inp.name] = float(inp.name)
+                elif inp.node_type == NodeType.NAME:
+                    # get value from internal_buffer
+                    try:
+                        self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
+                    except Exception as ex:
+                        self.diagnostics(ex)
 
         self.read_success = all_available
+
+        if self.read_success:
+            # pop oldest element from all queues
+            for queu in self.inputs:
+                queu[1].dequeue()
+
         return all_available
 
     def try_execute(self):
@@ -173,4 +199,3 @@ class Kernel:
 if __name__ == "__main__":
     kernel = Kernel("ppgk", "res = wgtfac[i,j,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", [10, 10, 10])
     print("Critical path latency: " + str(kernel.graph.max_latency))
-
