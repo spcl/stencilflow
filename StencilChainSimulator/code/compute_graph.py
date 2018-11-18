@@ -143,19 +143,20 @@ class ComputeGraph:
 
         # find min and max index
         for inp in self.inputs:
-            if inp.name in self.min_index:
-                if not self.compare_to(inp.index, self.min_index[inp.name]):
-                    self.min_index[inp.name] = inp.index
+            if inp.node_type == NodeType.NAME:
+                if inp.name in self.min_index:
+                    if not self.compare_to(inp.index, self.min_index[inp.name]):
+                        self.min_index[inp.name] = inp.index
 
-                if self.compare_to(inp.index, self.max_index[inp.name]):
+                    if self.compare_to(inp.index, self.max_index[inp.name]):
+                        self.max_index[inp.name] = inp.index
+                else:  # first entry
+                    self.min_index[inp.name] = inp.index
                     self.max_index[inp.name] = inp.index
-            else:  # first entry
-                self.min_index[inp.name] = inp.index
-                self.max_index[inp.name] = inp.index
 
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
-            self.buffer_size = [a_i - b_i for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
+            self.buffer_size[buffer_name] = [a_i - b_i for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
 
     def determine_inputs_outputs(self):
 
