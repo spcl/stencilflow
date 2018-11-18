@@ -78,7 +78,7 @@ class Kernel:
         self.exec_success = False
         self.result = None  # type: float
         self.inputs = dict()  # type: dict()  # self.inputs[name] = queue
-        self.outputs = list()  # type: dict()  # self.inputs[name] = queue
+        self.outputs = dict()  # type: dict()  # self.inputs[name] = queue
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
         self.out_delay_queue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
@@ -86,6 +86,9 @@ class Kernel:
         # setup internal buffer queues
         self.internal_buffer = dict()
         self.setup_internal_buffers()
+
+    def generate_label(self):
+        return self.name
 
     def reset_old_compute_state(self):
         self.var_map = dict()
