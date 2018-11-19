@@ -116,16 +116,16 @@ class ComputeGraph:
         self.buffer_size = None
 
     @staticmethod
-    def compare_to(indexA, indexB):  # A >= B ?
-        if indexA[0] > indexB[0]:
+    def compare_to(index_a, index_b):  # A >= B ?
+        if index_a[0] > index_b[0]:
             return True
-        elif indexA[1] == indexB[1]:
-            if indexA[1] > indexB[1]:
+        elif index_a[1] == index_b[1]:
+            if index_a[1] > index_b[1]:
                 return True
-            elif indexA[1] == indexB[1]:
-                if indexA[2] > indexB[2]:
+            elif index_a[1] == index_b[1]:
+                if index_a[2] > index_b[2]:
                     return True
-                elif indexA[2] == indexB[2]:
+                elif index_a[2] == index_b[2]:
                     return True
                 else:
                     return False
