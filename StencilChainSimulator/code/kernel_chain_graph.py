@@ -1,16 +1,39 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 from enum import Enum
+import operator
+import functools
 from StencilChainSimulator.code.helper import Helper
 from StencilChainSimulator.code.kernel import Kernel
 from StencilChainSimulator.code.bounded_queue import BoundedQueue
 
 
+class NodeType(Enum):
+    INPUT = 1,
+    KERNEL = 2,
+    OUTPUT = 3
+
+
+class Node:
+
+    def __init__(self, name, node_type, kernel=None, data_queue=None):
+        self.name = name
+        self.node_type = node_type
+        self.kernel = kernel  # only used for type: KERNEL
+        self.outputs = dict()
+        self.data_queue = data_queue  # only used for type: INPUT, OUTPUT
+
+    def generate_label(self):
+        return self.name
+
+
 class KernelChainGraph:
 
-    def __init__(self, path, dimensions):
+    def __init__(self, path):
+        self.inputs = None  # type: dict # inputs[name] = input_array_data
+        self.outputs = None
         self.path = path
-        self.dimensions = dimensions
+        self.dimensions = None
         self.program = None  # type: dict  # program[stencil_name] = stencil expression
         self.kernels = None
         self.kernel_latency = None  # TODO: adapt channel size according to min/max latency to the kernel (over all
@@ -18,7 +41,7 @@ class KernelChainGraph:
         self.channels = None  # each channel is an edge between two kernels or a kernel and an input
         self.graph = nx.DiGraph()
 
-        self.import_program()
+        self.import_input()
         self.create_kernels()
         self.compute_kernel_latency()
         self.connect_kernels()
@@ -41,7 +64,12 @@ class KernelChainGraph:
 
         # add nodes to list
         for node in self.graph.nodes:
-            names.append(node)
+            if node.node_type == NodeType.KERNEL:
+                names.append(node)
+            elif node.node_type == NodeType.INPUT:
+                nums.append(node)
+            elif node.node_type == NodeType.OUTPUT:
+                outs.append(node)
 
         # create dictionary of labels
         labels = dict()
@@ -79,20 +107,55 @@ class KernelChainGraph:
         for src in self.graph.nodes:
             for dest in self.graph.nodes:
                 if src is not dest:  # skip src == dest
-                    for inp in dest.graph.inputs:
-                        if src.name == inp.name:
-                            # add edge
-                            self.graph.add_edge(src, dest)
-                            # create channel
-                            name = src.name + "_" + dest.name
-                            channel = BoundedQueue(name, 1)
-                            self.channels[name] = channel
-                            # add channel to both endpoints
-                            src.outputs[dest.name] = channel
-                            dest.inputs[src.name] = channel
+                    if src.node_type == NodeType.KERNEL and dest.node_type == NodeType.KERNEL:
+                        for inp in dest.kernel.graph.inputs:
+                            if src.name == inp.name:
+                                # add edge
+                                self.graph.add_edge(src, dest)
+                                # create channel
+                                name = src.name + "_" + dest.name
+                                channel = BoundedQueue(name, 1)
+                                self.channels[name] = channel
+                                # add channel to both endpoints
+                                src.kernel.outputs[dest.name] = channel
+                                dest.kernel.inputs[src.name] = channel
+                                break
+                    elif src.node_type == NodeType.INPUT and dest.node_type == NodeType.KERNEL:
+                        for inp in dest.kernel.graph.inputs:
+                            if src.name == inp.name:
+                                # add edge
+                                self.graph.add_edge(src, dest)
+                                # create channel
+                                name = src.name + "_" + dest.name
+                                channel = BoundedQueue(name, 1)
+                                self.channels[name] = channel
+                                # add channel to both endpoints
+                                src.outputs[dest.name] = channel
+                                dest.kernel.inputs[src.name] = channel
+                                break
+                    elif dest.node_type == NodeType.OUTPUT:
+                        if src.name == dest.name:
+                                # add edge
+                                self.graph.add_edge(src, dest)
+                                # create channel
+                                name = src.name + "_" + dest.name
+                                channel = BoundedQueue(name, 1)
+                                self.channels[name] = channel
+                                # add channel to both endpoints
+                                src.outputs[dest.name] = channel
+                                dest.data_queue = channel
+                    else:
+                        pass  # Are there reasons for existence of those combinations?
 
-    def import_program(self):
-        self.program = Helper.parse_json(self.path)
+    def import_input(self):
+        inp = Helper.parse_json(self.path)
+        self.program = inp["program"]
+        self.inputs = inp["inputs"]
+        self.outputs = inp["outputs"]
+        self.dimensions = inp["dimensions"]
+
+    def total_elements(self):
+        return functools.reduce(operator.mul, self.dimensions, 1)  # foldl (*) 1 [...]
 
     def create_kernels(self):
 
@@ -101,9 +164,26 @@ class KernelChainGraph:
 
         # create all kernel objects and add them to the graph
         for kernel in self.program:
-            self.graph.add_node(Kernel(name=kernel,
-                                       kernel_string=self.program[kernel],
-                                       dimensions=self.dimensions))
+            self.graph.add_node(Node(kernel, NodeType.KERNEL, Kernel(name=kernel,
+                                                                     kernel_string=self.program[kernel],
+                                                                     dimensions=self.dimensions)))
+
+        # create all input nodes
+        for inp in self.inputs:
+            if len(self.inputs[inp]) == self.total_elements():  # if the input data list is of size total_elements,
+                #  it is a valid input for simulation
+                self.graph.add_node(Node(name=inp,
+                                         node_type=NodeType.INPUT,
+                                         data_queue=BoundedQueue(inp, self.total_elements(), self.inputs[inp])))
+            else:
+                self.graph.add_node(Node(name=inp,
+                                         node_type=NodeType.INPUT))
+
+        # create all output nodes
+        for out in self.outputs:
+            self.graph.add_node(Node(name=out,
+                                     node_type=NodeType.OUTPUT,
+                                     data_queue=None))
 
     def compute_kernel_latency(self):
 
@@ -119,5 +199,5 @@ class KernelChainGraph:
 
 
 if __name__ == "__main__":
-    chain = KernelChainGraph("simple_input1.json", [10, 10, 10])
+    chain = KernelChainGraph("simple_input1.json")
 
