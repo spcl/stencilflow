@@ -1,5 +1,14 @@
 {
-	"res1": "res = (inA[i,j,k] + out) * cos(out);out = 3.14 * (inB[i,j,k]-inB[i,j-1,k])",
+	"inputs": {
+		"inA": [1, 1, 1, 1, 1, 1, 1, 1],
+		"inB": [2, 2, 2, 2, 2, 2, 2, 2],
+		"inC": [3, 3, 3, 3, 3, 3, 3, 3]
+	},
+	"outputs": ["res2"],
+	"dimensions": [2, 2, 2],
+	"program": {
+		"res1": "res = (inA[i,j,k] + out) * cos(out);out = 3.14 * (inB[i,j,k]-inB[i,j-1,k])",
 
-	"res2": "res = res1[i,j,k] + inC[i,j,k];"
+		"res2": "res = res1[i,j,k] + inC[i,j,k];"
+	}
 }
