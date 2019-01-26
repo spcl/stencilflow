@@ -41,11 +41,15 @@ class KernelChainGraph:
         self.channels = None  # each channel is an edge between two kernels or a kernel and an input
         self.graph = nx.DiGraph()
 
+        self.input_nodes = dict()
+        self.output_nodes = dict()
+        self.kernel_nodes = dict()
+
         self.import_input()
         self.create_kernels()
         self.compute_kernel_latency()
         self.connect_kernels()
-        self.plot_graph()
+        self.plot_graph("overview.png")
 
     def plot_graph(self, save_path=None):
 
@@ -65,9 +69,9 @@ class KernelChainGraph:
         # add nodes to list
         for node in self.graph.nodes:
             if node.node_type == NodeType.KERNEL:
-                names.append(node)
+                ops.append(node)
             elif node.node_type == NodeType.INPUT:
-                nums.append(node)
+                names.append(node)
             elif node.node_type == NodeType.OUTPUT:
                 outs.append(node)
 
@@ -164,9 +168,11 @@ class KernelChainGraph:
 
         # create all kernel objects and add them to the graph
         for kernel in self.program:
-            self.graph.add_node(Node(kernel, NodeType.KERNEL, Kernel(name=kernel,
-                                                                     kernel_string=self.program[kernel],
-                                                                     dimensions=self.dimensions)))
+            new_node = Node(kernel, NodeType.KERNEL, Kernel(name=kernel,
+                                                            kernel_string=self.program[kernel],
+                                                            dimensions=self.dimensions))
+            self.graph.add_node(new_node)
+            self.kernel_nodes[kernel] = new_node
 
         # create all input nodes
         for inp in self.inputs:
@@ -199,5 +205,10 @@ class KernelChainGraph:
 
 
 if __name__ == "__main__":
-    chain = KernelChainGraph("simple_input1.json")
+    # chain = KernelChainGraph("simple_input1.json")
+    # chain = KernelChainGraph("fastwaves.json")
+    chain = KernelChainGraph("advection_min.json")
+    for node in chain.kernel_nodes:
+        print("buffer:", node, chain.kernel_nodes[node].kernel.graph.buffer_size)
+        print("latency:", node, chain.kernel_nodes[node].kernel.graph.max_latency)
 
