@@ -70,7 +70,7 @@ class Kernel:
         self.graph.calculate_latency()
         self.graph.determine_inputs_outputs()
         self.graph.setup_internal_buffers()
-        self.graph.plot_graph()
+        self.graph.plot_graph(name + ".png")
 
         # init sim specific params
         self.var_map = None  # var_map[var_name] = var_value
