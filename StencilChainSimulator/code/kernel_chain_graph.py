@@ -205,9 +205,10 @@ class KernelChainGraph:
 
 
 if __name__ == "__main__":
-    # chain = KernelChainGraph("simple_input1.json")
+    # chain = KernelChainGraph("simple_input_basic.json")
+    chain = KernelChainGraph("simple_input_delay_buf.json")
     # chain = KernelChainGraph("fastwaves.json")
-    chain = KernelChainGraph("advection_min.json")
+    # chain = KernelChainGraph("advection_min.json")
     for node in chain.kernel_nodes:
         print("buffer:", node, chain.kernel_nodes[node].kernel.graph.buffer_size)
         print("latency:", node, chain.kernel_nodes[node].kernel.graph.max_latency)

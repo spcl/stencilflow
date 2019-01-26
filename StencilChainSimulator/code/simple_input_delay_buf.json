@@ -1,0 +1,20 @@
+{
+	"inputs": {
+		"wtgfac": [1, 1, 1, 1, 1, 1, 1, 1]
+	},
+	"outputs": ["div"],
+	"dimensions": [2, 2, 2],
+	"program": {
+		"vdc": "res = 0.25 * (wtgfac[i,j,k+1] + wtgfac[i,j,k-1] + wtgfac[i,j+1,k] + wtgfac[i,j-1,k]) + vout[i,j,k]",
+
+		"ppgk": "res = 0.25 * (wtgfac[i,j,k+1] + wtgfac[i,j,k-1] + wtgfac[i,j+1,k] + wtgfac[i,j-1,k])",
+
+        "ppgc": "res = 0.25 * (ppgk[i,j,k+1] + ppgk[i,j,k-1] + ppgk[i,j+1,k] + ppgk[i,j-1,k])",
+
+        "ppgv": "res = 0.25 * (ppgc[i,j,k+1] + ppgc[i,j,k-1] + ppgc[i,j+1,k] + ppgc[i,j-1,k])",
+
+        "vout": "res = 0.25 * (ppgv[i,j,k+1] + ppgv[i,j,k-1] + ppgv[i,j+1,k] + ppgv[i,j-1,k])",
+
+        "div": "res = vdc[i,j,k] + vout[i,j,k]"
+	}
+}
