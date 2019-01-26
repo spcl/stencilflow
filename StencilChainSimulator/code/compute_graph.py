@@ -49,6 +49,7 @@ class Node:
         ast.Mult: "mult",
         ast.Div: "div",
         ast.Invert: "neg"
+        # TODO: support operation: res = (a < b) ? c : d
     }
 
     _OP_SYM_MAP = {
