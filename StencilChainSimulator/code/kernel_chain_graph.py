@@ -307,10 +307,26 @@ class KernelChainGraph:
 
 if __name__ == "__main__":
     # chain = KernelChainGraph("simple_input_basic.json")
-    chain = KernelChainGraph("simple_input_delay_buf.json")
+    # chain = KernelChainGraph("simple_input_delay_buf.json")
     # chain = KernelChainGraph("fastwaves.json")
     # chain = KernelChainGraph("advection_min.json")
+    chain = KernelChainGraph("diffusion_min.json")
+
+    total_internal = [0, 0, 0]
+    total_delay = [0, 0, 0]
+
     for node in chain.kernel_nodes:
         print("internal buffer:", node, chain.kernel_nodes[node].kernel.graph.buffer_size)
+        total = [0, 0, 0]
+        for entry in chain.kernel_nodes[node].kernel.graph.buffer_size:
+            total = KernelChainGraph.list_add_cwise(chain.kernel_nodes[node].kernel.graph.buffer_size[entry], total)
+        total_internal = KernelChainGraph.list_add_cwise(total, total_internal)
+        print("path lengths:", node, chain.kernel_nodes[node].input_paths)
         print("delay buffer:", node, chain.kernel_nodes[node].delay_buffer)
+        total_delay = KernelChainGraph.list_add_cwise(chain.kernel_nodes[node].delay_buffer, total_delay)
         print("latency:", node, chain.kernel_nodes[node].kernel.graph.max_latency)
+        print()
+
+    print("total internal buffer: ", total_internal)
+    print("total delay buffer: ", total_delay)
+
