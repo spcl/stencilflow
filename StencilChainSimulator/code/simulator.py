@@ -1,9 +1,13 @@
+from StencilChainSimulator.code.kernel_chain_graph import KernelChainGraph
+
 
 class Simulator:
 
-    def __init__(self, kernels):
-        self.kernels = kernels
+    def __init__(self, path):
+        self.chain_graph = KernelChainGraph(path)
 
+
+    '''
     def step_execution(self):
         # try to read all kernel inputs
         for kernel in self.kernels:
@@ -29,3 +33,11 @@ class Simulator:
         for kernel in self.kernels:
             kernel.diagnostics()
         raise exception
+    '''
+
+
+"""
+    Procedure: 
+    (1) INPUT nodes: feed all outgoing queues with data
+    (2) run all kernels (read->execute->write)
+"""
