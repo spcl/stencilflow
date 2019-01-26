@@ -22,6 +22,8 @@ class Node:
         self.kernel = kernel  # only used for type: KERNEL
         self.outputs = dict()
         self.data_queue = data_queue  # only used for type: INPUT, OUTPUT
+        self.input_paths = dict()
+        self.delay_buffer = [0, 0, 0]
 
     def generate_label(self):
         return self.name
@@ -49,6 +51,7 @@ class KernelChainGraph:
         self.create_kernels()
         self.compute_kernel_latency()
         self.connect_kernels()
+        self.compute_delay_buffer()
         self.plot_graph("overview.png")
 
     def plot_graph(self, save_path=None):
@@ -139,15 +142,15 @@ class KernelChainGraph:
                                 break
                     elif dest.node_type == NodeType.OUTPUT:
                         if src.name == dest.name:
-                                # add edge
-                                self.graph.add_edge(src, dest)
-                                # create channel
-                                name = src.name + "_" + dest.name
-                                channel = BoundedQueue(name, 1)
-                                self.channels[name] = channel
-                                # add channel to both endpoints
-                                src.outputs[dest.name] = channel
-                                dest.data_queue = channel
+                            # add edge
+                            self.graph.add_edge(src, dest)
+                            # create channel
+                            name = src.name + "_" + dest.name
+                            channel = BoundedQueue(name, 1)
+                            self.channels[name] = channel
+                            # add channel to both endpoints
+                            src.outputs[dest.name] = channel
+                            dest.data_queue = channel
                     else:
                         pass  # Are there reasons for existence of those combinations?
 
@@ -199,6 +202,104 @@ class KernelChainGraph:
         # compute kernel latency of each kernel
         for kernel in self.kernels:
             self.kernel_latency[kernel] = self.kernels[kernel].graph.max_latency
+
+    def compute_delay_buffer(self):
+
+        # get topological order for top-down walk through of the graph
+        try:
+            order = nx.topological_sort(self.graph)
+        except nx.exception.NetworkXUnfeasible:
+            raise ValueError("Cycle detected, cannot be sorted topologically!")
+
+        for node in order:
+
+            # process delay buffer (no additional delay buffer will appear because of the topological order)
+            for inp in node.input_paths:
+                min_delay = self.min_list_entry(node.input_paths[inp])
+                for entry in node.input_paths[inp]:
+                    del_buf = node.delay_buffer
+                    sub = self.list_subtract_cwise(entry, min_delay)
+                    node.delay_buffer = self.list_add_cwise(del_buf, sub)
+
+            if node.node_type == NodeType.INPUT:
+                node.delay_buffer = [0, 0, 0]
+
+            for succ in self.graph.successors(node):
+
+                if node.node_type == NodeType.INPUT:  # add INPUT node to all as direct input (=0 delay buffer)
+                    # add emtpy list dictionary entry for enabling list append()
+                    if node.name not in succ.input_paths:
+                        succ.input_paths[node.name] = []
+                    succ.input_paths[node.name].append([0, 0, 0])
+
+                elif node.node_type == NodeType.KERNEL:  # add KERNEL
+
+                    # add latency, internal_buffer, delay_buffer
+                    internal_buffer = self.max_buffer(self.kernel_nodes[node.name].kernel.graph.buffer_size)
+                    latency = self.kernel_nodes[node.name].kernel.graph.max_latency
+
+                    for entry in node.input_paths:
+
+                        if entry not in succ.input_paths:
+                            succ.input_paths[entry] = []
+
+                        delay_buffer = self.max_list_entry(node.input_paths[entry])
+
+                        total = [internal_buffer[0] + delay_buffer[0],
+                                 internal_buffer[1] + delay_buffer[1],
+                                 internal_buffer[2] + latency + delay_buffer[2]]
+                        succ.input_paths[entry].append(total)
+
+                else:  # NodeType.OUTPUT: do nothing
+                    continue
+
+                #print("successor of ", node.name, " is ", succ.name)
+
+    @staticmethod
+    def max_buffer(buffer):
+        max_buf = [0, 0, 0]
+        for buf in buffer:
+            entry = buffer[buf]
+            if entry[0] > max_buf[0]:
+                max_buf = entry
+            elif entry[0] == max_buf[0] and entry[1] > max_buf[1]:
+                max_buf = entry
+            elif entry[0] == max_buf[0] and entry[1] == max_buf[1] and entry[2] > max_buf[2]:
+                max_buf = entry
+        return max_buf
+
+    @staticmethod
+    def max_list_entry(buf):
+        max_buf = [0, 0, 0]
+        for entry in buf:
+            if entry[0] > max_buf[0]:
+                max_buf = entry
+            elif entry[0] == max_buf[0] and entry[1] > max_buf[1]:
+                max_buf = entry
+            elif entry[0] == max_buf[0] and entry[1] == max_buf[1] and entry[2] > max_buf[2]:
+                max_buf = entry
+        return max_buf
+
+    @staticmethod
+    def min_list_entry(buf):
+        min_buf = buf[0]
+        for entry in buf:
+            if entry[0] < min_buf[0]:
+                min_buf = entry
+            elif entry[0] == min_buf[0] and entry[1] < min_buf[1]:
+                min_buf = entry
+            elif entry[0] == min_buf[0] and entry[1] == min_buf[1] and entry[2] < min_buf[2]:
+                min_buf = entry
+        return min_buf
+
+    @staticmethod
+    def list_add_cwise(list1, list2):
+        return list(map(lambda x, y: x + y, list1, list2))
+
+    @staticmethod
+    def list_subtract_cwise(list1, list2):
+        return list(map(lambda x, y: x - y, list1, list2))
+
     '''
         simple test stencil program for debugging
     '''
@@ -210,6 +311,6 @@ if __name__ == "__main__":
     # chain = KernelChainGraph("fastwaves.json")
     # chain = KernelChainGraph("advection_min.json")
     for node in chain.kernel_nodes:
-        print("buffer:", node, chain.kernel_nodes[node].kernel.graph.buffer_size)
+        print("internal buffer:", node, chain.kernel_nodes[node].kernel.graph.buffer_size)
+        print("delay buffer:", node, chain.kernel_nodes[node].delay_buffer)
         print("latency:", node, chain.kernel_nodes[node].kernel.graph.max_latency)
-
