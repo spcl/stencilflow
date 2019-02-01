@@ -53,7 +53,7 @@ class Kernel:
                       if we reach the bound i == N, TODO: special handling?
     """
 
-    def __init__(self, name, kernel_string, dimensions):
+    def __init__(self, name, kernel_string, dimensions, plot_graph=False):
 
         # store arguments
         self.name = name  # kernel name
@@ -70,7 +70,8 @@ class Kernel:
         self.graph.calculate_latency()
         self.graph.determine_inputs_outputs()
         self.graph.setup_internal_buffers()
-        self.graph.plot_graph(name + ".png")
+        if plot_graph:
+            self.graph.plot_graph(name + ".png")
 
         # init sim specific params
         self.var_map = None  # var_map[var_name] = var_value
@@ -99,6 +100,8 @@ class Kernel:
     def convert_3d_to_1d(self, index):
         # convert [i, j, k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
         # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
+        if not index:
+            return 0 # empty list
         return (index[0]*self.dimensions[1] + index[1]*self.dimensions[2]) + index[2]
 
     def setup_internal_buffers(self):
