@@ -57,7 +57,7 @@ class KernelChainGraph:
     def plot_graph(self, save_path=None):
 
         # create drawing area
-        plt.figure(figsize=(20, 20))
+        plt.figure(figsize=(50, 50))
         plt.axis('off')
 
         # generate positions
@@ -310,7 +310,8 @@ if __name__ == "__main__":
     # chain = KernelChainGraph("simple_input_delay_buf.json")
     # chain = KernelChainGraph("fastwaves.json")
     # chain = KernelChainGraph("advection_min.json")
-    chain = KernelChainGraph("diffusion_min.json")
+    # chain = KernelChainGraph("diffusion_min.json")
+    chain = KernelChainGraph("dycore_upper_half.json")
 
     total_internal = [0, 0, 0]
     total_delay = [0, 0, 0]
