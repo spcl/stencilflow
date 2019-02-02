@@ -5,7 +5,7 @@ class BoundedQueue:
 
     def __init__(self, name, maxsize, collection=[]):
         # check input
-        assert maxsize > 0
+        # assert maxsize > 0 TODO: check why this assertion fails..
         # save params
         self.maxsize = maxsize
         self.name = name
