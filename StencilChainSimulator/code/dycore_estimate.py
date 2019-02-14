@@ -1,4 +1,4 @@
-from StencilChainSimulator.code.kernel_chain_graph import KernelChainGraph
+from kernel_chain_graph import KernelChainGraph
 
 
 def do_estimate():

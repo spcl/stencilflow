@@ -1,6 +1,6 @@
 import sys
 import getopt
-from StencilChainSimulator.code.parser import Parser
+from parser import Parser
 
 
 def main(argv):

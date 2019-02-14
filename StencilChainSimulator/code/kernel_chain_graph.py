@@ -1,11 +1,12 @@
+import argparse
 import networkx as nx
 import matplotlib.pyplot as plt
 from enum import Enum
 import operator
 import functools
-from StencilChainSimulator.code.helper import Helper
-from StencilChainSimulator.code.kernel import Kernel
-from StencilChainSimulator.code.bounded_queue import BoundedQueue
+from helper import Helper
+from kernel import Kernel
+from bounded_queue import BoundedQueue
 
 
 class NodeType(Enum):
@@ -306,12 +307,19 @@ class KernelChainGraph:
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("stencil_file")
+
+    args = parser.parse_args()
+
+    chain = KernelChainGraph(args.stencil_file)
     # chain = KernelChainGraph("simple_input_basic.json")
     # chain = KernelChainGraph("simple_input_delay_buf.json")
     # chain = KernelChainGraph("input/fastwaves.json")
     # chain = KernelChainGraph("input/advection_min.json")
     # chain = KernelChainGraph("input/diffusion_min.json")
-    chain = KernelChainGraph("input/dycore_upper_half.json")
+    # chain = KernelChainGraph("input/dycore_upper_half.json")
 
     total_internal = [0, 0, 0]
     total_delay = [0, 0, 0]

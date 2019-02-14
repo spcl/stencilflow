@@ -1,8 +1,8 @@
-from StencilChainSimulator.code.helper import Helper
-from StencilChainSimulator.code.compute_graph import ComputeGraph
-from StencilChainSimulator.code.calculator import Calculator
-from StencilChainSimulator.code.bounded_queue import BoundedQueue
-from StencilChainSimulator.code.compute_graph import NodeType
+from helper import Helper
+from compute_graph import ComputeGraph
+from calculator import Calculator
+from bounded_queue import BoundedQueue
+from compute_graph import NodeType
 
 
 class Kernel:

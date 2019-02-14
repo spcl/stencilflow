@@ -2,8 +2,8 @@ import ast
 import networkx as nx
 import matplotlib.pyplot as plt
 from enum import Enum
-from StencilChainSimulator.code.helper import Helper
-from StencilChainSimulator.code.calculator import Calculator
+from helper import Helper
+from calculator import Calculator
 
 
 class NodeType(Enum):
