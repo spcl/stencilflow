@@ -16,7 +16,6 @@ class NodeType(Enum):
 
 
 class Node:
-
     def __init__(self, name, node_type, kernel=None, data_queue=None):
         self.name = name
         self.node_type = node_type
@@ -31,7 +30,6 @@ class Node:
 
 
 class KernelChainGraph:
-
     def __init__(self, path):
         self.inputs = None  # type: dict # inputs[name] = input_array_data
         self.outputs = None
@@ -53,7 +51,7 @@ class KernelChainGraph:
         self.compute_kernel_latency()
         self.connect_kernels()
         self.compute_delay_buffer()
-        self.plot_graph("overview.png")
+        # self.plot_graph("overview.png")
 
     def plot_graph(self, save_path=None):
 
@@ -85,28 +83,61 @@ class KernelChainGraph:
             labels[node] = node.generate_label()
 
         # add nodes and edges
-        nx.draw_networkx_nodes(self.graph, positions, nodelist=names, node_color='orange',
-                               node_size=3000, node_shape='s', edge_color='black')
+        nx.draw_networkx_nodes(
+            self.graph,
+            positions,
+            nodelist=names,
+            node_color='orange',
+            node_size=3000,
+            node_shape='s',
+            edge_color='black')
 
-        nx.draw_networkx_nodes(self.graph, positions, nodelist=outs, node_color='green',
-                               node_size=3000, node_shape='s')
+        nx.draw_networkx_nodes(
+            self.graph,
+            positions,
+            nodelist=outs,
+            node_color='green',
+            node_size=3000,
+            node_shape='s')
 
-        nx.draw_networkx_nodes(self.graph, positions, nodelist=nums, node_color='#007acc',
-                               node_size=3000, node_shape='s')
+        nx.draw_networkx_nodes(
+            self.graph,
+            positions,
+            nodelist=nums,
+            node_color='#007acc',
+            node_size=3000,
+            node_shape='s')
 
-        nx.draw_networkx(self.graph, positions, nodelist=ops, node_color='red', node_size=3000,
-                         node_shape='o', font_weight='bold', font_size=16, edge_color='black', arrows=True,
-                         arrowsize=36,
-                         arrowstyle='-|>', width=6, linwidths=1, with_labels=False)
+        nx.draw_networkx(
+            self.graph,
+            positions,
+            nodelist=ops,
+            node_color='red',
+            node_size=3000,
+            node_shape='o',
+            font_weight='bold',
+            font_size=16,
+            edge_color='black',
+            arrows=True,
+            arrowsize=36,
+            arrowstyle='-|>',
+            width=6,
+            linwidths=1,
+            with_labels=False)
 
-        nx.draw_networkx_labels(self.graph, positions, labels=labels, font_weight='bold', font_size=16)
+        nx.draw_networkx_labels(
+            self.graph,
+            positions,
+            labels=labels,
+            font_weight='bold',
+            font_size=16)
 
         # save plot to file if save_path has been specified
         if save_path is not None:
             plt.savefig(save_path)
-
-        # plot it
-        plt.show()
+        else:
+            # plot it
+            plt.show()
 
     def connect_kernels(self):
 
@@ -163,7 +194,8 @@ class KernelChainGraph:
         self.dimensions = inp["dimensions"]
 
     def total_elements(self):
-        return functools.reduce(operator.mul, self.dimensions, 1)  # foldl (*) 1 [...]
+        return functools.reduce(operator.mul, self.dimensions,
+                                1)  # foldl (*) 1 [...]
 
     def create_kernels(self):
 
@@ -172,28 +204,33 @@ class KernelChainGraph:
 
         # create all kernel objects and add them to the graph
         for kernel in self.program:
-            new_node = Node(kernel, NodeType.KERNEL, Kernel(name=kernel,
-                                                            kernel_string=self.program[kernel],
-                                                            dimensions=self.dimensions))
+            new_node = Node(
+                kernel, NodeType.KERNEL,
+                Kernel(
+                    name=kernel,
+                    kernel_string=self.program[kernel],
+                    dimensions=self.dimensions))
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
 
         # create all input nodes
         for inp in self.inputs:
-            if len(self.inputs[inp]) == self.total_elements():  # if the input data list is of size total_elements,
+            if len(self.inputs[inp]) == self.total_elements(
+            ):  # if the input data list is of size total_elements,
                 #  it is a valid input for simulation
-                self.graph.add_node(Node(name=inp,
-                                         node_type=NodeType.INPUT,
-                                         data_queue=BoundedQueue(inp, self.total_elements(), self.inputs[inp])))
+                self.graph.add_node(
+                    Node(
+                        name=inp,
+                        node_type=NodeType.INPUT,
+                        data_queue=BoundedQueue(inp, self.total_elements(),
+                                                self.inputs[inp])))
             else:
-                self.graph.add_node(Node(name=inp,
-                                         node_type=NodeType.INPUT))
+                self.graph.add_node(Node(name=inp, node_type=NodeType.INPUT))
 
         # create all output nodes
         for out in self.outputs:
-            self.graph.add_node(Node(name=out,
-                                     node_type=NodeType.OUTPUT,
-                                     data_queue=None))
+            self.graph.add_node(
+                Node(name=out, node_type=NodeType.OUTPUT, data_queue=None))
 
     def compute_kernel_latency(self):
 
@@ -202,7 +239,8 @@ class KernelChainGraph:
 
         # compute kernel latency of each kernel
         for kernel in self.kernels:
-            self.kernel_latency[kernel] = self.kernels[kernel].graph.max_latency
+            self.kernel_latency[kernel] = self.kernels[
+                kernel].graph.max_latency
 
     def compute_delay_buffer(self):
 
@@ -236,19 +274,24 @@ class KernelChainGraph:
                 elif node.node_type == NodeType.KERNEL:  # add KERNEL
 
                     # add latency, internal_buffer, delay_buffer
-                    internal_buffer = self.max_buffer(self.kernel_nodes[node.name].kernel.graph.buffer_size)
-                    latency = self.kernel_nodes[node.name].kernel.graph.max_latency
+                    internal_buffer = self.max_buffer(
+                        self.kernel_nodes[node.name].kernel.graph.buffer_size)
+                    latency = self.kernel_nodes[
+                        node.name].kernel.graph.max_latency
 
                     for entry in node.input_paths:
 
                         if entry not in succ.input_paths:
                             succ.input_paths[entry] = []
 
-                        delay_buffer = self.max_list_entry(node.input_paths[entry])
+                        delay_buffer = self.max_list_entry(
+                            node.input_paths[entry])
 
-                        total = [internal_buffer[0] + delay_buffer[0],
-                                 internal_buffer[1] + delay_buffer[1],
-                                 internal_buffer[2] + latency + delay_buffer[2]]
+                        total = [
+                            internal_buffer[0] + delay_buffer[0],
+                            internal_buffer[1] + delay_buffer[1],
+                            internal_buffer[2] + latency + delay_buffer[2]
+                        ]
                         succ.input_paths[entry].append(total)
 
                 else:  # NodeType.OUTPUT: do nothing
@@ -325,17 +368,21 @@ if __name__ == "__main__":
     total_delay = [0, 0, 0]
 
     for node in chain.kernel_nodes:
-        print("internal buffer:", node, chain.kernel_nodes[node].kernel.graph.buffer_size)
+        print("internal buffer:", node,
+              chain.kernel_nodes[node].kernel.graph.buffer_size)
         total = [0, 0, 0]
         for entry in chain.kernel_nodes[node].kernel.graph.buffer_size:
-            total = KernelChainGraph.list_add_cwise(chain.kernel_nodes[node].kernel.graph.buffer_size[entry], total)
+            total = KernelChainGraph.list_add_cwise(
+                chain.kernel_nodes[node].kernel.graph.buffer_size[entry],
+                total)
         total_internal = KernelChainGraph.list_add_cwise(total, total_internal)
         print("path lengths:", node, chain.kernel_nodes[node].input_paths)
         print("delay buffer:", node, chain.kernel_nodes[node].delay_buffer)
-        total_delay = KernelChainGraph.list_add_cwise(chain.kernel_nodes[node].delay_buffer, total_delay)
-        print("latency:", node, chain.kernel_nodes[node].kernel.graph.max_latency)
+        total_delay = KernelChainGraph.list_add_cwise(
+            chain.kernel_nodes[node].delay_buffer, total_delay)
+        print("latency:", node,
+              chain.kernel_nodes[node].kernel.graph.max_latency)
         print()
 
     print("total internal buffer: ", total_internal)
     print("total delay buffer: ", total_delay)
-
