@@ -1,5 +1,7 @@
 import argparse
 import networkx as nx
+import matplotlib
+matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 from enum import Enum
 import operator
@@ -56,8 +58,9 @@ class KernelChainGraph:
     def plot_graph(self, save_path=None):
 
         # create drawing area
-        plt.figure(figsize=(50, 80))
-        plt.axis('off')
+        fig, ax = plt.subplots()
+        fig.set_size_inches(25, 25)
+        ax.set_axis_off()
 
         # generate positions
         positions = nx.nx_pydot.graphviz_layout(self.graph, prog='dot')
@@ -134,10 +137,10 @@ class KernelChainGraph:
 
         # save plot to file if save_path has been specified
         if save_path is not None:
-            plt.savefig(save_path)
+            fig.savefig(save_path)
         else:
             # plot it
-            plt.show()
+            fig.show()
 
     def connect_kernels(self):
 
