@@ -115,12 +115,14 @@ class ComputeGraph:
         self.min_index = None
         self.max_index = None
         self.buffer_size = None
+        self.accesses = dict()  # dictionary containing all field accesses for a specific resource e.g.
+        # {"A":{[0,0,0],[0,-1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
     @staticmethod
     def compare_to(index_a, index_b):  # A >= B ?
         if index_a[0] > index_b[0]:
             return True
-        elif index_a[1] == index_b[1]:
+        elif index_a[0] == index_b[0]:
             if index_a[1] > index_b[1]:
                 return True
             elif index_a[1] == index_b[1]:
@@ -155,9 +157,21 @@ class ComputeGraph:
                     self.min_index[inp.name] = inp.index
                     self.max_index[inp.name] = inp.index
 
+                if inp.name not in self.accesses:
+                    self.accesses[inp.name] = list()
+                self.accesses[inp.name].append(inp.index)
+
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
             self.buffer_size[buffer_name] = [abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
+
+        # update access to have [0,0,0] for the max_index (subtract it from all)
+        for field in self.accesses:
+            updated_entries = list()
+            for entry in self.accesses[field]:
+                updated_entries.append(Helper.list_subtract_cwise(entry, self.max_index[field]))
+            self.accesses[field] = updated_entries
+
 
     def determine_inputs_outputs(self):
 
