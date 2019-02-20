@@ -257,11 +257,11 @@ class KernelChainGraph:
 
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
-                min_delay = self.min_list_entry(node.input_paths[inp])
+                min_delay = Helper.min_list_entry(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
                     del_buf = node.delay_buffer
-                    sub = self.list_subtract_cwise(entry, min_delay)
-                    node.delay_buffer = self.list_add_cwise(del_buf, sub)
+                    sub = Helper.list_subtract_cwise(entry, min_delay)
+                    node.delay_buffer = Helper.list_add_cwise(del_buf, sub)
 
             if node.node_type == NodeType.INPUT:
                 node.delay_buffer = [0, 0, 0]
@@ -277,7 +277,7 @@ class KernelChainGraph:
                 elif node.node_type == NodeType.KERNEL:  # add KERNEL
 
                     # add latency, internal_buffer, delay_buffer
-                    internal_buffer = self.max_buffer(
+                    internal_buffer = Helper.max_buffer(
                         self.kernel_nodes[node.name].kernel.graph.buffer_size)
                     latency = self.kernel_nodes[
                         node.name].kernel.graph.max_latency
@@ -287,7 +287,7 @@ class KernelChainGraph:
                         if entry not in succ.input_paths:
                             succ.input_paths[entry] = []
 
-                        delay_buffer = self.max_list_entry(
+                        delay_buffer = Helper.max_list_entry(
                             node.input_paths[entry])
 
                         total = [
@@ -300,52 +300,8 @@ class KernelChainGraph:
                 else:  # NodeType.OUTPUT: do nothing
                     continue
 
-                #print("successor of ", node.name, " is ", succ.name)
+                # print("successor of ", node.name, " is ", succ.name)
 
-    @staticmethod
-    def max_buffer(buffer):
-        max_buf = [0, 0, 0]
-        for buf in buffer:
-            entry = buffer[buf]
-            if entry[0] > max_buf[0]:
-                max_buf = entry
-            elif entry[0] == max_buf[0] and entry[1] > max_buf[1]:
-                max_buf = entry
-            elif entry[0] == max_buf[0] and entry[1] == max_buf[1] and entry[2] > max_buf[2]:
-                max_buf = entry
-        return max_buf
-
-    @staticmethod
-    def max_list_entry(buf):
-        max_buf = [0, 0, 0]
-        for entry in buf:
-            if entry[0] > max_buf[0]:
-                max_buf = entry
-            elif entry[0] == max_buf[0] and entry[1] > max_buf[1]:
-                max_buf = entry
-            elif entry[0] == max_buf[0] and entry[1] == max_buf[1] and entry[2] > max_buf[2]:
-                max_buf = entry
-        return max_buf
-
-    @staticmethod
-    def min_list_entry(buf):
-        min_buf = buf[0]
-        for entry in buf:
-            if entry[0] < min_buf[0]:
-                min_buf = entry
-            elif entry[0] == min_buf[0] and entry[1] < min_buf[1]:
-                min_buf = entry
-            elif entry[0] == min_buf[0] and entry[1] == min_buf[1] and entry[2] < min_buf[2]:
-                min_buf = entry
-        return min_buf
-
-    @staticmethod
-    def list_add_cwise(list1, list2):
-        return list(map(lambda x, y: x + y, list1, list2))
-
-    @staticmethod
-    def list_subtract_cwise(list1, list2):
-        return list(map(lambda x, y: x - y, list1, list2))
 
     '''
         simple test stencil program for debugging
@@ -356,16 +312,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("stencil_file")
+    parser.add_argument("plot")
 
     args = parser.parse_args()
 
     chain = KernelChainGraph(args.stencil_file)
-    # chain = KernelChainGraph("simple_input_basic.json")
-    # chain = KernelChainGraph("simple_input_delay_buf.json")
-    # chain = KernelChainGraph("input/fastwaves.json")
-    # chain = KernelChainGraph("input/advection_min.json")
-    # chain = KernelChainGraph("input/diffusion_min.json")
-    # chain = KernelChainGraph("input/dycore_upper_half.json")
+
+    if args.plot:
+        chain.plot_graph("test.png")
 
     total_internal = [0, 0, 0]
     total_delay = [0, 0, 0]
@@ -375,13 +329,13 @@ if __name__ == "__main__":
               chain.kernel_nodes[node].kernel.graph.buffer_size)
         total = [0, 0, 0]
         for entry in chain.kernel_nodes[node].kernel.graph.buffer_size:
-            total = KernelChainGraph.list_add_cwise(
+            total = Helper.list_add_cwise(
                 chain.kernel_nodes[node].kernel.graph.buffer_size[entry],
                 total)
-        total_internal = KernelChainGraph.list_add_cwise(total, total_internal)
+        total_internal = Helper.list_add_cwise(total, total_internal)
         print("path lengths:", node, chain.kernel_nodes[node].input_paths)
         print("delay buffer:", node, chain.kernel_nodes[node].delay_buffer)
-        total_delay = KernelChainGraph.list_add_cwise(
+        total_delay = Helper.list_add_cwise(
             chain.kernel_nodes[node].delay_buffer, total_delay)
         print("latency:", node,
               chain.kernel_nodes[node].kernel.graph.max_latency)
