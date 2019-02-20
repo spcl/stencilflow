@@ -319,12 +319,15 @@ if __name__ == "__main__":
     chain = KernelChainGraph(args.stencil_file)
 
     if args.plot:
-        chain.plot_graph("test.png")
+        chain.plot_graph("output.png")
 
     total_internal = [0, 0, 0]
     total_delay = [0, 0, 0]
 
     for node in chain.kernel_nodes:
+
+        print("field accesses:", node, chain.kernel_nodes[node].kernel.graph.accesses)
+
         print("internal buffer:", node,
               chain.kernel_nodes[node].kernel.graph.buffer_size)
         total = [0, 0, 0]
