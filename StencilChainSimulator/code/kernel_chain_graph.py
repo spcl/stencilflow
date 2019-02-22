@@ -152,8 +152,6 @@ class KernelChainGraph:
                     if src.node_type == NodeType.KERNEL and dest.node_type == NodeType.KERNEL:
                         for inp in dest.kernel.graph.inputs:
                             if src.name == inp.name:
-                                # add edge
-                                self.graph.add_edge(src, dest)
                                 # create channel
                                 name = src.name + "_" + dest.name
                                 channel = BoundedQueue(name, 1)
@@ -161,12 +159,12 @@ class KernelChainGraph:
                                 # add channel to both endpoints
                                 src.kernel.outputs[dest.name] = channel
                                 dest.kernel.inputs[src.name] = channel
+                                # add edge
+                                self.graph.add_edge(src, dest, channel=channel)
                                 break
                     elif src.node_type == NodeType.INPUT and dest.node_type == NodeType.KERNEL:
                         for inp in dest.kernel.graph.inputs:
                             if src.name == inp.name:
-                                # add edge
-                                self.graph.add_edge(src, dest)
                                 # create channel
                                 name = src.name + "_" + dest.name
                                 channel = BoundedQueue(name, 1)
@@ -174,11 +172,11 @@ class KernelChainGraph:
                                 # add channel to both endpoints
                                 src.outputs[dest.name] = channel
                                 dest.kernel.inputs[src.name] = channel
+                                # add edge
+                                self.graph.add_edge(src, dest, channel=channel)
                                 break
                     elif dest.node_type == NodeType.OUTPUT:
                         if src.name == dest.name:
-                            # add edge
-                            self.graph.add_edge(src, dest)
                             # create channel
                             name = src.name + "_" + dest.name
                             channel = BoundedQueue(name, 1)
@@ -186,6 +184,8 @@ class KernelChainGraph:
                             # add channel to both endpoints
                             src.outputs[dest.name] = channel
                             dest.data_queue = channel
+                            # add edge
+                            self.graph.add_edge(src, dest, channel=channel)
                     else:
                         pass  # Are there reasons for existence of those combinations?
 
@@ -323,6 +323,12 @@ if __name__ == "__main__":
 
     total_internal = [0, 0, 0]
     total_delay = [0, 0, 0]
+
+    print("print all channel names")
+    for u, v, channel in chain.graph.edges(data='channel'):
+        if channel is not None:
+            print(channel.name)
+    print()
 
     for node in chain.kernel_nodes:
 
