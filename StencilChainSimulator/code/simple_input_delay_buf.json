@@ -3,7 +3,7 @@
 		"wtgfac": [1, 1, 1, 1, 1, 1, 1, 1]
 	},
 	"outputs": ["div"],
-	"dimensions": [2, 2, 2],
+	"dimensions": [100, 100, 100],
 	"program": {
 		"vdc": "res = 0.25 * (wtgfac[i,j,k+1] + wtgfac[i,j,k-1] + wtgfac[i,j+1,k] + wtgfac[i,j-1,k]) + vout[i,j,k]",
 
