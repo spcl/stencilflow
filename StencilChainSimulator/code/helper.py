@@ -61,3 +61,22 @@ class Helper:
     @staticmethod
     def list_subtract_cwise(list1, list2):
         return list(map(lambda x, y: x - y, list1, list2))
+
+    @staticmethod
+    def compare_to(index_a, index_b):  # A >= B ?
+        if index_a[0] > index_b[0]:
+            return True
+        elif index_a[0] == index_b[0]:
+            if index_a[1] > index_b[1]:
+                return True
+            elif index_a[1] == index_b[1]:
+                if index_a[2] > index_b[2]:
+                    return True
+                elif index_a[2] == index_b[2]:
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False

@@ -118,25 +118,6 @@ class ComputeGraph:
         self.accesses = dict()  # dictionary containing all field accesses for a specific resource e.g.
         # {"A":{[0,0,0],[0,-1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
-    @staticmethod
-    def compare_to(index_a, index_b):  # A >= B ?
-        if index_a[0] > index_b[0]:
-            return True
-        elif index_a[0] == index_b[0]:
-            if index_a[1] > index_b[1]:
-                return True
-            elif index_a[1] == index_b[1]:
-                if index_a[2] > index_b[2]:
-                    return True
-                elif index_a[2] == index_b[2]:
-                    return True
-                else:
-                    return False
-            else:
-                return False
-        else:
-            return False
-
     def setup_internal_buffers(self):
 
         # init dicts
@@ -148,10 +129,10 @@ class ComputeGraph:
         for inp in self.inputs:
             if inp.node_type == NodeType.NAME:
                 if inp.name in self.min_index:
-                    if not self.compare_to(inp.index, self.min_index[inp.name]):
+                    if not Helper.compare_to(inp.index, self.min_index[inp.name]):
                         self.min_index[inp.name] = inp.index
 
-                    if self.compare_to(inp.index, self.max_index[inp.name]):
+                    if Helper.compare_to(inp.index, self.max_index[inp.name]):
                         self.max_index[inp.name] = inp.index
                 else:  # first entry
                     self.min_index[inp.name] = inp.index
