@@ -172,7 +172,6 @@ class ComputeGraph:
                 updated_entries.append(Helper.list_subtract_cwise(entry, self.max_index[field]))
             self.accesses[field] = updated_entries
 
-
     def determine_inputs_outputs(self):
 
         # create empty sets
