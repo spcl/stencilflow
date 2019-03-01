@@ -25,7 +25,8 @@ class Node:
         self.outputs = dict()
         self.data_queue = data_queue  # only used for type: INPUT, OUTPUT
         self.input_paths = dict()
-        self.delay_buffer = [0, 0, 0]
+        self.delay_buffer = dict()
+        self.total_delay_buffer = [0, 0, 0]
 
     def generate_label(self):
         return self.name
@@ -53,6 +54,7 @@ class KernelChainGraph:
         self.compute_kernel_latency()
         self.connect_kernels()
         self.compute_delay_buffer()
+        self.add_channels()
         # self.plot_graph("overview.png")
 
     def plot_graph(self, save_path=None):
@@ -142,50 +144,83 @@ class KernelChainGraph:
             # plot it
             fig.show()
 
+    def channel_size(self, dest_node, src_node):
+        del_buf = self.kernel_nodes[dest_node.name].delay_buffer[src_node.name]
+        int_buf = self.kernel_nodes[dest_node.name].kernel.graph.buffer_size[src_node.name]
+
+        if Helper.compare_to(del_buf, int_buf):  # return max # TODO: check if this is always the case
+            return del_buf
+        else:
+            return int_buf
+
     def connect_kernels(self):
 
+        for src in self.graph.nodes:
+            for dest in self.graph.nodes:
+                if src is not dest:  # skip src == dest
+                    if src.node_type == NodeType.KERNEL and dest.node_type == NodeType.KERNEL:  # case: KERNEL -> KERNEL
+                        for inp in dest.kernel.graph.inputs:
+                            if src.name == inp.name:
+                                # add edge
+                                self.graph.add_edge(src, dest, channel=None)
+                                break
+                    elif src.node_type == NodeType.INPUT and dest.node_type == NodeType.KERNEL:  # case: INPUT -> KERNEL
+                        for inp in dest.kernel.graph.inputs:
+                            if src.name == inp.name:
+                                # add edge
+                                self.graph.add_edge(src, dest, channel=None)
+                                break
+                    elif dest.node_type == NodeType.OUTPUT:  # case: INPUT/KERNEL -> OUTPUT
+                        if src.name == dest.name:
+                            # add edge
+                            self.graph.add_edge(src, dest, channel=None)
+                    else:
+                        pass  # Are there reasons for existence of those combinations?
+
+    def add_channels(self):
         self.channels = dict()
 
         for src in self.graph.nodes:
             for dest in self.graph.nodes:
                 if src is not dest:  # skip src == dest
-                    if src.node_type == NodeType.KERNEL and dest.node_type == NodeType.KERNEL:
+                    if src.node_type == NodeType.KERNEL and dest.node_type == NodeType.KERNEL:  # case: KERNEL -> KERNEL
                         for inp in dest.kernel.graph.inputs:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
-                                channel = BoundedQueue(name, 1)
+                                channel = BoundedQueue(name, 1 + src.kernel.convert_3d_to_1d(self.channel_size(dest, src)))
+                                # TODO: move convert_3d_to_1d into higher hierarchical level
                                 self.channels[name] = channel
                                 # add channel to both endpoints
                                 src.kernel.outputs[dest.name] = channel
                                 dest.kernel.inputs[src.name] = channel
-                                # add edge
-                                self.graph.add_edge(src, dest, channel=channel)
+                                # add to edge
+                                self.graph[src][dest]['channel'] = channel
                                 break
-                    elif src.node_type == NodeType.INPUT and dest.node_type == NodeType.KERNEL:
+                    elif src.node_type == NodeType.INPUT and dest.node_type == NodeType.KERNEL:  # case: INPUT -> KERNEL
                         for inp in dest.kernel.graph.inputs:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
-                                channel = BoundedQueue(name, 1)
+                                channel = BoundedQueue(name, 1 + dest.kernel.convert_3d_to_1d(self.channel_size(dest, src)))
                                 self.channels[name] = channel
                                 # add channel to both endpoints
                                 src.outputs[dest.name] = channel
                                 dest.kernel.inputs[src.name] = channel
-                                # add edge
-                                self.graph.add_edge(src, dest, channel=channel)
+                                # add to edge
+                                self.graph[src][dest]['channel'] = channel
                                 break
-                    elif dest.node_type == NodeType.OUTPUT:
+                    elif dest.node_type == NodeType.OUTPUT:  # case: INPUT/KERNEL -> OUTPUT
                         if src.name == dest.name:
                             # create channel
                             name = src.name + "_" + dest.name
-                            channel = BoundedQueue(name, 1)
+                            channel = BoundedQueue(name, 1)  # no buffer
                             self.channels[name] = channel
                             # add channel to both endpoints
                             src.outputs[dest.name] = channel
                             dest.data_queue = channel
-                            # add edge
-                            self.graph.add_edge(src, dest, channel=channel)
+                            # add to edge
+                            self.graph[src][dest]['channel'] = channel
                     else:
                         pass  # Are there reasons for existence of those combinations?
 
@@ -218,8 +253,7 @@ class KernelChainGraph:
 
         # create all input nodes
         for inp in self.inputs:
-            if len(self.inputs[inp]) == self.total_elements(
-            ):  # if the input data list is of size total_elements,
+            if len(self.inputs[inp]) == self.total_elements():  # if the input data list is of size total_elements,
                 #  it is a valid input for simulation
                 self.graph.add_node(
                     Node(
@@ -245,6 +279,20 @@ class KernelChainGraph:
             self.kernel_latency[kernel] = self.kernels[
                 kernel].graph.max_latency
 
+    '''
+    delay buffer entries should be of the format:
+
+    kernel.input_paths:
+
+    {
+        "in1": [[a,b,c, pred1], [d,e,f, pred2], ...],
+        "in2": [ ... ],
+        ...
+    }
+
+    where inX are input arrays to the stencil chain and predY are the kernel predecessors/inputs
+    '''
+
     def compute_delay_buffer(self):
 
         # get topological order for top-down walk through of the graph
@@ -257,14 +305,13 @@ class KernelChainGraph:
 
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
-                min_delay = Helper.min_list_entry(node.input_paths[inp])
+                # min_delay = Helper.min_list_entry(node.input_paths[inp])
+                max_delay = Helper.max_list_entry(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
-                    del_buf = node.delay_buffer
-                    sub = Helper.list_subtract_cwise(entry, min_delay)
-                    node.delay_buffer = Helper.list_add_cwise(del_buf, sub)
-
+                    # node.delay_buffer[entry[3]] = Helper.list_subtract_cwise(entry[0:3], min_delay[0:3])
+                    node.delay_buffer[entry[3]] = Helper.list_subtract_cwise(max_delay[0:3], entry[0:3])
             if node.node_type == NodeType.INPUT:
-                node.delay_buffer = [0, 0, 0]
+                node.delay_buffer = [0, 0, 0, node.name]
 
             for succ in self.graph.successors(node):
 
@@ -272,36 +319,34 @@ class KernelChainGraph:
                     # add emtpy list dictionary entry for enabling list append()
                     if node.name not in succ.input_paths:
                         succ.input_paths[node.name] = []
-                    succ.input_paths[node.name].append([0, 0, 0])
+                    # succ.input_paths[node.name].append((node.name, [0, 0, 0])) ##
+                    succ.input_paths[node.name].append([0, 0, 0, node.name])
 
                 elif node.node_type == NodeType.KERNEL:  # add KERNEL
 
                     # add latency, internal_buffer, delay_buffer
-                    internal_buffer = Helper.max_buffer(
-                        self.kernel_nodes[node.name].kernel.graph.buffer_size)
-                    latency = self.kernel_nodes[
-                        node.name].kernel.graph.max_latency
+                    internal_buffer = Helper.max_buffer(self.kernel_nodes[node.name].kernel.graph.buffer_size)
+                    latency = self.kernel_nodes[node.name].kernel.graph.max_latency
 
                     for entry in node.input_paths:
 
                         if entry not in succ.input_paths:
                             succ.input_paths[entry] = []
 
-                        delay_buffer = Helper.max_list_entry(
-                            node.input_paths[entry])
+                        delay_buffer = Helper.max_list_entry(node.input_paths[entry][0:3])
+                        # max determines 'longest path'
 
                         total = [
                             internal_buffer[0] + delay_buffer[0],
                             internal_buffer[1] + delay_buffer[1],
-                            internal_buffer[2] + latency + delay_buffer[2]
+                            internal_buffer[2] + latency + delay_buffer[2],
+                            node.name
                         ]
+
                         succ.input_paths[entry].append(total)
 
                 else:  # NodeType.OUTPUT: do nothing
                     continue
-
-                # print("successor of ", node.name, " is ", succ.name)
-
 
     '''
         simple test stencil program for debugging
@@ -310,45 +355,64 @@ class KernelChainGraph:
 
 if __name__ == "__main__":
 
+    # usage: python3 kernel_chain_graph.py --stencil_file simple_input_delay_buf.json --plot False --report True
     parser = argparse.ArgumentParser()
-    parser.add_argument("stencil_file")
-    parser.add_argument("plot")
+    parser.add_argument("--stencil_file")
+    parser.add_argument("--plot")
+    parser.add_argument("--report")
 
     args = parser.parse_args()
 
     chain = KernelChainGraph(args.stencil_file)
 
-    if args.plot:
+    if args.plot == "True":
         chain.plot_graph("output.png")
 
-    total_internal = [0, 0, 0]
-    total_delay = [0, 0, 0]
+    if args.report == "True":
 
-    print("print all channel names")
-    for u, v, channel in chain.graph.edges(data='channel'):
-        if channel is not None:
-            print(channel.name)
-    print()
+        print("Report of {}\n".format(args.stencil_file))
 
-    for node in chain.kernel_nodes:
+        total_internal = [0, 0, 0]
+        total_delay = [0, 0, 0]
 
-        print("field accesses:", node, chain.kernel_nodes[node].kernel.graph.accesses)
+        print("dimensions of data array: {}\n".format(chain.dimensions))
 
-        print("internal buffer:", node,
-              chain.kernel_nodes[node].kernel.graph.buffer_size)
-        total = [0, 0, 0]
-        for entry in chain.kernel_nodes[node].kernel.graph.buffer_size:
-            total = Helper.list_add_cwise(
-                chain.kernel_nodes[node].kernel.graph.buffer_size[entry],
-                total)
-        total_internal = Helper.list_add_cwise(total, total_internal)
-        print("path lengths:", node, chain.kernel_nodes[node].input_paths)
-        print("delay buffer:", node, chain.kernel_nodes[node].delay_buffer)
-        total_delay = Helper.list_add_cwise(
-            chain.kernel_nodes[node].delay_buffer, total_delay)
-        print("latency:", node,
-              chain.kernel_nodes[node].kernel.graph.max_latency)
+        print("channel info:")
+        for u, v, channel in chain.graph.edges(data='channel'):
+            if channel is not None:
+                print("channel name: {}, max channel size: {}".format(channel.name, channel.maxsize))
         print()
 
-    print("total internal buffer: ", total_internal)
-    print("total delay buffer: ", total_delay)
+        print("field access info:")
+        for node in chain.kernel_nodes:
+            print("node name: {}, field accesses: {}".format(node, chain.kernel_nodes[node].kernel.graph.accesses))
+        print()
+
+        print("internal buffer size info:")
+        for node in chain.kernel_nodes:
+            print("node name: {}, internal buffer size: {}".format(node,
+                                                                   chain.kernel_nodes[node].kernel.graph.buffer_size))
+        print()
+
+        print("delay buffer size info:")
+        for node in chain.kernel_nodes:
+            print("node name: {}, delay buffer size: {}".format(node, chain.kernel_nodes[node].delay_buffer))
+        print()
+
+        print("path length info:")
+        for node in chain.kernel_nodes:
+            print("node name: {}, path lengths: {}".format(node, chain.kernel_nodes[node].input_paths))
+        print()
+
+        print("latency info:")
+        for node in chain.kernel_nodes:
+            print("node name: {}, node latency: {}".format(node, chain.kernel_nodes[node].kernel.graph.max_latency))
+        print()
+
+        print("total buffer info:")
+        total = 0
+        for node in chain.kernel_nodes:
+            for u, v, channel in chain.graph.edges(data='channel'):
+                if channel is not None:
+                    total += channel.maxsize
+        print("total buffer size: {}\n".format(total))
