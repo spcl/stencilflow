@@ -16,6 +16,11 @@ class Calculator:
         ast.Invert: operator.neg
     }
 
+    _COMP_MAP = {
+        ast.Lt: operator.lt,
+        ast.LtE: operator.le
+    }
+
     _CALL_MAP = {
         "sin": math.sin,
         "cos": math.cos,
@@ -41,7 +46,20 @@ class Calculator:
             return node.n
 
         def visit_Expr(self, node):
-            return self.visit(node.value)
+            res = self.visit(node.value)
+            return res
+
+        def visit_IfExp(self, node):  # added for ternary operations of the (python syntax: a if expr else b)
+
+            if self.visit(node.test):
+                return self.visit(node.body)  # left
+            else:
+                return self.visit(node.orelse)  # right
+
+        def visit_Compare(self, node):  # added for ternary operations of the (python syntax: a if expr else b)
+            left = self.visit(node.left)
+            right = self.visit(node.comparators[0])
+            return Calculator._COMP_MAP[type(node.ops[0])](left, right)
 
         def visit_Name(self, node):
             return self.var_map[node.id]
@@ -81,8 +99,9 @@ if __name__ == "__main__":
     for var in variables:
         print("name: " + var + " value: " + str(variables[var]))
 
-    computation = "(a + 5) * cos(a + b)"
+    # computation = "(a + 5) * cos(a + b)"
     # TODO: support ternary operations such as: "a < 5 ? a:b"
+    computation = "a if (a < b) else b"
 
     calculator = Calculator()
     result = calculator.eval_expr(variables, computation)
