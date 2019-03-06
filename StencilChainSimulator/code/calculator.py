@@ -82,6 +82,7 @@ if __name__ == "__main__":
         print("name: " + var + " value: " + str(variables[var]))
 
     computation = "(a + 5) * cos(a + b)"
+    # TODO: support ternary operations such as: "a < 5 ? a:b"
 
     calculator = Calculator()
     result = calculator.eval_expr(variables, computation)
