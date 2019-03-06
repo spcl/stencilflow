@@ -4,8 +4,14 @@ import collections
 class BoundedQueue:
 
     def __init__(self, name, maxsize, collection=[]):
+        """
+
+        :param name:
+        :param maxsize:
+        :param collection:
+        """
         # check input
-        # assert maxsize > 0 TODO: check why this assertion fails..
+        assert maxsize > 0 
         # save params
         self.maxsize = maxsize
         self.name = name
@@ -15,12 +21,25 @@ class BoundedQueue:
         self.current_size = len(collection)
 
     def size(self):
+        """
+
+        :return:
+        """
         return self.current_size
 
     def is_empty(self):
+        """
+
+        :return:
+        """
         return self.size() == 0
 
     def enqueue(self, item):
+        """
+
+        :param item:
+        :return:
+        """
         # check bound
         if self.current_size >= self.maxsize:
             raise RuntimeError("buffer {} overflow occurred".format(self.name))
@@ -30,6 +49,10 @@ class BoundedQueue:
         self.current_size += 1
 
     def dequeue(self):
+        """
+
+        :return:
+        """
         # check bound
         if self.current_size > 0:
             # adjust size
@@ -40,6 +63,11 @@ class BoundedQueue:
             raise RuntimeError("buffer {} underflow occurred".format(self.name))
 
     def try_enqueue(self, item):
+        """
+
+        :param item:
+        :return:
+        """
         # check bound, do not raise exception in case of an overflow
         if self.current_size >= self.maxsize:
             # report: unsuccessful
@@ -52,6 +80,10 @@ class BoundedQueue:
         return True
 
     def try_dequeue(self):
+        """
+
+        :return:
+        """
         # check bound, do not raise exception in case of an underflow
         if self.current_size > 0:
             # adjust size
@@ -63,6 +95,11 @@ class BoundedQueue:
             return False
 
     def peek(self, index):
+        """
+
+        :param index:
+        :return:
+        """
         # check bound
         if self.current_size <= index:
             raise RuntimeError("buffer {} index out of bound access occurred".format(self.name))
