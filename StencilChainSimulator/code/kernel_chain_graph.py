@@ -148,7 +148,7 @@ class KernelChainGraph:
         del_buf = self.kernel_nodes[dest_node.name].delay_buffer[src_node.name]
         int_buf = self.kernel_nodes[dest_node.name].kernel.graph.buffer_size[src_node.name]
 
-        if Helper.compare_to(del_buf, int_buf):  # return max # TODO: check if this is always the case
+        if del_buf >= int_buf:  # return max # TODO: check if this is always the case
             return del_buf
         else:
             return int_buf
@@ -325,7 +325,8 @@ class KernelChainGraph:
                 elif node.node_type == NodeType.KERNEL:  # add KERNEL
 
                     # add latency, internal_buffer, delay_buffer
-                    internal_buffer = Helper.max_buffer(self.kernel_nodes[node.name].kernel.graph.buffer_size)
+                    internal_buffer = self.kernel_nodes[node.name].kernel.graph.buffer_size[Helper.max_dict_entry_key(
+                        self.kernel_nodes[node.name].kernel.graph.buffer_size)]
                     latency = self.kernel_nodes[node.name].kernel.graph.max_latency
 
                     for entry in node.input_paths:
