@@ -18,7 +18,10 @@ class Calculator:
 
     _COMP_MAP = {
         ast.Lt: operator.lt,
-        ast.LtE: operator.le
+        ast.LtE: operator.le,
+        ast.Gt: operator.gt,
+        ast.GtE: operator.ge,
+        ast.Eq: operator.eq
     }
 
     _CALL_MAP = {
