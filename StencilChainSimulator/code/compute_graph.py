@@ -129,10 +129,10 @@ class ComputeGraph:
         for inp in self.inputs:
             if inp.node_type == NodeType.NAME:
                 if inp.name in self.min_index:
-                    if not Helper.compare_to(inp.index, self.min_index[inp.name]):
+                    if inp.index < self.min_index[inp.name]:
                         self.min_index[inp.name] = inp.index
 
-                    if Helper.compare_to(inp.index, self.max_index[inp.name]):
+                    if inp.index >= self.max_index[inp.name]:
                         self.max_index[inp.name] = inp.index
                 else:  # first entry
                     self.min_index[inp.name] = inp.index
