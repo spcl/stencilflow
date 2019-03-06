@@ -53,11 +53,10 @@ class Calculator:
             return res
 
         def visit_IfExp(self, node):  # added for ternary operations of the (python syntax: a if expr else b)
-
-            if self.visit(node.test):
-                return self.visit(node.body)  # left
+            if self.visit(node.test):  # evaluate comparison
+                return self.visit(node.body)  # use left
             else:
-                return self.visit(node.orelse)  # right
+                return self.visit(node.orelse)  # use right
 
         def visit_Compare(self, node):  # added for ternary operations of the (python syntax: a if expr else b)
             left = self.visit(node.left)
@@ -102,9 +101,7 @@ if __name__ == "__main__":
     for var in variables:
         print("name: " + var + " value: " + str(variables[var]))
 
-    # computation = "(a + 5) * cos(a + b)"
-    # TODO: support ternary operations such as: "a < 5 ? a:b"
-    computation = "a if (a < b) else b"
+    computation = "cos(a + b) if (a > b) else (a + 5)*b"
 
     calculator = Calculator()
     result = calculator.eval_expr(variables, computation)
