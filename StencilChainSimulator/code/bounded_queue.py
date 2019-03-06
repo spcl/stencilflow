@@ -11,7 +11,7 @@ class BoundedQueue:
         :param collection:
         """
         # check input
-        assert maxsize > 0 
+        assert maxsize > 0
         # save params
         self.maxsize = maxsize
         self.name = name
@@ -22,23 +22,23 @@ class BoundedQueue:
 
     def size(self):
         """
-
-        :return:
+        Get number of data items the queue currently contains.
+        :return: current queue size
         """
         return self.current_size
 
     def is_empty(self):
         """
-
-        :return:
+        Test if queue is empty.
+        :return: if queue is empty
         """
         return self.size() == 0
 
     def enqueue(self, item):
         """
-
-        :param item:
-        :return:
+        Add data element to queue, causes an exception if queue is full.
+        :param item: data element
+        :return: None
         """
         # check bound
         if self.current_size >= self.maxsize:
@@ -50,8 +50,8 @@ class BoundedQueue:
 
     def dequeue(self):
         """
-
-        :return:
+        Remove and return data element from queue, causes an exception if queue is empty.
+        :return: data element
         """
         # check bound
         if self.current_size > 0:
@@ -64,9 +64,9 @@ class BoundedQueue:
 
     def try_enqueue(self, item):
         """
-
-        :param item:
-        :return:
+        Add data element to queue..
+        :param item: data item
+        :return: True: successful, False: unsuccessful
         """
         # check bound, do not raise exception in case of an overflow
         if self.current_size >= self.maxsize:
@@ -81,8 +81,8 @@ class BoundedQueue:
 
     def try_dequeue(self):
         """
-
-        :return:
+        Remove and return data item from queue.
+        :return: data item: successful, False: unsuccessful
         """
         # check bound, do not raise exception in case of an underflow
         if self.current_size > 0:
@@ -96,9 +96,9 @@ class BoundedQueue:
 
     def peek(self, index):
         """
-
-        :param index:
-        :return:
+        Returns data item at position 'index' without removal, causes an exception if index > BoundedQueue.current_size
+        :param index: queue position of peeking element
+        :return: data item
         """
         # check bound
         if self.current_size <= index:
@@ -117,7 +117,9 @@ Notes:
 '''
 
 if __name__ == "__main__":
+
     queue = BoundedQueue("debug", 5, [1, 2, 3, 4, 5])
+    
     try:
         print("Enqueue element into full queue, should throw an exception.")
         queue.enqueue(6)
