@@ -119,7 +119,7 @@ Notes:
 if __name__ == "__main__":
 
     queue = BoundedQueue("debug", 5, [1, 2, 3, 4, 5])
-    
+
     try:
         print("Enqueue element into full queue, should throw an exception.")
         queue.enqueue(6)
