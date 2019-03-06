@@ -33,6 +33,12 @@ class Calculator:
     }
 
     def eval_expr(self, variable_map, computation_string):
+        """
+        Given a mapping from variable names to values and a mathematical (python) expression, it evaluates the expression.
+        :param variable_map: a dictionary map containing all variables of the computation_string
+        :param computation_string: a python-syntax-compatible input string
+        :return: the result of the expression
+        """
         return self.calc.evaluate(variable_map, computation_string)
 
     class Calc(ast.NodeVisitor):
