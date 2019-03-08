@@ -64,7 +64,7 @@ class Calculator:
             else:
                 return self.visit(node.orelse)  # use right
 
-        def visit_Compare(self, node):  # added for ternary operations of the (python syntax: a if expr else b)
+        def visit_Compare(self, node):  # added for ternary operations (python syntax: a if expr else b)
             left = self.visit(node.left)
             right = self.visit(node.comparators[0])
             return Calculator._COMP_MAP[type(node.ops[0])](left, right)
@@ -84,10 +84,10 @@ class Calculator:
 
 
 '''
-    safe calculator class (instead of evaluate())
+    safe (in contrast to evaluate()) python expression evaluator class
         -input:
             - map: variable name -> value
-            - computation string
+            - computation string (must be python syntax, e.g. for ternary operations)
         - output: resulting value
 
     credits: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
