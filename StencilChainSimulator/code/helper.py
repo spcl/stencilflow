@@ -2,6 +2,8 @@ import json
 import os.path
 import functools
 import warnings
+import operator
+from functools import reduce
 
 
 class Helper:
@@ -116,6 +118,18 @@ class Helper:
             raise Exception("list2 should be of type {}, but is of type {}".format(type(list), type(list2)))
         # do map lambda operation over both lists
         return list(map(lambda x, y: x - y, list1, list2))
+
+    @staticmethod
+    def dim_to_abs_val(input, dimensions):
+        """
+        Computes scalar number out of independent dimension unit.
+        :param input: vector to evaluate
+        :param dimensions: vector of global array dimensions
+        :return: scalar value
+        """
+        # dim [X, Y, Z], size [a, b, c] -> 1*c + X*(b + Y*a) = [a, b, c] * transpose([Z*Y, Z, 1])
+        vec = [dimensions[2]*dimensions[1], dimensions[2], 1]
+        return reduce(operator.add, map(operator.mul, input, vec))  # inner product
 
 
 if __name__ == "__main__":
