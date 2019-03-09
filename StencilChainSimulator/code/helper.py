@@ -121,8 +121,8 @@ class Helper:
 if __name__ == "__main__":
 
     example_list = [[1, 2, 2], [1, 2, 3], [3, 2, 1], [2, 3, 1]]
-    print("properties of list {}:\nmin: {}\nmax: {}\n".format(example_list, Helper.min_list_entry(example_list),
-                                                              Helper.max_list_entry(example_list)))
+    print("properties of list {}:\nmin: {}\nmax: {}\n".format(example_list, min(example_list),
+                                                              max(example_list)))
 
     example_dict = {"small": [0, 10, 10],
                     "very small": [0, 1, 0],

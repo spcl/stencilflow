@@ -306,7 +306,7 @@ class KernelChainGraph:
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
                 # min_delay = Helper.min_list_entry(node.input_paths[inp])
-                max_delay = Helper.max_list_entry(node.input_paths[inp])
+                max_delay = max(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
                     # node.delay_buffer[entry[3]] = Helper.list_subtract_cwise(entry[0:3], min_delay[0:3])
                     node.delay_buffer[entry[3]] = Helper.list_subtract_cwise(max_delay[0:3], entry[0:3])
@@ -334,7 +334,7 @@ class KernelChainGraph:
                         if entry not in succ.input_paths:
                             succ.input_paths[entry] = []
 
-                        delay_buffer = Helper.max_list_entry(node.input_paths[entry][0:3])
+                        delay_buffer = max(node.input_paths[entry][0:3])
                         # max determines 'longest path'
 
                         total = [
