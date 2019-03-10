@@ -350,6 +350,21 @@ class KernelChainGraph:
                     continue
 
     '''
+    Since we know the output nodes as well as the path lengths the critical path is just 
+    max { latency(node) + max { path_length(node) | node in output nodes }
+    '''
+    def compute_critical_path(self):
+
+        critical_path_length = [0, 0, 0]
+        for output in self.outputs:
+            a = self.kernel_nodes[output].kernel.graph.max_latency
+            b = max(self.kernel_nodes[output].input_paths)
+            c = max(self.kernel_nodes[output].input_paths[b])
+            c[2] += a
+            critical_path_length = max(critical_path_length, c)
+        return Helper.dim_to_abs_val(c[0:3], self.dimensions)
+
+    '''
         simple test stencil program for debugging
     '''
 
@@ -409,6 +424,9 @@ if __name__ == "__main__":
         for node in chain.kernel_nodes:
             print("node name: {}, node latency: {}".format(node, chain.kernel_nodes[node].kernel.graph.max_latency))
         print()
+
+        print("critical path info:")
+        print("critical path length is {}\n".format(chain.compute_critical_path()))
 
         print("total buffer info:")
         total = 0
