@@ -1,69 +1,90 @@
+from functools import reduce
+import operator
 from kernel_chain_graph import KernelChainGraph
+from kernel_chain_graph import Helper
+
+'''
+    assumptions:
+'''
+
+'''
+datatype: at the moment, we assume float (32bit) are precise enough
+'''
+_SIZEOF_DATATYPE = 4  # in bytes
+
+'''
+we assume that we can iterate over the smaller dimension by transposition of all data arrays, if not, change this to
+[64, 1024, 1024] (would lead to a factor 16 of buffer space growth
+'''
+_DIMENSIONS = [1024, 1024, 64]  # longitude x latitude x altitude
+
+'''
+estimate for critical path length (#cycles):
+
+Stencil Chains:
+    fastwaves:     [3, 1, 54]
+    diffusion_min: [3, 0, 24]
+    advection_min: [7, 4, 26]
+    
+-> use mean of the three: [4, 2, 35]
+'''
+_MEAN_CRITICAL_PATH_KERNEL = [4, 2, 35]
+
+'''
+ FPGA clock frequency: 200Mhz
+'''
+_FPGA_CLOCK_FREQUENCY = 2e8
+
+'''
+ available FGPA fast memory (Stratix 10): 25MB
+'''
+_FPGA_FAST_MEMORY_SIZE = 25e6
+
+'''
+ available bandwidth to slow memory (Stratix 10): 86.4GB/s
+'''
+_FPGA_BANDWIDTH = 86.4e9
+
+'''
+ we assume that as soon as the pipeline is saturated, we can produce one result per cycle
+'''
+_CYCLES_PER_OUTPUT = 1
 
 
 def do_estimate():
 
-        chain = KernelChainGraph("input/dycore_upper_half_3.json")
-        print_chain_info(chain)
+    print("COSMO dynamical core buffer size estimate report:\n")
 
+    # instantiate the dummy-dycore to get full analysis
+    chain = KernelChainGraph("input/dycore_upper_half_3.json")
 
-def print_chain_info(chain):
-    total_internal = [0, 0, 0]
-    total_delay = [0, 0, 0]
+    '''
+     assumption: since we implemented ~1/2 of the dycore in the dummy input file, we assume the critical path is 2x longer
+    '''
+    _DYCORE_CRITICAL_PATH_LENGTH = 2*chain.compute_critical_path()
 
-    for node in chain.kernel_nodes:
-        print("internal buffer:", node, chain.kernel_nodes[node].kernel.graph.buffer_size)
-        total = [0, 0, 0]
-        for entry in chain.kernel_nodes[node].kernel.graph.buffer_size:
-            total = KernelChainGraph.list_add_cwise(chain.kernel_nodes[node].kernel.graph.buffer_size[entry], total)
-        total_internal = KernelChainGraph.list_add_cwise(total, total_internal)
-        print("path lengths:", node, chain.kernel_nodes[node].input_paths)
-        print("delay buffer:", node, chain.kernel_nodes[node].delay_buffer)
-        total_delay = KernelChainGraph.list_add_cwise(chain.kernel_nodes[node].delay_buffer, total_delay)
-        print("latency:", node, chain.kernel_nodes[node].kernel.graph.max_latency)
-        print()
+    # compute total critical path
+    critical_path_dim = [x*_DYCORE_CRITICAL_PATH_LENGTH for x in _MEAN_CRITICAL_PATH_KERNEL]
+    print("total critical path length (dimensionless) = _MEAN_CRITICAL_PATH_KERNEL * _DYCORE_CRITICAL_PATH_LENGTH = "
+          "{} * {} = {}".format(_MEAN_CRITICAL_PATH_KERNEL, _DYCORE_CRITICAL_PATH_LENGTH, critical_path_dim))
 
-    print("total internal buffer: ", total_internal)
-    print("total delay buffer: ", total_delay)
+    critical_path_cyc = Helper.dim_to_abs_val(critical_path_dim, _DIMENSIONS)
+    print("total critical path length (cycles) = {} cycles\n".format(critical_path_cyc))
+
+    # compute maximum possible communication volume
+    run_time_cyc = critical_path_cyc + reduce(operator.mul, _DIMENSIONS)
+    print("total run time (cycles) = latency + dimX*dimY*dimZ = {}".format(run_time_cyc))
+
+    run_time_sec = run_time_cyc / _FPGA_CLOCK_FREQUENCY
+    print("total run time (seconds) = total run time (cycles) / _FPGA_CLOCK_FREQUENCY = {}".format(run_time_sec))
+
+    comm_vol = _FPGA_BANDWIDTH * run_time_sec
+    print("maximum available communication volume (to slow memory) = _FPGA_BANDWIDTH * total run time (seconds) = {}"
+          .format(comm_vol))
+
+    # TODO: add function/plot for the optimization of buffer space till reaching the maximum available
+    #  communication volume
 
 
 if __name__ == "__main__":
     do_estimate()
-
-
-    """
-    average stencil program buffer estimate (average of three)
-    
-    fastwaves:    
-    total internal buffer:  [8, 7, 6]
-    total delay buffer:  [32, -12, 289]
-    total: [40, -5, 295]
-    
-    diffusion_min:
-    total internal buffer:  [16, 13, 0]
-    total delay buffer:  [20, 8, 192]
-    total: [36, 21, 192]
-    
-    advection_min:
-    total internal buffer:  [8, 8, 0]
-    total delay buffer:  [10, 2, 57]
-    total: [18, 10, 57]
-    
-    average: [31, 9, 544]
-    
-    total dimensions: 1024x1024x64 (longitude x latitude x altitude)
-    dimensions: we assume: buffering of vertical slices of size 1024*64 (to be double-checked,
-     if that is possible instead of horizontal 1024*1024 elements slices)
-    
-    single-precision floating point (4bytes):
-    4 * (544 + 9*64 + 31*64*1024) = 8130944 bytes ~ 8.1MB
-    
-    double-precision floating point (8bytes):
-    8 * (544 + 9*64 + 31*64*1024) = 16261888 bytes ~ 16.2MB
-    
-    
-    output of the dycore chain: 
-    total internal buffer:  [0, 0, 0]
-    total delay buffer:  [0, 0, 552] (
-    
-    """
