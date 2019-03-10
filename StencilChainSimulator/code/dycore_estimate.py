@@ -52,6 +52,10 @@ _CYCLES_PER_OUTPUT = 1
 
 
 def do_estimate():
+    """
+    This function is meant to programmatically go through the current 'best-estimate' calculation of our model.
+    :return: None
+    """
 
     print("COSMO dynamical core buffer size estimate report:\n")
 
