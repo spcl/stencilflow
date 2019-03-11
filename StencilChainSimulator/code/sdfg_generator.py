@@ -1,17 +1,17 @@
 import argparse
 import collections
 import functools
+import helper
 import itertools
 import operator
 import numpy as np
 import os
 import re
-from dapp.graph.edges import InterstateEdge
-from dapp.memlet import Memlet
-from dapp.sdfg import SDFG
-from dapp.types import ScheduleType, StorageType
-from kernel_chain_graph import KernelChainGraph, NodeType
-from common import *
+from dace.graph.edges import InterstateEdge
+from dace.memlet import Memlet
+from dace.sdfg import SDFG
+from dace.types import ScheduleType, StorageType
+from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
 
 DATA_TYPE = float
 ITERATORS = ["i", "j", "k"]
@@ -184,9 +184,9 @@ def generate_sdfg(name, chain):
         memory_accesses = []
         buffer_sizes = []
         buffer_accesses = []
-        for field, accesses in node.kernel.graph.accesses.items():
+        for field, accesses in node.graph.accesses.items():
             absolute_indices = [
-                stencil_memory_index(i, node.kernel.dimensions)
+                helper.dim_to_abs_val(i, node.dimensions)
                 for i in accesses
             ]
             first_access = np.argmax(absolute_indices)
@@ -231,6 +231,9 @@ def generate_sdfg(name, chain):
         out_memlets_buffers = [
             name + "_buffer_out" for name, _ in buffer_sizes
         ]
+
+        # Read from memory and update buffers
+
 
         tasklet_code = "\n".join(
             itertools.chain([o + " = 0" for o in out_memlets_memory], [
@@ -284,12 +287,12 @@ def generate_sdfg(name, chain):
         add_pipe(link)
 
     for node in chain.graph.nodes():
-        if node.node_type == NodeType.INPUT:
+        if isinstance(node, Input):
             add_input(node)
-        elif node.node_type == NodeType.KERNEL:
-            add_kernel(node)
-        elif node.node_type == NodeType.OUTPUT:
+        elif isinstance(node, Output):
             add_output(node)
+        elif isinstance(node, Kernel):
+            add_kernel(node)
         else:
             raise RuntimeError("Unexpected node type: {}".format(
                 node.node_type))
