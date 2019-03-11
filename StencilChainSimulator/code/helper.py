@@ -1,3 +1,4 @@
+import collections
 import json
 import os.path
 import functools
@@ -14,9 +15,10 @@ def deprecated(func):
     @functools.wraps(func)
     def new_func(*args, **kwargs):
         warnings.simplefilter('always', DeprecationWarning)  # turn off filter
-        warnings.warn("Call to deprecated function {}.".format(func.__name__),
-                      category=DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn(
+            "Call to deprecated function {}.".format(func.__name__),
+            category=DeprecationWarning,
+            stacklevel=2)
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
         return func(*args, **kwargs)
 
@@ -50,7 +52,8 @@ def max_dict_entry_key(dict1):
     """
     # check type
     if not isinstance(dict1, dict):
-        raise Exception("dict1 should be of type {}, but is of type {}".format(type(dict), type(dict1)))
+        raise Exception("dict1 should be of type {}, but is of type {}".format(
+            type(dict), type(dict1)))
     # extract max value entry
     return max(dict1, key=dict1.get)
 
@@ -64,7 +67,8 @@ def max_list_entry(list1):
     """
     # check type
     if not isinstance(list1, list):
-        raise Exception("list1 should be of type {}, but is of type {}".format(type(list), type(list1)))
+        raise Exception("list1 should be of type {}, but is of type {}".format(
+            type(list), type(list1)))
     # extract max entry
     return max(list1)
 
@@ -78,7 +82,8 @@ def min_list_entry(list1):
     """
     # check type
     if not isinstance(list1, list):
-        raise Exception("list1 should be of type {}, but is of type {}".format(type(list), type(list1)))
+        raise Exception("list1 should be of type {}, but is of type {}".format(
+            type(list), type(list1)))
     # extract min entry
     return min(list1)
 
@@ -92,9 +97,11 @@ def list_add_cwise(list1, list2):
     """
     # check type
     if not isinstance(list1, list):
-        raise Exception("list1 should be of type {}, but is of type {}".format(type(list), type(list1)))
+        raise Exception("list1 should be of type {}, but is of type {}".format(
+            type(list), type(list1)))
     if not isinstance(list2, list):
-        raise Exception("list2 should be of type {}, but is of type {}".format(type(list), type(list2)))
+        raise Exception("list2 should be of type {}, but is of type {}".format(
+            type(list), type(list2)))
     # do map lambda operation over both lists
     return list(map(lambda x, y: x + y, list1, list2))
 
@@ -108,9 +115,11 @@ def list_subtract_cwise(list1, list2):
     """
     # check type
     if not isinstance(list1, list):
-        raise Exception("list1 should be of type {}, but is of type {}".format(type(list), type(list1)))
+        raise Exception("list1 should be of type {}, but is of type {}".format(
+            type(list), type(list1)))
     if not isinstance(list2, list):
-        raise Exception("list2 should be of type {}, but is of type {}".format(type(list), type(list2)))
+        raise Exception("list2 should be of type {}, but is of type {}".format(
+            type(list), type(list2)))
     # do map lambda operation over both lists
     return list(map(lambda x, y: x - y, list1, list2))
 
@@ -127,13 +136,27 @@ def dim_to_abs_val(input, dimensions):
     return reduce(operator.add, map(operator.mul, input, vec))  # inner product
 
 
+def unique(iterable):
+    """ Removes duplicates in the passed iterable. """
+    try:
+        return type(iterable)([
+            i for i in sorted(set(iterable), key=lambda x: iterable.index(x))
+        ])
+    except TypeError:
+        return type(iterable)(collections.OrderedDict(
+            zip(map(str, iterable), iterable)).values())
+
+
 if __name__ == "__main__":
     example_list = [[1, 2, 2], [1, 2, 3], [3, 2, 1], [2, 3, 1]]
-    print("properties of list {}:\nmin: {}\nmax: {}\n".format(example_list, min(example_list),
-                                                              max(example_list)))
+    print("properties of list {}:\nmin: {}\nmax: {}\n".format(
+        example_list, min(example_list), max(example_list)))
 
-    example_dict = {"small": [0, 10, 10],
-                    "very small": [0, 1, 0],
-                    "extra large": [12, 1, 2],
-                    "large": [10, 10, 10]}
-    print("max value entry key of dict {} is:\n\'{}\'".format(example_dict, max_dict_entry_key(example_dict)))
+    example_dict = {
+        "small": [0, 10, 10],
+        "very small": [0, 1, 0],
+        "extra large": [12, 1, 2],
+        "large": [10, 10, 10]
+    }
+    print("max value entry key of dict {} is:\n\'{}\'".format(
+        example_dict, max_dict_entry_key(example_dict)))
