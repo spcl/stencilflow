@@ -9,7 +9,7 @@ from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
 import matplotlib.pyplot as plt
-matplotlib.use('pdf')
+
 
 '''
 class NodeType(Enum):
@@ -60,7 +60,7 @@ class Node:
 
 class KernelChainGraph:
 
-    def __init__(self, path):
+    def __init__(self, path, plot_graph=False):
         self.inputs = None  # type: dict # inputs[name] = input_array_data
         self.outputs = None
         self.path = path
@@ -82,7 +82,12 @@ class KernelChainGraph:
         self.connect_kernels()
         self.compute_delay_buffer()
         self.add_channels()
-        # self.plot_graph("overview.png")
+        if plot_graph:
+            # plot kernel chain graph
+            self.plot_graph()
+            # plot all compute graphs
+            for compute_kernel in self.kernel_nodes:
+                self.kernel_nodes[compute_kernel].graph.plot_graph()
 
     def plot_graph(self, save_path=None):
 
@@ -417,10 +422,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    chain = KernelChainGraph(args.stencil_file)
-
-    if args.plot == "True":
-        chain.plot_graph("output.png")
+    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot)
 
     if args.report == "True":
 
