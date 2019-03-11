@@ -21,5 +21,14 @@ class BaseOperationNodeClass:
     __metaclass__ = ABCMeta
     # Note: can enforce implementation in derived class by using @abstractmethod
 
-    def __init__(self):
+    def __init__(self, ast_node, number):
+        self.number = number
+        self.name = self.generate_name(ast_node)
+        self.latency = -1
+
+    @abstractmethod
+    def generate_name(self, ast_node):  # every subclass must implement this
         pass
+
+    def generate_label(self):  # subclass can, if necessary, override the default implementation
+        return str(self.name)
