@@ -1,4 +1,4 @@
-from helper import Helper
+import helper
 from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
@@ -63,7 +63,7 @@ class Kernel(BaseKernelNodeClass):
         self.dimensions = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
 
         # read static parameters from config
-        self.config = Helper.parse_json("kernel.config")
+        self.config = helper.parse_json("kernel.config")
         self.calculator = Calculator()
 
         # analyse input

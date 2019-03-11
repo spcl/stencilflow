@@ -1,7 +1,7 @@
 from functools import reduce
 import operator
 from kernel_chain_graph import KernelChainGraph
-from kernel_chain_graph import Helper
+import helper
 
 '''
     assumptions:
@@ -72,7 +72,7 @@ def do_estimate():
     print("total critical path length (dimensionless) = _MEAN_CRITICAL_PATH_KERNEL * _DYCORE_CRITICAL_PATH_LENGTH = "
           "{} * {} = {}".format(_MEAN_CRITICAL_PATH_KERNEL, _DYCORE_CRITICAL_PATH_LENGTH, critical_path_dim))
 
-    critical_path_cyc = Helper.dim_to_abs_val(critical_path_dim, _DIMENSIONS)
+    critical_path_cyc = helper.dim_to_abs_val(critical_path_dim, _DIMENSIONS)
     print("total critical path length (cycles) = {} cycles\n".format(critical_path_cyc))
 
     # compute maximum possible communication volume

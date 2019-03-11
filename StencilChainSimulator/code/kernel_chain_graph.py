@@ -2,9 +2,10 @@ import argparse
 import networkx as nx
 import matplotlib
 from enum import Enum
+import pydot
 import operator
 import functools
-from helper import Helper
+import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
@@ -257,7 +258,7 @@ class KernelChainGraph:
                         pass  # Are there reasons for existence of those combinations?
 
     def import_input(self):
-        inp = Helper.parse_json(self.path)
+        inp = helper.parse_json(self.path)
         self.program = inp["program"]
         self.inputs = inp["inputs"]
         self.outputs = inp["outputs"]
@@ -352,7 +353,7 @@ class KernelChainGraph:
                 max_delay = max(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
                     # node.delay_buffer[entry[3]] = Helper.list_subtract_cwise(entry[0:3], min_delay[0:3])
-                    node.delay_buffer[entry[3]] = Helper.list_subtract_cwise(max_delay[0:3], entry[0:3])
+                    node.delay_buffer[entry[3]] = helper.list_subtract_cwise(max_delay[0:3], entry[0:3])
             if isinstance(node, Input):  # node.node_type == NodeType.INPUT:
                 node.delay_buffer = [0, 0, 0, node.name]
 
@@ -368,7 +369,7 @@ class KernelChainGraph:
                 elif isinstance(node, Kernel):  # node.node_type == NodeType.KERNEL:  # add KERNEL
 
                     # add latency, internal_buffer, delay_buffer
-                    internal_buffer = self.kernel_nodes[node.name].graph.buffer_size[Helper.max_dict_entry_key(
+                    internal_buffer = self.kernel_nodes[node.name].graph.buffer_size[helper.max_dict_entry_key(
                         self.kernel_nodes[node.name].graph.buffer_size)]
                     latency = self.kernel_nodes[node.name].graph.max_latency
 
@@ -405,7 +406,7 @@ class KernelChainGraph:
             c = max(self.kernel_nodes[output].input_paths[b])
             c[2] += a
             critical_path_length = max(critical_path_length, c)
-        return Helper.dim_to_abs_val(c[0:3], self.dimensions)
+        return helper.dim_to_abs_val(c[0:3], self.dimensions)
 
     '''
         simple test stencil program for debugging

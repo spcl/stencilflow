@@ -2,7 +2,7 @@ import ast
 import networkx as nx
 import matplotlib.pyplot as plt
 from enum import Enum
-from helper import Helper
+import helper
 from calculator import Calculator
 from base_node_class import BaseOperationNodeClass
 
@@ -217,7 +217,7 @@ class ComputeGraph:
     def __init__(self):
 
         # read static parameters from config
-        self.config = Helper.parse_json("compute_graph.config")
+        self.config = helper.parse_json("compute_graph.config")
         self.graph = nx.DiGraph()
         self.tree = None
         self.max_latency = -1
@@ -279,7 +279,7 @@ class ComputeGraph:
         for field in self.accesses:
             updated_entries = list()
             for entry in self.accesses[field]:
-                updated_entries.append(Helper.list_subtract_cwise(entry, self.max_index[field]))
+                updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]))
             self.accesses[field] = updated_entries
 
     def determine_inputs_outputs(self):
