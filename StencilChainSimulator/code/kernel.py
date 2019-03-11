@@ -3,10 +3,10 @@ from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
 from compute_graph import NodeType
-from base_node_class import BaseNodeClass
+from base_node_class import BaseKernelNodeClass
 
 
-class Kernel(BaseNodeClass):
+class Kernel(BaseKernelNodeClass):
 
     """
         interface for FPGA-like execution (get called from the scheduler)

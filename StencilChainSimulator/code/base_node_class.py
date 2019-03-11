@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 
-class BaseNodeClass:
+class BaseKernelNodeClass:
 
     __metaclass__ = ABCMeta
     # Note: can enforce implementation in derived class by using @abstractmethod
@@ -14,3 +14,12 @@ class BaseNodeClass:
 
     def generate_label(self):  # wrapper for customizations
         return self.name
+
+
+class BaseOperationNodeClass:
+
+    __metaclass__ = ABCMeta
+    # Note: can enforce implementation in derived class by using @abstractmethod
+
+    def __init__(self):
+        pass

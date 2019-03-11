@@ -7,7 +7,7 @@ import functools
 from helper import Helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
-from base_node_class import BaseNodeClass
+from base_node_class import BaseKernelNodeClass
 import matplotlib.pyplot as plt
 matplotlib.use('pdf')
 
@@ -26,14 +26,14 @@ there are three type of nodes in the graph:
 '''
 
 
-class Input(BaseNodeClass):
+class Input(BaseKernelNodeClass):
 
     def __init__(self, name, data_queue=None):
         super().__init__(name)
         self.data_queue = data_queue
 
 
-class Output(BaseNodeClass):
+class Output(BaseKernelNodeClass):
 
     def __init__(self, name, data_queue=None):
         super().__init__(name)
