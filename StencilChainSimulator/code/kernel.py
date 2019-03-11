@@ -3,9 +3,10 @@ from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
 from compute_graph import NodeType
+from base_node_class import BaseNodeClass
 
 
-class Kernel:
+class Kernel(BaseNodeClass):
 
     """
         interface for FPGA-like execution (get called from the scheduler)
@@ -55,8 +56,9 @@ class Kernel:
 
     def __init__(self, name, kernel_string, dimensions, plot_graph=False):
 
+        super().__init__(name)
+
         # store arguments
-        self.name = name  # kernel name
         self.kernel_string = kernel_string  # raw kernel string input
         self.dimensions = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
 
@@ -87,9 +89,6 @@ class Kernel:
         # setup internal buffer queues
         self.internal_buffer = dict()
         self.setup_internal_buffers()
-
-    def generate_label(self):
-        return self.name
 
     def reset_old_compute_state(self):
         self.var_map = dict()
@@ -203,5 +202,5 @@ class Kernel:
 
 
 if __name__ == "__main__":
-    kernel = Kernel("ppgk", "res = wgtfac[i,j,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", [10, 10, 10])
+    kernel = Kernel("ppgk", "res = wgtfac[i,j+1,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", [10, 10, 10])
     print("Critical path latency: " + str(kernel.graph.max_latency))
