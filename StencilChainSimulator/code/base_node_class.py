@@ -4,7 +4,6 @@ from abc import ABCMeta, abstractmethod
 class BaseKernelNodeClass:
 
     __metaclass__ = ABCMeta
-    # Note: can enforce implementation in derived class by using @abstractmethod
 
     def __init__(self, name):
         self.name = name
@@ -19,7 +18,6 @@ class BaseKernelNodeClass:
 class BaseOperationNodeClass:
 
     __metaclass__ = ABCMeta
-    # Note: can enforce implementation in derived class by using @abstractmethod
 
     def __init__(self, ast_node, number):
         self.number = number
