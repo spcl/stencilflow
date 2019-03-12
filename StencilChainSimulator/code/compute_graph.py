@@ -1,20 +1,9 @@
 import ast
 import networkx as nx
 import matplotlib.pyplot as plt
-from enum import Enum
 import helper
 from calculator import Calculator
 from base_node_class import BaseOperationNodeClass
-
-'''
-class NodeType(Enum):
-    NAME = 1,
-    NUM = 2,
-    BINOP = 3,
-    CALL = 4,
-    OUTPUT = 5,
-    SUBSCRIPT = 6
-'''
 
 
 class Name(BaseOperationNodeClass):
@@ -105,111 +94,10 @@ class Subscript(BaseOperationNodeClass):
                 self.index.append(calculator.eval_expr(self._VAR_MAP, expression))
 
     def generate_name(self, ast_node):
-        # TODO: replace all if instance(node, Name) with instance(node, Name) or instance(node, Subscript)
         return ast_node.value.id
 
     def generate_label(self):
         return str(self.name) + str(self.index)
-
-
-'''
-class Node:
-
-    def __init__(self, node, number):
-        self.number = number
-        self.latency = -1
-        self.index = list()
-        if node is not None:
-            self.node_type = self.get_type(node)
-            self.name = self.generate_name(node)
-'''
-
-'''
-    @staticmethod
-    def get_type(node):
-
-        if isinstance(node, ast.Name):  # variables or array access
-            return NodeType.NAME
-        elif isinstance(node, ast.Num):  # static value
-            return NodeType.NUM
-        elif isinstance(node, ast.BinOp):  # binary operation
-            return NodeType.BINOP
-        elif isinstance(node, ast.Call):  # function (e.g. sin, cos,..)
-            return NodeType.CALL
-        elif isinstance(node, ast.Assign):  # assign operator (var = expr;)
-            return NodeType.OUTPUT
-        elif isinstance(node, ast.Subscript):  # array access (form: arr[i,j,k])
-            return NodeType.SUBSCRIPT
-        else:
-            return None
-'''
-
-'''
-    _OP_NAME_MAP = {
-        ast.Add: "add",
-        ast.Sub: "sub",
-        ast.Mult: "mult",
-        ast.Div: "div",
-        ast.Invert: "neg"
-        # TODO: support operation: res = (a < b) ? c : d
-    }
-'''
-
-'''
-    _OP_SYM_MAP = {
-        ast.Add: "+",
-        ast.Sub: "-"
-    }
-'''
-
-'''
-    _VAR_MAP = {
-        "i": 0,
-        "j": 0,
-        "k": 0
-    }
-'''
-
-'''
-    def generate_name(self, node):
-
-        if self.node_type == NodeType.NAME:
-            return node.id
-        elif self.node_type == NodeType.NUM:
-            return node.n
-        elif self.node_type == NodeType.BINOP:
-            return Node._OP_NAME_MAP[type(node.op)]
-        elif self.node_type == NodeType.CALL:
-            return node.func.id
-        elif self.node_type == NodeType.OUTPUT:
-            return node.targets[0].id
-        elif self.node_type == NodeType.SUBSCRIPT:
-            # create index
-            for slice in node.slice.value.elts:
-                if isinstance(slice, ast.Name):
-                    self.index.append(Node._VAR_MAP[slice.id])
-                elif isinstance(slice, ast.BinOp):
-                    # note: only support for index variations [i, j+3,..]
-                    # read index expression
-                    expression = str(slice.left.id) + Node._OP_SYM_MAP[type(slice.op)] + str(slice.right.n)
-
-                    # convert [i+1,j, k-1] into [1, 0, -1]
-                    calculator = Calculator()
-                    self.index.append(calculator.eval_expr(Node._VAR_MAP, expression))
-            # merge SUBSCRIPT nodes with NAME nodes, since they are handled identically from this point of time on
-            self.node_type = NodeType.NAME
-
-            return node.value.id
-'''
-
-'''
-    def generate_label(self):
-
-        if self.node_type == NodeType.NAME:
-            return str(self.name) + str(self.index)
-        else:
-            return str(self.name)
-'''
 
 
 class ComputeGraph:
@@ -320,38 +208,22 @@ class ComputeGraph:
                 self.graph.add_edge(rhs, lhs)
 
         # merge ambiguous variables in tree (implies: merge of ast.Assign trees into a single tree)
-        '''
-            NOTE: This nested loop runs in O(n^2), which is NOT the optimal solution (e.g. HashMap would be more 
-            appropriate).
-        '''
-        '''
         outp_nodes = list(self.graph.nodes)
         for outp in outp_nodes:
-            if isinstance(outp, Name) or isinstance(outp, Subscript):  # outp.node_type == NodeType.NAME or outp.node_type == NodeType.SUBSCRIPT: # TODO: check if this makes sense
+            if isinstance(outp, Name):
                 inp_nodes = list(self.graph.nodes)
                 for inp in inp_nodes:
-                    if outp is not inp and  and outp.name == inp.name and outp.index == inp.index: # only contract if the indices match too
-                        # contract nodes
-                        # outp.node_type = NodeType.NAME # TODO: FLAG: commented out
-                        self.contract_edge(outp, inp)
-        '''
-        outp_nodes = list(self.graph.nodes)
-        for outp in outp_nodes:
-            if isinstance(outp, Name):  # outp.node_type == NodeType.NAME or outp.node_type == NodeType.SUBSCRIPT: # TODO: check if this makes sense
-                inp_nodes = list(self.graph.nodes)
-                for inp in inp_nodes:
-                    if isinstance(outp, Subscript) and outp is not inp and outp.name == inp.name and outp.index == inp.index:  # only contract if the indices match too
-                        # contract nodes if index matches
+                    if isinstance(outp, Subscript) and outp is not inp and outp.name == inp.name and outp.index == inp.index:
+                        # only contract if the indices match too contract nodes if index matches
                         self.contract_edge(outp, inp)
                     elif isinstance(outp, Name) and outp is not inp and outp.name == inp.name:
                         # contract nodes if index matches
                         self.contract_edge(outp, inp)
         # test if graph is now one component (for directed graph: each non-output must have at least one successor)
         for node in self.graph.nodes:
-            if not isinstance(node, Output) and len(self.graph.succ[node]) == 0:  # node.node_type != NodeType.OUTPUT and len(self.graph.succ[node]) == 0:
+            if not isinstance(node, Output) and len(self.graph.succ[node]) == 0:
                 raise RuntimeError("Kernel-internal data flow is not single component (must be connected in the sense "
                                    "of a DAG).")
-
         return self.graph
 
     def ast_tree_walk(self, node, number):
@@ -437,11 +309,11 @@ class ComputeGraph:
         for node in self.graph.nodes:
             if isinstance(node, Num):  # node.node_type == NodeType.NUM:
                 nums.append(node)
-            elif isinstance(node, Name) or isinstance(node, Subscript):  # node.node_type == NodeType.NAME or node.node_type == NodeType.SUBSCRIPT:
+            elif isinstance(node, Name) or isinstance(node, Subscript):
                 names.append(node)
-            elif isinstance(node, Binop) or isinstance(node, Call):  # node.node_type == NodeType.BINOP or node.node_type == NodeType.CALL:
+            elif isinstance(node, Binop) or isinstance(node, Call):
                 ops.append(node)
-            elif isinstance(node, Output):  # node.node_type == NodeType.OUTPUT:
+            elif isinstance(node, Output):
                 outs.append(node)
 
         # create dictionary of labels
@@ -480,9 +352,8 @@ class ComputeGraph:
     def calculate_latency(self):
 
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
-        # efficiently
         for node in self.graph.nodes:
-            if isinstance(node, Output):  # node.node_type == NodeType.OUTPUT:
+            if isinstance(node, Output):
                 node.latency = 0
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
@@ -490,11 +361,11 @@ class ComputeGraph:
     def latency_tree_walk(self, node):
 
         # check node type
-        if isinstance(node, Name) or isinstance(node, Num):  # node.node_type == NodeType.NAME or node.node_type == NodeType.NUM:
+        if isinstance(node, Name) or isinstance(node, Num):
             for child in self.graph.pred[node]:
                 child.latency = node.latency
                 self.latency_tree_walk(child)
-        elif isinstance(node, Binop) or isinstance(node, Call):  # node.node_type == NodeType.BINOP or node.node_type == NodeType.CALL:
+        elif isinstance(node, Binop) or isinstance(node, Call):
 
             # get op latency
             op_latency = self.config["op_latency"][node.name]
@@ -503,7 +374,7 @@ class ComputeGraph:
                 child.latency = max(child.latency, node.latency + op_latency)
                 self.latency_tree_walk(child)
 
-        elif isinstance(node, Output):  # node.node_type == NodeType.OUTPUT:
+        elif isinstance(node, Output):
 
             for child in self.graph.pred[node]:
                 child.latency = node.latency

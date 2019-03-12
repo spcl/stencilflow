@@ -123,7 +123,7 @@ class Kernel(BaseKernelNodeClass):
         # check if all inputs are available
         all_available = True
         for inp in self.graph.inputs:
-            if isinstance(inp, Num):  # inp.node_type == NodeType.NUM:  # static values are always available
+            if isinstance(inp, Num):
                 pass
             elif self.inputs[inp.name].peek(self.buffer_position(inp)) is None:  # check if array access location
                 #  is filled with a bubble
@@ -134,9 +134,9 @@ class Kernel(BaseKernelNodeClass):
         if all_available:
             for inp in self.inputs:
                 # read inputs into var_map
-                if isinstance(inp, Num):  # inp.node_type == NodeType.NUM:
+                if isinstance(inp, Num):
                     self.var_map[inp.name] = float(inp.name)
-                elif isinstance(inp, Name):  # inp.node_type == NodeType.NAME:
+                elif isinstance(inp, Name):
                     # get value from internal_buffer
                     try:
                         self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
