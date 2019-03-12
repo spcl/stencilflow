@@ -1,30 +1,12 @@
 import argparse
-import networkx as nx
-import matplotlib
-from enum import Enum
-import pydot
 import operator
 import functools
+import networkx as nx
+import matplotlib.pyplot as plt
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
-import matplotlib.pyplot as plt
-
-
-'''
-class NodeType(Enum):
-    INPUT = 1,
-    KERNEL = 2,
-    OUTPUT = 3
-'''
-
-'''
-there are three type of nodes in the graph:
-    -> KERNEL: Kernel (StencilChainSimulator.code.kernel)
-    -> INPUT: Input
-    -> OUTPUT: Output
-'''
 
 
 class Input(BaseKernelNodeClass):
@@ -41,24 +23,6 @@ class Output(BaseKernelNodeClass):
         self.data_queue = data_queue
 
 
-'''
-class Node:
-
-    def __init__(self, name, node_type, kernel=None, data_queue=None):
-        self.name = name
-        self.node_type = node_type
-        self.kernel = kernel  # only used for type: KERNEL
-        self.outputs = dict()
-        self.data_queue = data_queue  # only used for type: INPUT, OUTPUT
-        self.input_paths = dict()
-        self.delay_buffer = dict()
-        self.total_delay_buffer = [0, 0, 0]
-
-    def generate_label(self):
-        return self.name
-'''
-
-
 class KernelChainGraph:
 
     def __init__(self, path, plot_graph=False):
@@ -68,8 +32,7 @@ class KernelChainGraph:
         self.dimensions = None
         self.program = None  # type: dict  # program[stencil_name] = stencil expression
         self.kernels = None
-        self.kernel_latency = None  # TODO: adapt channel size according to min/max latency to the kernel (over all
-        # inputs)
+        self.kernel_latency = None
         self.channels = None  # each channel is an edge between two kernels or a kernel and an input
         self.graph = nx.DiGraph()
 
@@ -108,11 +71,11 @@ class KernelChainGraph:
 
         # add nodes to list
         for node in self.graph.nodes:
-            if isinstance(node, Kernel):  # node.node_type == NodeType.KERNEL:
+            if isinstance(node, Kernel):
                 ops.append(node)
-            elif isinstance(node, Input):  # node.node_type == NodeType.INPUT:
+            elif isinstance(node, Input):
                 names.append(node)
-            elif isinstance(node, Output):  # node.node_type == NodeType.OUTPUT:
+            elif isinstance(node, Output):
                 outs.append(node)
 
         # create dictionary of labels
@@ -191,19 +154,19 @@ class KernelChainGraph:
         for src in self.graph.nodes:
             for dest in self.graph.nodes:
                 if src is not dest:  # skip src == dest
-                    if isinstance(src, Kernel) and isinstance(dest, Kernel):  # src.node_type == NodeType.KERNEL and dest.node_type == NodeType.KERNEL:  # case: KERNEL -> KERNEL
+                    if isinstance(src, Kernel) and isinstance(dest, Kernel):  # case: KERNEL -> KERNEL
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # add edge
                                 self.graph.add_edge(src, dest, channel=None)
                                 break
-                    elif isinstance(src, Input) and isinstance(dest, Kernel): # src.node_type == NodeType.INPUT and dest.node_type == NodeType.KERNEL:  # case: INPUT -> KERNEL
+                    elif isinstance(src, Input) and isinstance(dest, Kernel):  # case: INPUT -> KERNEL
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # add edge
                                 self.graph.add_edge(src, dest, channel=None)
                                 break
-                    elif isinstance(dest, Output):  # dest.node_type == NodeType.OUTPUT:  # case: INPUT/KERNEL -> OUTPUT
+                    elif isinstance(dest, Output):  # case: INPUT/KERNEL -> OUTPUT
                         if src.name == dest.name:
                             # add edge
                             self.graph.add_edge(src, dest, channel=None)
@@ -216,7 +179,7 @@ class KernelChainGraph:
         for src in self.graph.nodes:
             for dest in self.graph.nodes:
                 if src is not dest:  # skip src == dest
-                    if isinstance(src, Kernel) and isinstance(dest, Kernel):  # src.node_type == NodeType.KERNEL and dest.node_type == NodeType.KERNEL:  # case: KERNEL -> KERNEL
+                    if isinstance(src, Kernel) and isinstance(dest, Kernel):  # case: KERNEL -> KERNEL
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # create channel
@@ -230,7 +193,7 @@ class KernelChainGraph:
                                 # add to edge
                                 self.graph[src][dest]['channel'] = channel
                                 break
-                    elif isinstance(src, Input) and isinstance(dest, Kernel):  # src.node_type == NodeType.INPUT and dest.node_type == NodeType.KERNEL:  # case: INPUT -> KERNEL
+                    elif isinstance(src, Input) and isinstance(dest, Kernel):  # case: INPUT -> KERNEL
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # create channel
@@ -243,7 +206,7 @@ class KernelChainGraph:
                                 # add to edge
                                 self.graph[src][dest]['channel'] = channel
                                 break
-                    elif isinstance(dest, Output):  # dest.node_type == NodeType.OUTPUT:  # case: INPUT/KERNEL -> OUTPUT
+                    elif isinstance(dest, Output):  # case: INPUT/KERNEL -> OUTPUT
                         if src.name == dest.name:
                             # create channel
                             name = src.name + "_" + dest.name
@@ -275,41 +238,18 @@ class KernelChainGraph:
 
         # create all kernel objects and add them to the graph
         for kernel in self.program:
-            '''
-            new_node = Node(
-                kernel, NodeType.KERNEL,
-                Kernel(
-                    name=kernel,
-                    kernel_string=self.program[kernel],
-                    dimensions=self.dimensions))
-            '''
             new_node = Kernel(name=kernel, kernel_string=self.program[kernel], dimensions=self.dimensions)
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
 
         # create all input nodes
         for inp in self.inputs:
-            '''
-            if len(self.inputs[inp]) == self.total_elements():  # if the input data list is of size total_elements,
-                #  it is a valid input for simulation
-                self.graph.add_node(
-                    Node(
-                        name=inp,
-                        node_type=NodeType.INPUT,
-                        data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
-                                                collection=self.inputs[inp])))
-            else:
-                self.graph.add_node(Node(name=inp, node_type=NodeType.INPUT))
-            '''
             new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
                                                                collection=self.inputs[inp]))
             self.graph.add_node(new_node)
 
         # create all output nodes
         for out in self.outputs:
-            '''
-            new_node = Node(name=out, node_type=NodeType.OUTPUT, data_queue=None)
-            '''
             new_node = Output(name=out, data_queue=None)
             self.graph.add_node(new_node)
 
@@ -349,24 +289,21 @@ class KernelChainGraph:
 
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
-                # min_delay = Helper.min_list_entry(node.input_paths[inp])
                 max_delay = max(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
-                    # node.delay_buffer[entry[3]] = Helper.list_subtract_cwise(entry[0:3], min_delay[0:3])
                     node.delay_buffer[entry[3]] = helper.list_subtract_cwise(max_delay[0:3], entry[0:3])
-            if isinstance(node, Input):  # node.node_type == NodeType.INPUT:
+            if isinstance(node, Input):  # NodeType.INPUT:
                 node.delay_buffer = [0, 0, 0, node.name]
 
             for succ in self.graph.successors(node):
 
-                if isinstance(node, Input): # node.node_type == NodeType.INPUT:  # add INPUT node to all as direct input (=0 delay buffer)
+                if isinstance(node, Input):  # add INPUT node to all as direct input (=0 delay buffer)
                     # add emtpy list dictionary entry for enabling list append()
                     if node.name not in succ.input_paths:
                         succ.input_paths[node.name] = []
-                    # succ.input_paths[node.name].append((node.name, [0, 0, 0])) ##
                     succ.input_paths[node.name].append([0, 0, 0, node.name])
 
-                elif isinstance(node, Kernel):  # node.node_type == NodeType.KERNEL:  # add KERNEL
+                elif isinstance(node, Kernel):  # add KERNEL
 
                     # add latency, internal_buffer, delay_buffer
                     internal_buffer = self.kernel_nodes[node.name].graph.buffer_size[helper.max_dict_entry_key(
