@@ -5,10 +5,10 @@ class BoundedQueue:
 
     def __init__(self, name, maxsize, collection=[]):
         """
-
-        :param name:
-        :param maxsize:
-        :param collection:
+        Create new BoundedQueue with given initialization parameters.
+        :param name: name of the queue
+        :param maxsize: maximum number of elements the queue can hold at a time
+        :param collection: initial data in queue
         """
         # check input
         assert maxsize > 0
