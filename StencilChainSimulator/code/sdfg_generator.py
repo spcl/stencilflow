@@ -50,7 +50,7 @@ def generate_sdfg(name, chain):
         sdfg.add_stream(
             stream_name,
             DATA_TYPE,
-            buffer_size=1,  # TODO: add queue size
+            buffer_size=edge[2]["channel"].maxsize,
             storage=StorageType.FPGA_Local,
             transient=True)
 
@@ -387,7 +387,7 @@ def generate_sdfg(name, chain):
                 memlet=Memlet.simple(
                     write_node_inner.data, "0", num_accesses=-1))
 
-    for link in chain.graph.edges():
+    for link in chain.graph.edges(data=True):
         add_pipe(sdfg, link)
 
     for node in chain.graph.nodes():
