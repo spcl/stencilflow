@@ -90,6 +90,35 @@ class Kernel(BaseKernelNodeClass):
         self.internal_buffer = dict()
         self.setup_internal_buffers()
 
+    def iter_comp_tree(self, node):
+
+        pred = list(self.graph.graph.pred[node])
+
+        if isinstance(node, Binop):
+            lhs = pred[1]
+            rhs = pred[0]
+            return "(" + self.iter_comp_tree(lhs) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs) + ")"
+            # return self.iter_comp_tree(lhs) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs)
+        elif isinstance(node, Call):
+            return node.name + "(" + self.iter_comp_tree(pred[0]) + ")"
+        elif isinstance(node, Name) or isinstance(node, Num):
+            return str(node.name)
+        elif isinstance(node, Subscript):
+            dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
+            word_index = self.convert_3d_to_1d(dim_index)
+            return node.name + "[" + str(word_index) + "]"
+
+    def generate_relative_access_kernel_string(self):
+        # format: 'res = vdc[index1] + vout[index2]'
+
+        # find output node
+        res = None
+        for node in self.graph.graph.nodes:
+            if isinstance(node, Output):
+                res = node
+
+        return "res = " + self.iter_comp_tree(list(self.graph.graph.pred[res])[0])
+
     def reset_old_compute_state(self):
         self.var_map = dict()
         self.read_success = False
@@ -100,7 +129,7 @@ class Kernel(BaseKernelNodeClass):
         # convert [i, j, k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
         # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
         if not index:
-            return 0 # empty list
+            return 0  # empty list
         return (index[0]*self.dimensions[1] + index[1]*self.dimensions[2]) + index[2]
 
     def setup_internal_buffers(self):
@@ -202,5 +231,11 @@ class Kernel(BaseKernelNodeClass):
 
 
 if __name__ == "__main__":
-    kernel = Kernel("ppgk", "res = wgtfac[i,j+1,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", [10, 10, 10])
-    print("Critical path latency: " + str(kernel.graph.max_latency))
+
+    kernel1 = Kernel("ppgk", "res = wgtfac[i,j+1,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", [10, 10, 10])
+    print("Critical path latency: " + str(kernel1.graph.max_latency))
+
+    kernel2 = Kernel("dummy", "res = (sin(a[i,j,k])-b[i,j,k]) * (a[i,j,k-1]+b[i,j-1,k-1])", [10, 10, 10])
+    print("Kernel string conversion:")
+    print(kernel2.kernel_string)
+    print(kernel2.generate_relative_access_kernel_string())

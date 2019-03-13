@@ -35,11 +35,23 @@ class Binop(BaseOperationNodeClass):
         # TODO: support operation: res = (a < b) ? c : d
     }
 
+    _OP_SYM_MAP = {
+        "add": "+",
+        "sub": "-",
+        "mult": "*",
+        "div": "/",
+        "neg": "-"
+        # TODO: support operation: res = (a < b) ? c : d
+    }
+
     def __init__(self, ast_node, number):
         super().__init__(ast_node, number)
 
     def generate_name(self, ast_node):
         return self._OP_NAME_MAP[type(ast_node.op)]
+
+    def generate_op_sym(self):
+        return self._OP_SYM_MAP[self.name]
 
 
 class Call(BaseOperationNodeClass):
@@ -148,7 +160,6 @@ class ComputeGraph:
                 if inp.name in self.min_index:
                     if inp.index < self.min_index[inp.name]:
                         self.min_index[inp.name] = inp.index
-
                     if inp.index >= self.max_index[inp.name]:
                         self.max_index[inp.name] = inp.index
                 else:  # first entry
@@ -157,7 +168,7 @@ class ComputeGraph:
 
                 if inp.name not in self.accesses:
                     self.accesses[inp.name] = list()
-                self.accesses[inp.name].append(inp.index)
+                self.accesses[inp.name].append(inp.index + [inp])
 
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
@@ -167,7 +178,7 @@ class ComputeGraph:
         for field in self.accesses:
             updated_entries = list()
             for entry in self.accesses[field]:
-                updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]))
+                updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]) + [entry[3]])
             self.accesses[field] = updated_entries
 
     def determine_inputs_outputs(self):
