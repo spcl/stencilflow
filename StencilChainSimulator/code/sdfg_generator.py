@@ -50,7 +50,7 @@ def generate_sdfg(name, chain):
         sdfg.add_stream(
             stream_name,
             DATA_TYPE,
-            buffer_size=1,  # TODO: add queue size
+            buffer_size=edge[2]["channel"].maxsize,
             storage=StorageType.FPGA_Local,
             transient=True)
 
@@ -183,7 +183,7 @@ def generate_sdfg(name, chain):
         # Extract fields to read from memory and fields to buffer
         memory_accesses = []
         buffer_sizes = []
-        buffer_accesses = {}
+        buffer_accesses = collections.OrderedDict()
         for field, accesses in node.graph.accesses.items():
             indices = [
                 helper.dim_to_abs_val(i, node.dimensions)
@@ -193,7 +193,9 @@ def generate_sdfg(name, chain):
                 max(indices) - min(indices) + 1)
             memory_accesses.append(field)
             buffer_sizes.append((field, buffer_size))
-            buffer_accesses[field] = [buffer_size - 1 - i for i in indices]
+            buffer_accesses[field] = [
+                buffer_size - 1 - abs(i) for i in indices
+            ]
 
         entry, exit = state.add_map(
             node.name, iterators, schedule=ScheduleType.FPGA_Device)
@@ -225,7 +227,7 @@ def generate_sdfg(name, chain):
             node.name + "_compute",
             list(
                 itertools.chain.from_iterable([[
-                    "{}_buffer_in_{}".format(name, access)
+                    "{}_{}".format(name, access)
                     for access in accesses
                 ] for name, accesses in buffer_accesses.items()])),
             [name + "_inner_out" for name in outputs], tasklet_code)
@@ -248,12 +250,14 @@ def generate_sdfg(name, chain):
                 memlet=Memlet.simple(stream_name, "0", num_accesses=1))
 
             # Create inner memory pipe
-            stream_name_inner = stream_name + "_inner"
+            stream_name_inner = field_name + "_in"
             stream_inner = sdfg.arrays[stream_name].clone()
             stream_inner.transient = False
             nested_sdfg.add_datadesc(stream_name_inner, stream_inner)
 
             buffer_name_outer = "{}_{}_buffer".format(node.name, field_name)
+            buffer_name_inner_read = "{}_buffer_in".format(field_name)
+            buffer_name_inner_write = "{}_buffer_out".format(field_name)
 
             # Create buffer transient in outer SDFG
             if size > 1:
@@ -279,7 +283,7 @@ def generate_sdfg(name, chain):
                 read_node_outer,
                 entry,
                 nested_sdfg_tasklet,
-                dst_conn=field_name + "_buffer_in",
+                dst_conn=buffer_name_inner_read,
                 memlet=Memlet.simple(
                     buffer_name_outer, "0:{}".format(size), num_accesses=-1))
 
@@ -288,34 +292,53 @@ def generate_sdfg(name, chain):
                 nested_sdfg_tasklet,
                 exit,
                 write_node_outer,
-                src_conn=field_name + "_buffer_out",
+                src_conn=buffer_name_inner_write,
                 memlet=Memlet.simple(
                     write_node_outer.data,
                     "0:{}".format(size),
                     num_accesses=-1))
 
             # Inner copy
-            buffer_name_inner = buffer_name_outer + "_inner"
-            desc_inner = desc_outer.clone()
-            desc_inner.name = buffer_name_inner
-            desc_inner.transient = False
-            nested_sdfg.add_datadesc(buffer_name_inner, desc_inner)
+            desc_inner_read = desc_outer.clone()
+            desc_inner_read.transient = False
+            desc_inner_read.name = buffer_name_inner_read
+            desc_inner_write = desc_inner_read.clone()
+            desc_inner_write.name = buffer_name_inner_write
+            nested_sdfg.add_datadesc(buffer_name_inner_read, desc_inner_read)
+            nested_sdfg.add_datadesc(buffer_name_inner_write, desc_inner_write)
 
             # Make shift state if necessary
             if size > 1:
-                shift_read = shift_state.add_read(buffer_name_inner)
-                shift_write = shift_state.add_write(buffer_name_inner)
+                shift_read = shift_state.add_read(buffer_name_inner_read)
+                shift_write = shift_state.add_write(buffer_name_inner_write)
+                shift_entry, shift_exit = shift_state.add_map(
+                    "shift_{}".format(field_name),
+                    {"i": "0:{} - 1".format(size)},
+                    schedule=ScheduleType.FPGA_Device,
+                    unroll=True)
+                shift_tasklet = shift_state.add_tasklet(
+                    "shift_{}".format(field_name),
+                    {"{}_shift_in".format(field_name)},
+                    {"{}_shift_out".format(field_name)},
+                    "{field}_shift_out = {field}_shift_in".format(
+                        field=field_name))
                 shift_state.add_memlet_path(
                     shift_read,
-                    shift_write,
+                    shift_entry,
+                    shift_tasklet,
+                    dst_conn=field_name + "_shift_in",
                     memlet=Memlet.simple(
-                        shift_read.data,
-                        "1:{} - 1".format(size),
-                        other_subset_str="0:{} - 2".format(size),
-                        num_accesses=size - 1))
+                        shift_read.data, "i + 1", num_accesses=1))
+                shift_state.add_memlet_path(
+                    shift_tasklet,
+                    shift_exit,
+                    shift_write,
+                    src_conn=field_name + "_shift_out",
+                    memlet=Memlet.simple(
+                        shift_write.data, "i", num_accesses=1))
 
             update_read = update_state.add_read(stream_name_inner)
-            update_write = update_state.add_write(buffer_name_inner)
+            update_write = update_state.add_write(buffer_name_inner_write)
             update_state.add_memlet_path(
                 update_read,
                 update_write,
@@ -327,12 +350,12 @@ def generate_sdfg(name, chain):
                     num_accesses=1))
 
             # Make compute state
-            compute_read = compute_state.add_read(buffer_name_inner)
+            compute_read = compute_state.add_read(buffer_name_inner_read)
             for index in buffer_accesses[field_name]:
                 compute_state.add_memlet_path(
                     compute_read,
                     compute_tasklet,
-                    dst_conn=field_name + "_buffer_in_{}".format(index),
+                    dst_conn=field_name + "_{}".format(index),
                     memlet=Memlet.simple(
                         compute_read.data, str(index), num_accesses=1))
 
@@ -350,7 +373,7 @@ def generate_sdfg(name, chain):
                     write_node_outer.data, "0", num_accesses=-1))
 
             # Create inner stream
-            stream_name_inner = stream_name_outer + "_inner"
+            stream_name_inner = out_name + "_out"
             stream_inner = sdfg.arrays[stream_name_outer].clone()
             stream_inner.transient = False
             nested_sdfg.add_datadesc(stream_name_inner, stream_inner)
@@ -364,7 +387,7 @@ def generate_sdfg(name, chain):
                 memlet=Memlet.simple(
                     write_node_inner.data, "0", num_accesses=-1))
 
-    for link in chain.graph.edges():
+    for link in chain.graph.edges(data=True):
         add_pipe(sdfg, link)
 
     for node in chain.graph.nodes():
@@ -397,6 +420,6 @@ if __name__ == "__main__":
 
     sdfg = generate_sdfg(name, chain)
 
-    sdfg.draw_to_file()
+    # sdfg.draw_to_file()
 
     sdfg.compile()
