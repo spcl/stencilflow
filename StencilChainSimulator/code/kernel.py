@@ -111,13 +111,26 @@ class Kernel(BaseKernelNodeClass):
     def generate_relative_access_kernel_string(self):
         # format: 'res = vdc[index1] + vout[index2]'
 
-        # find output node
-        res = None
-        for node in self.graph.graph.nodes:
-            if isinstance(node, Output):
-                res = node
+        res = []
 
-        return "res = " + self.iter_comp_tree(list(self.graph.graph.pred[res])[0])
+        # Treat named nodes
+        for n in self.graph.graph.nodes:
+            if isinstance(n, Name):
+                res.append(n.name + " = " + self.iter_comp_tree(
+                    list(self.graph.graph.pred[n])[0]))
+
+        # Treat output node
+        output_node = [
+            n for n in self.graph.graph.nodes if isinstance(n, Output)
+        ]
+        if len(output_node) != 1:
+            raise Exception("Expected a single output node")
+        output_node = output_node[0]
+
+        res.append("res = " + self.iter_comp_tree(
+            list(self.graph.graph.pred[output_node])[0]))
+
+        return "; ".join(res)
 
     def reset_old_compute_state(self):
         self.var_map = dict()
