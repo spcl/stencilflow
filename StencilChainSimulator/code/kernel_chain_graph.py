@@ -46,7 +46,7 @@ class KernelChainGraph:
         self.connect_kernels()
         self.compute_delay_buffer()
         self.add_channels()
-        if plot_graph:
+        if plot_graph == True:
             # plot kernel chain graph
             self.plot_graph()
             # plot all compute graphs
@@ -366,9 +366,6 @@ if __name__ == "__main__":
 
         print("Report of {}\n".format(args.stencil_file))
 
-        total_internal = [0, 0, 0]
-        total_delay = [0, 0, 0]
-
         print("dimensions of data array: {}\n".format(chain.dimensions))
 
         print("channel info:")
@@ -413,3 +410,13 @@ if __name__ == "__main__":
                 if channel is not None:
                     total += channel.maxsize
         print("total buffer size: {}\n".format(total))
+
+        print("input kernel string info:")
+        for node in chain.kernel_nodes:
+            print("input kernel string of {} is: {}".format(node, chain.kernel_nodes[node].kernel_string))
+        print()
+
+        print("relative access kernel string info:")
+        for node in chain.kernel_nodes:
+            print("relative access kernel string of {} is: {}".format(node, chain.kernel_nodes[node].generate_relative_access_kernel_string()))
+        print()
