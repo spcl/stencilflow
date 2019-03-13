@@ -168,7 +168,7 @@ class ComputeGraph:
 
                 if inp.name not in self.accesses:
                     self.accesses[inp.name] = list()
-                self.accesses[inp.name].append(inp.index + [inp])
+                self.accesses[inp.name].append(inp.index)
 
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
@@ -178,7 +178,7 @@ class ComputeGraph:
         for field in self.accesses:
             updated_entries = list()
             for entry in self.accesses[field]:
-                updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]) + [entry[3]])
+                updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]))
             self.accesses[field] = updated_entries
 
     def determine_inputs_outputs(self):
