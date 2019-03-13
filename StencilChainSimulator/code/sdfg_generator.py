@@ -7,10 +7,12 @@ import operator
 import numpy as np
 import os
 import re
+
+import dace
 from dace.graph.edges import InterstateEdge
 from dace.memlet import Memlet
 from dace.sdfg import SDFG
-from dace.types import ScheduleType, StorageType
+from dace.types import ScheduleType, StorageType, Language
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
 
 DATA_TYPE = float
@@ -30,6 +32,9 @@ def make_iterators(chain):
 
 def make_stream_name(src_name, dst_name):
     return src_name + "_to_" + dst_name
+
+def relative_to_buffer_index(buffer_size, index):
+    return buffer_size - 1 - abs(index)
 
 
 def generate_sdfg(name, chain):
@@ -182,20 +187,21 @@ def generate_sdfg(name, chain):
 
         # Extract fields to read from memory and fields to buffer
         memory_accesses = []
-        buffer_sizes = []
+        buffer_sizes = collections.OrderedDict()
         buffer_accesses = collections.OrderedDict()
-        for field, accesses in node.graph.accesses.items():
-            indices = [
+        for field, relative in node.graph.accesses.items():
+            # Deduplicate, as we can have multiple accesses to the same index
+            abs_indices = helper.unique([
                 helper.dim_to_abs_val(i, node.dimensions)
-                for i in helper.unique(accesses)
-            ]
-            buffer_size = (
-                max(indices) - min(indices) + 1)
+                for i in relative
+            ])
+            buffer_size = max(abs_indices) - min(abs_indices) + 1
             memory_accesses.append(field)
-            buffer_sizes.append((field, buffer_size))
+            buffer_sizes[field] = buffer_size
             buffer_accesses[field] = [
-                buffer_size - 1 - abs(i) for i in indices
+                relative_to_buffer_index(buffer_size, i) for i in abs_indices
             ]
+
 
         entry, exit = state.add_map(
             node.name, iterators, schedule=ScheduleType.FPGA_Device)
@@ -208,9 +214,9 @@ def generate_sdfg(name, chain):
         nested_sdfg_tasklet = state.add_nested_sdfg(
             nested_sdfg, sdfg,
             ([name + "_in" for name in memory_accesses] +
-             [name + "_buffer_in" for name, _ in buffer_sizes]),
+             [name + "_buffer_in" for name, _ in buffer_sizes.items()]),
             ([name + "_out" for name in outputs] +
-             [name + "_buffer_out" for name, _ in buffer_sizes]),
+             [name + "_buffer_out" for name, _ in buffer_sizes.items()]),
             name=node.name)
 
         # Shift state, which shifts all buffers by one
@@ -219,24 +225,40 @@ def generate_sdfg(name, chain):
         # Update state, which reads new values from memory
         update_state = nested_sdfg.add_state(node.name + "_update")
 
+        code = "\n".join([
+            dace.types._CTYPES[DATA_TYPE] + " " + expr.strip() + ";" for expr
+            in node.generate_relative_access_kernel_string().split(";")
+        ])
+        # Replace array accesses with memlet names
+        pattern = re.compile("(([a-zA-Z_][a-zA-Z0-9_]*)\[([^\]]+)\])")
+        for full_str, field, index in re.findall(pattern, code):
+            buffer_index = relative_to_buffer_index(buffer_sizes[field],
+                                                    int(index))
+            code = code.replace(full_str, "{}_{}".format(field, buffer_index))
+        code += "\n".join([""] + [
+            "write_channel_intel({}_inner_out, res);".format(output)
+            for output in outputs
+        ])
+
         # Compute state, which reads from input channels, performs the compute,
         # and writes to the output channel(s)
         compute_state = nested_sdfg.add_state(node.name + "_compute")
-        tasklet_code = ""  # TODO
         compute_tasklet = compute_state.add_tasklet(
             node.name + "_compute",
             list(
-                itertools.chain.from_iterable([[
-                    "{}_{}".format(name, access)
-                    for access in accesses
-                ] for name, accesses in buffer_accesses.items()])),
-            [name + "_inner_out" for name in outputs], tasklet_code)
+                itertools.chain.from_iterable(
+                    [["{}_{}".format(name, access) for access in accesses]
+                     for name, accesses in buffer_accesses.items()])),
+            [name + "_inner_out" for name in outputs],
+            code,
+            language=Language.CPP)
 
         # Connect the three nested states
         nested_sdfg.add_edge(shift_state, update_state, InterstateEdge())
         nested_sdfg.add_edge(update_state, compute_state, InterstateEdge())
 
-        for in_name, (field_name, size) in zip(memory_accesses, buffer_sizes):
+        for in_name, (field_name, size) in zip(memory_accesses,
+                                               buffer_sizes.items()):
 
             stream_name = make_stream_name(in_name, node.name)
 
