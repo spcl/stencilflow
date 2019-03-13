@@ -143,8 +143,7 @@ class Kernel(BaseKernelNodeClass):
         # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
         if not index:
             return 0  # empty list
-        return (index[0] * self.dimensions[1] * self.dimensions[2] +
-                index[1] * self.dimensions[2]) + index[2]
+        return helper.dim_to_abs_val(index, self.dimensions)
 
     def setup_internal_buffers(self):
 

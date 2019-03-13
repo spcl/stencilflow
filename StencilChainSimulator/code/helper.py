@@ -132,7 +132,10 @@ def dim_to_abs_val(input, dimensions):
     :return: scalar value
     """
     # dim [X, Y, Z], size [a, b, c] -> 1*c + X*(b + Y*a) = [a, b, c] * transpose([Z*Y, Z, 1])
-    vec = [dimensions[2] * dimensions[1], dimensions[2], 1]
+    vec = [
+        reduce(operator.mul, dimensions[i + 1:], 1)
+        for i in range(len(dimensions))
+    ]
     return reduce(operator.add, map(operator.mul, input, vec))  # inner product
 
 

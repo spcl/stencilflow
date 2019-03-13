@@ -291,9 +291,9 @@ class KernelChainGraph:
             for inp in node.input_paths:
                 max_delay = max(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
-                    node.delay_buffer[entry[3]] = helper.list_subtract_cwise(max_delay[0:3], entry[0:3])
+                    node.delay_buffer[entry[-1]] = helper.list_subtract_cwise(max_delay[:-1], entry[:-1])
             if isinstance(node, Input):  # NodeType.INPUT:
-                node.delay_buffer = [0, 0, 0, node.name]
+                node.delay_buffer = [0]*len(self.dimensions) + [node.name]
 
             for succ in self.graph.successors(node):
 
@@ -301,7 +301,8 @@ class KernelChainGraph:
                     # add emtpy list dictionary entry for enabling list append()
                     if node.name not in succ.input_paths:
                         succ.input_paths[node.name] = []
-                    succ.input_paths[node.name].append([0, 0, 0, node.name])
+                    succ.input_paths[node.name].append(
+                        [0] * len(self.dimensions) + [node.name])
 
                 elif isinstance(node, Kernel):  # add KERNEL
 
@@ -315,15 +316,15 @@ class KernelChainGraph:
                         if entry not in succ.input_paths:
                             succ.input_paths[entry] = []
 
-                        delay_buffer = max(node.input_paths[entry][0:3])
+                        delay_buffer = max(node.input_paths[entry][:])
                         # max determines 'longest path'
 
                         total = [
-                            internal_buffer[0] + delay_buffer[0],
-                            internal_buffer[1] + delay_buffer[1],
-                            internal_buffer[2] + latency + delay_buffer[2],
-                            node.name
+                            i + d
+                            for i, d in zip(internal_buffer, delay_buffer)
                         ]
+                        total[-1] += latency  # Last entry
+                        total.append(node.name)
 
                         succ.input_paths[entry].append(total)
 
@@ -331,19 +332,19 @@ class KernelChainGraph:
                     continue
 
     '''
-    Since we know the output nodes as well as the path lengths the critical path is just 
+    Since we know the output nodes as well as the path lengths the critical path is just
     max { latency(node) + max { path_length(node) | node in output nodes }
     '''
     def compute_critical_path(self):
 
-        critical_path_length = [0, 0, 0]
+        critical_path_length = [0]*len(self.dimensions)
         for output in self.outputs:
             a = self.kernel_nodes[output].graph.max_latency
             b = max(self.kernel_nodes[output].input_paths)
             c = max(self.kernel_nodes[output].input_paths[b])
             c[2] += a
             critical_path_length = max(critical_path_length, c)
-        return helper.dim_to_abs_val(c[0:3], self.dimensions)
+        return helper.dim_to_abs_val(c[:-1], self.dimensions)
 
     '''
         simple test stencil program for debugging
@@ -354,15 +355,15 @@ if __name__ == "__main__":
 
     # usage: python3 kernel_chain_graph.py --stencil_file simple_input_delay_buf.json --plot False --report True
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stencil_file")
-    parser.add_argument("--plot")
-    parser.add_argument("--report")
+    parser.add_argument("stencil_file")
+    parser.add_argument("plot")
+    parser.add_argument("-report", action="store_true")
 
     args = parser.parse_args()
 
     chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot)
 
-    if args.report == "True":
+    if args.report:
 
         print("Report of {}\n".format(args.stencil_file))
 
