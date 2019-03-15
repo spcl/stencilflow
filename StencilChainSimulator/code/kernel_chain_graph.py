@@ -46,7 +46,7 @@ class KernelChainGraph:
         self.connect_kernels()
         self.compute_delay_buffer()
         self.add_channels()
-        if plot_graph == True:
+        if plot_graph:
             # plot kernel chain graph
             self.plot_graph()
             # plot all compute graphs
@@ -353,10 +353,10 @@ class KernelChainGraph:
 
 if __name__ == "__main__":
 
-    # usage: python3 kernel_chain_graph.py --stencil_file simple_input_delay_buf.json --plot False --report True
+    # usage: python3 kernel_chain_graph.py -stencil_file simple_input_delay_buf.json -plot -report
     parser = argparse.ArgumentParser()
-    parser.add_argument("stencil_file")
-    parser.add_argument("plot")
+    parser.add_argument("-stencil_file")
+    parser.add_argument("-plot", action="store_true")
     parser.add_argument("-report", action="store_true")
 
     args = parser.parse_args()
@@ -419,5 +419,6 @@ if __name__ == "__main__":
 
         print("relative access kernel string info:")
         for node in chain.kernel_nodes:
-            print("relative access kernel string of {} is: {}".format(node, chain.kernel_nodes[node].generate_relative_access_kernel_string()))
+            print("relative access kernel string of {} is: {}".format(node, chain.kernel_nodes[node].
+                                                                      generate_relative_access_kernel_string()))
         print()
