@@ -245,10 +245,37 @@ class Kernel(BaseKernelNodeClass):
 
 if __name__ == "__main__":
 
-    kernel1 = Kernel("ppgk", "res = wgtfac[i,j+1,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", [10, 10, 10])
-    print("Critical path latency: " + str(kernel1.graph.max_latency))
+    dim = [100, 100, 100]
 
-    kernel2 = Kernel("dummy", "res = (sin(a[i,j,k])-b[i,j,k]) * (a[i,j,k-1]+b[i,j-1,k-1])", [10, 10, 10])
+    kernel1 = Kernel("ppgk", "res = wgtfac[i,j+1,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", dim)
+    print("dimensions are: {}".format(dim))
+    print("Critical path latency: " + str(kernel1.graph.max_latency))
+    print()
+
+    kernel2 = Kernel("dummy", "res = (sin(a[i,j,k])-b[i,j,k]) * (a[i,j,k-1]+b[i,j-1,k-1])", [100, 100, 100])
+    print("dimensions are: {}".format(dim))
     print("Kernel string conversion:")
     print(kernel2.kernel_string)
     print(kernel2.generate_relative_access_kernel_string())
+    print()
+
+    kernel3 = Kernel("dummy", "res = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k]", dim)
+    print("Kernel string conversion:")
+    print("dimensions are: {}".format(dim))
+    print(kernel3.kernel_string)
+    print(kernel3.generate_relative_access_kernel_string())
+    print()
+
+    kernel4 = Kernel("dummy", "res = SUBST + a[i-1,j,k];SUBST = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k]", dim)
+    print("Kernel string conversion:")
+    print("dimensions are: {}".format(dim))
+    print(kernel4.kernel_string)
+    print(kernel4.generate_relative_access_kernel_string())
+    print()
+
+    kernel5 = Kernel("dummy", "res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k]", dim)
+    print("Kernel string conversion:")
+    print("dimensions are: {}".format(dim))
+    print(kernel5.kernel_string)
+    print(kernel5.generate_relative_access_kernel_string())
+    print()
