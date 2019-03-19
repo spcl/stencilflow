@@ -2,7 +2,7 @@ import argparse
 import operator
 import functools
 import networkx as nx
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
@@ -56,6 +56,7 @@ class KernelChainGraph:
     def plot_graph(self, save_path=None):
 
         # create drawing area
+        import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         fig.set_size_inches(25, 25)
         ax.set_axis_off()
