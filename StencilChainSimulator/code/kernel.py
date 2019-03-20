@@ -259,14 +259,14 @@ if __name__ == "__main__":
     print(kernel2.generate_relative_access_kernel_string())
     print()
 
-    kernel3 = Kernel("dummy", "res = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k]", dim)
+    kernel3 = Kernel("dummy", "res = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k] + a[i,j,k]", dim)
     print("Kernel string conversion:")
     print("dimensions are: {}".format(dim))
     print(kernel3.kernel_string)
     print(kernel3.generate_relative_access_kernel_string())
     print()
 
-    kernel4 = Kernel("dummy", "res = SUBST + a[i-1,j,k];SUBST = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k]", dim)
+    kernel4 = Kernel("dummy", "res = SUBST + a[i,j,k];SUBST = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k]", dim)
     print("Kernel string conversion:")
     print("dimensions are: {}".format(dim))
     print(kernel4.kernel_string)
