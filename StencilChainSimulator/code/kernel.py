@@ -3,7 +3,7 @@ from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
-from compute_graph import Name, Num, Binop, Call, Output, Subscript
+from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
 
 
 class Kernel(BaseKernelNodeClass):
@@ -107,6 +107,17 @@ class Kernel(BaseKernelNodeClass):
             dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             word_index = self.convert_3d_to_1d(dim_index)
             return node.name + "[" + str(word_index) + "]"
+        elif isinstance(node, Ternary):
+
+            compare = [x for x in pred if type(x) == Compare][0]
+            lhs = [x for x in pred if type(x) != Compare][0]
+            rhs = [x for x in pred if type(x) != Compare][1]
+
+            return "{} if {} else {}".format(self.iter_comp_tree(lhs), self.iter_comp_tree(compare), self.iter_comp_tree(rhs))
+        elif isinstance(node, Compare):
+            return "{} {} {}".format(self.iter_comp_tree(pred[0]), str(node.name), self.iter_comp_tree(pred[1]))
+        else:
+            raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
     def generate_relative_access_kernel_string(self):
         # format: 'res = vdc[index1] + vout[index2]'
@@ -278,4 +289,7 @@ if __name__ == "__main__":
     print("dimensions are: {}".format(dim))
     print(kernel5.kernel_string)
     print(kernel5.generate_relative_access_kernel_string())
+    print()
+
+    kernel6 = Kernel("dummy", "res = a if (a > b) else b", dim)
     print()

@@ -1,4 +1,5 @@
 import ast
+import operator
 import networkx as nx
 import matplotlib.pyplot as plt
 import helper
@@ -112,6 +113,41 @@ class Subscript(BaseOperationNodeClass):
         return str(self.name) + str(self.index)
 
 
+class Ternary(BaseOperationNodeClass):
+
+    def __init__(self, ast_node, number):
+        super().__init__(ast_node, number)
+
+    def generate_name(self, ast_node):
+        return "?"
+
+
+class Compare(BaseOperationNodeClass):
+
+    _COMP_MAP = {
+        ast.Lt: operator.lt,
+        ast.LtE: operator.le,
+        ast.Gt: operator.gt,
+        ast.GtE: operator.ge,
+        ast.Eq: operator.eq
+    }
+
+    _COMP_SYM = {
+        operator.lt: "<",
+        operator.le: "<=",
+        operator.gt: ">",
+        operator.ge: ">=",
+        operator.eq: "=="
+    }
+
+    def __init__(self, ast_node, number):
+        self.op = self._COMP_MAP[type(ast_node.ops[0])]
+        super().__init__(ast_node, number)
+
+    def generate_name(self, ast_node):
+        return self._COMP_SYM[self.op]
+
+
 class ComputeGraph:
 
     def __init__(self):
@@ -144,6 +180,10 @@ class ComputeGraph:
             return Output(node, number)
         elif isinstance(node, ast.Subscript):  # array access (form: arr[i,j,k])
             return Subscript(node, number)
+        elif isinstance(node, ast.IfExp):  # ternary operation
+            return Ternary(node, number)
+        elif isinstance(node, ast.Compare):
+            return Compare(node, number)  # TODO: test if correct
         else:
             raise Exception("Unknown AST type {}".format(type(node)))
 
@@ -156,7 +196,7 @@ class ComputeGraph:
 
         # find min and max index
         for inp in self.inputs:
-            if isinstance(inp, Name) or isinstance(inp, Subscript):  # inp.node_type == NodeType.NAME: #
+            if isinstance(inp, Subscript): # TODO: isinstance(inp, Name) or # inp.node_type == NodeType.NAME: #
                 if inp.name in self.min_index:
                     if inp.index < self.min_index[inp.name]:
                         self.min_index[inp.name] = inp.index
@@ -169,7 +209,6 @@ class ComputeGraph:
                 if inp.name not in self.accesses:
                     self.accesses[inp.name] = list()
                 self.accesses[inp.name].append(inp.index)
-
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
             self.buffer_size[buffer_name] = [abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
@@ -277,6 +316,23 @@ class ComputeGraph:
         elif isinstance(node, ast.Num):
             # nothing to do
             pass
+        elif isinstance(node, ast.Compare):
+
+            left = self.ast_tree_walk(node.left, ComputeGraph.child_left_number(number))
+            right = self.ast_tree_walk(node.comparators[0], ComputeGraph.child_right_number(number))
+
+            self.graph.add_edge(left, new_node)
+            self.graph.add_edge(right, new_node)
+
+        elif isinstance(node, ast.IfExp):
+
+            test = self.ast_tree_walk(node.test, 0)
+            true_path = self.ast_tree_walk(node.body, ComputeGraph.child_left_number(number))
+            false_path = self.ast_tree_walk(node.orelse, ComputeGraph.child_right_number(number))
+
+            self.graph.add_edge(true_path, new_node)
+            self.graph.add_edge(false_path, new_node)
+            self.graph.add_edge(test, new_node)
 
         # return node for reference purpose
         return new_node
@@ -316,6 +372,7 @@ class ComputeGraph:
         names = list()
         ops = list()
         outs = list()
+        comp = list()
 
         for node in self.graph.nodes:
             if isinstance(node, Num):  # node.node_type == NodeType.NUM:
@@ -326,6 +383,8 @@ class ComputeGraph:
                 ops.append(node)
             elif isinstance(node, Output):
                 outs.append(node)
+            elif isinstance(node, Ternary) or isinstance(node, Compare):
+                comp.append(node)
 
         # create dictionary of labels
         labels = dict()
@@ -341,6 +400,9 @@ class ComputeGraph:
 
         nx.draw_networkx_nodes(self.graph, positions, nodelist=nums, node_color='#007acc',
                                node_size=3000, node_shape='s')
+
+        nx.draw_networkx_nodes(self.graph, positions, nodelist=comp, node_color='#009999',
+                               node_size=3000, node_shape='o')
 
         nx.draw_networkx(self.graph, positions, nodelist=ops, node_color='red', node_size=3000,
                          node_shape='o', font_weight='bold', font_size=16, edge_color='black', arrows=True,
@@ -365,7 +427,7 @@ class ComputeGraph:
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         for node in self.graph.nodes:
             if isinstance(node, Output):
-                node.latency = 0
+                node.latency = 1
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
 
@@ -407,7 +469,8 @@ if __name__ == "__main__":
     '''
         simple example for debugging purpose
     '''
-    computation = "res = (A[i,j,k] + out) * cos(out); out = A[i,j,k-1] + B[i-1,j,k+1]"
+    # computation = "res = (A[i,j,k] + out) * cos(out); out = A[i,j,k-1] + B[i-1,j,k+1]"
+    computation = "res = a if (a+1 > b-c) else b"
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()

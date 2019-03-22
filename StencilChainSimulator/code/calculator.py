@@ -107,7 +107,7 @@ if __name__ == "__main__":
     for var in variables:
         print("name: " + var + " value: " + str(variables[var]))
 
-    computation = "cos(a + b) if (a > b) else (a + 5)*b"
+    computation = "cos(a + b) if (a > b) else (a + 5) * b"
 
     calculator = Calculator()
     result = calculator.eval_expr(variables, computation)
