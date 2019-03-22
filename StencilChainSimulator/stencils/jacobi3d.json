@@ -1,0 +1,10 @@
+{
+	"inputs": {
+		"a": []
+	},
+	"outputs": ["b"],
+	"dimensions": [128, 128, 128],
+	"program": {
+		"b": "res = 0.16666666 * (a[i-1,j,k] + a[i+1,j,k] + a[i,j-1,k] + a[i,j+1,k] + a[i,j,k-1] + a[i,j,k+1])"
+	}
+}

@@ -33,7 +33,11 @@ def parse_json(config_path):
     """
     # check file exists
     if not os.path.isfile(config_path):
-        raise Exception("file {} does not exists.".format(config_path))
+        relative = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), config_path)
+        if not os.path.isfile(relative):
+            raise Exception("file {} does not exists.".format(config_path))
+        config_path = relative
 
     # open file in with-clause, to ensure proper file closing even in the event of an exception
     with open(config_path, "r") as file_handle:

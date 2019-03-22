@@ -430,6 +430,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("stencil_file")
+    parser.add_argument("--plot-graph", dest="plot-graph", action="store_true")
+    parser.add_argument("--plot-sdfg", dest="plot-sdfg", action="store_true")
 
     args = parser.parse_args()
 
@@ -438,10 +440,12 @@ if __name__ == "__main__":
 
     chain = KernelChainGraph(args.stencil_file)
 
-    chain.plot_graph(name + ".pdf")
+    if getattr(args, "plot-graph"):
+        chain.plot_graph(name + ".pdf")
 
     sdfg = generate_sdfg(name, chain)
 
-    # sdfg.draw_to_file()
+    if getattr(args, "plot-sdfg"):
+        chain.plot_graph(name + ".pdf")
 
     sdfg.compile()

@@ -1,7 +1,7 @@
 import ast
 import operator
 import networkx as nx
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import helper
 from calculator import Calculator
 from base_node_class import BaseOperationNodeClass
@@ -361,6 +361,7 @@ class ComputeGraph:
     def plot_graph(self, save_path=None):
 
         # create drawing area
+        import matplotlib.pyplot as plt
         plt.figure(figsize=(20, 20))
         plt.axis('off')
 
@@ -458,10 +459,10 @@ class ComputeGraph:
 
 '''
     Creation of a proper graph representation for the computation data flow graph.
-    
+
     Credits for node-visitor: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
-    
-    More info: https://networkx.github.io/  
+
+    More info: https://networkx.github.io/
 '''
 
 if __name__ == "__main__":
