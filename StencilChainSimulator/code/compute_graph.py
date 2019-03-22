@@ -1,7 +1,6 @@
 import ast
 import operator
 import networkx as nx
-# import matplotlib.pyplot as plt
 import helper
 from calculator import Calculator
 from base_node_class import BaseOperationNodeClass
@@ -33,7 +32,6 @@ class Binop(BaseOperationNodeClass):
         ast.Mult: "mult",
         ast.Div: "div",
         ast.Invert: "neg"
-        # TODO: support operation: res = (a < b) ? c : d
     }
 
     _OP_SYM_MAP = {
@@ -42,7 +40,6 @@ class Binop(BaseOperationNodeClass):
         "mult": "*",
         "div": "/",
         "neg": "-"
-        # TODO: support operation: res = (a < b) ? c : d
     }
 
     def __init__(self, ast_node, number):
@@ -183,7 +180,7 @@ class ComputeGraph:
         elif isinstance(node, ast.IfExp):  # ternary operation
             return Ternary(node, number)
         elif isinstance(node, ast.Compare):
-            return Compare(node, number)  # TODO: test if correct
+            return Compare(node, number)
         else:
             raise Exception("Unknown AST type {}".format(type(node)))
 
@@ -196,7 +193,7 @@ class ComputeGraph:
 
         # find min and max index
         for inp in self.inputs:
-            if isinstance(inp, Subscript): # TODO: isinstance(inp, Name) or # inp.node_type == NodeType.NAME: #
+            if isinstance(inp, Subscript):
                 if inp.name in self.min_index:
                     if inp.index < self.min_index[inp.name]:
                         self.min_index[inp.name] = inp.index
@@ -464,6 +461,7 @@ class ComputeGraph:
 
     More info: https://networkx.github.io/
 '''
+
 
 if __name__ == "__main__":
 
