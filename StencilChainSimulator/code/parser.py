@@ -1,15 +1,16 @@
 import os
 import json
+from typing import List, Dict
 
 
 class Parser:
 
-    def __init__(self, source_path):
-        self.source_path = source_path
-        self.program = self.parse_input()
+    def __init__(self, source_path: str):
+        self.source_path: str = source_path
+        self.program: Dict = self.parse_input()
         self.kernels = self.get_kernel_list()
 
-    def parse_input(self):
+    def parse_input(self) -> Dict:
 
         # check file exist and readable
         if not os.access(self.source_path, os.R_OK):
@@ -29,7 +30,7 @@ class Parser:
 
         return program
 
-    def get_kernel_list(self):
+    def get_kernel_list(self) -> List:
 
         # split program into kernels
         result = list()

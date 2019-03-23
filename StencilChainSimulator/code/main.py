@@ -1,12 +1,13 @@
 import sys
 import getopt
 from parser import Parser
+from typing import List, Set
 
 
 def main(argv):
-    options = set()
-    input_file = ""
-    dimension = ""
+    options: Set = set()
+    input_file: str = None
+    dimension: List[int] = None
     try:
         # argument with value needs colon, -h, -i <value>, --input=<value>
         opts, args = getopt.getopt(argv, "hi:gsd:", ["help", "input=", "graph", "sim", "dimension"])
@@ -30,7 +31,7 @@ def main(argv):
     execute(options, input_file, dimension)
 
 
-def execute(options, input_file, dimension):
+def execute(options: Set, input_file: str, dimension: List[int]) -> None:
     # check if input file is available
     if "input" in options:
 
@@ -52,7 +53,7 @@ def execute(options, input_file, dimension):
         print("Nothing to parse. Exit.")
 
 
-def usage():
+def usage() -> None:
     print("usage: main.py --help --input <inputfile> --graph --sim")
 
 

@@ -3,7 +3,7 @@ from kernel_chain_graph import KernelChainGraph
 
 class Simulator:
 
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.chain_graph = KernelChainGraph(path)
 
 
