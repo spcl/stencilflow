@@ -15,6 +15,6 @@
 
         "vout": "res = 0.25 * (ppgv[i,j,k+1] + ppgv[i,j,k-1] + ppgv[i,j+1,k] + ppgv[i,j-1,k])",
 
-        "div": "res = vdc[i,j,k] + vout[i,j,k] if ppgk[i,j,k] < wtgfac[i,j,k] else wtgfac[i,j,k]"
+        "div": "OUT = vdc[i,j,k] + vout[i,j,k]; res = OUT if ppgk[i,j,k] < wtgfac[i,j,k] else wtgfac[i,j,k];"
 	}
 }
