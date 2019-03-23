@@ -2,8 +2,9 @@ import helper
 from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass
+from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
+from typing import List, Dict
 
 
 class Kernel(BaseKernelNodeClass):
@@ -54,20 +55,19 @@ class Kernel(BaseKernelNodeClass):
                       if we reach the bound i == N, TODO: special handling?
     """
 
-    def __init__(self, name, kernel_string, dimensions, plot_graph=False):
-
-        super().__init__(name)
+    def __init__(self, name: str, kernel_string: str, dimensions: List[int], plot_graph: bool = False) -> None:
+        super().__init__(name, None)
 
         # store arguments
-        self.kernel_string = kernel_string  # raw kernel string input
-        self.dimensions = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
+        self.kernel_string: str = kernel_string  # raw kernel string input
+        self.dimensions: List[int] = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
 
         # read static parameters from config
-        self.config = helper.parse_json("kernel.config")
-        self.calculator = Calculator()
+        self.config: Dict = helper.parse_json("kernel.config")
+        self.calculator: Calculator = Calculator()
 
         # analyse input
-        self.graph = ComputeGraph()
+        self.graph: ComputeGraph = ComputeGraph()
         self.graph.generate_graph(kernel_string)
         self.graph.calculate_latency()
         self.graph.determine_inputs_outputs()
@@ -76,21 +76,21 @@ class Kernel(BaseKernelNodeClass):
             self.graph.plot_graph(name + ".png")
 
         # init sim specific params
-        self.var_map = None  # var_map[var_name] = var_value
-        self.read_success = False
-        self.exec_success = False
-        self.result = None  # type: float
-        self.inputs = dict()  # type: dict()  # self.inputs[name] = queue
-        self.outputs = dict()  # type: dict()  # self.inputs[name] = queue
+        self.var_map: Dict[str, float] = None  # var_map[var_name] = var_value
+        self.read_success: bool = False
+        self.exec_success: bool = False
+        self.result: float = None
+        self.inputs: Dict[str, BoundedQueue] = dict()
+        self.outputs: Dict[str, BoundedQueue] = dict()
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
-        self.out_delay_queue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
+        self.out_delay_queue: BoundedQueue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
 
         # setup internal buffer queues
-        self.internal_buffer = dict()
+        self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
 
-    def iter_comp_tree(self, node):
+    def iter_comp_tree(self, node: BaseOperationNodeClass) -> str:
 
         pred = list(self.graph.graph.pred[node])
 
@@ -119,7 +119,7 @@ class Kernel(BaseKernelNodeClass):
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
-    def generate_relative_access_kernel_string(self):
+    def generate_relative_access_kernel_string(self) -> str:
         # format: 'res = vdc[index1] + vout[index2]'
 
         res = []
@@ -143,26 +143,26 @@ class Kernel(BaseKernelNodeClass):
 
         return "; ".join(res)
 
-    def reset_old_compute_state(self):
+    def reset_old_compute_state(self) -> None:
         self.var_map = dict()
         self.read_success = False
         self.exec_success = False
         self.result = None
 
-    def convert_3d_to_1d(self, index):
+    def convert_3d_to_1d(self, index: List[int]) -> int:
         # convert [i, j, k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
         # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
         if not index:
             return 0  # empty list
         return helper.dim_to_abs_val(index, self.dimensions)
 
-    def setup_internal_buffers(self):
+    def setup_internal_buffers(self) -> None:
 
         for buf_name in self.graph.buffer_size:
             self.internal_buffer[buf_name] = BoundedQueue(name=buf_name,
                                                           maxsize=self.convert_3d_to_1d(self.graph.buffer_size[buf_name])+1)
 
-    def buffer_position(self, access):
+    def buffer_position(self, access: BaseKernelNodeClass) -> int:
         return self.convert_3d_to_1d(self.graph.min_index[access.name]) - self.convert_3d_to_1d(access.index)
 
     def try_read(self):
@@ -205,7 +205,7 @@ class Kernel(BaseKernelNodeClass):
 
         return all_available
 
-    def try_execute(self):
+    def try_execute(self) -> bool:
 
         # check if read has been successful
         if self.read_success:
@@ -223,7 +223,7 @@ class Kernel(BaseKernelNodeClass):
         self.exec_success = True
         return self.exec_success
 
-    def try_write(self):
+    def try_write(self) -> bool:
 
         # check if data (not a bubble) is available
         data = self.out_delay_queue.dequeue()
@@ -246,7 +246,7 @@ class Kernel(BaseKernelNodeClass):
                     - type of phase (saturation/execution)
                     - efficiency (#execution cycles / #total cycles)
     '''
-    def diagnostics(self, ex):
+    def diagnostics(self, ex) -> None:
         raise NotImplementedError()
 
     '''

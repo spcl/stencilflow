@@ -5,6 +5,7 @@ import functools
 import warnings
 import operator
 from functools import reduce
+from typing import List, Dict
 
 
 def deprecated(func):
@@ -25,7 +26,7 @@ def deprecated(func):
     return new_func
 
 
-def parse_json(config_path):
+def parse_json(config_path: str) -> Dict:
     """
     Read input file from disk and parse it.
     :param config_path: path to the file
@@ -47,8 +48,7 @@ def parse_json(config_path):
     # return dict
     return config
 
-
-def max_dict_entry_key(dict1):
+def max_dict_entry_key(dict1: Dict[str, List[int]]) -> str:
     """
     Get key of largest value entry out of the input dictionary.
     :param dict1: a dictionary with keys as names and values as buffer sizes
@@ -61,38 +61,7 @@ def max_dict_entry_key(dict1):
     # extract max value entry
     return max(dict1, key=dict1.get)
 
-
-@deprecated  # since method is now only one line -> can be substituted
-def max_list_entry(list1):
-    """
-    Get largest list entry (lexicographic).
-    :param list1: a list of lists [[..],[..],[..], ..]
-    :return: max list entry of input list
-    """
-    # check type
-    if not isinstance(list1, list):
-        raise Exception("list1 should be of type {}, but is of type {}".format(
-            type(list), type(list1)))
-    # extract max entry
-    return max(list1)
-
-
-@deprecated  # since method is now only one line -> can be substituted
-def min_list_entry(list1):
-    """
-    Get smallest list entry (lexicographic).
-    :param list1: a list of lists [[..],[..],[..], ..]
-    :return: min list entry of input list
-    """
-    # check type
-    if not isinstance(list1, list):
-        raise Exception("list1 should be of type {}, but is of type {}".format(
-            type(list), type(list1)))
-    # extract min entry
-    return min(list1)
-
-
-def list_add_cwise(list1, list2):
+def list_add_cwise(list1: List, list2: List) -> List:
     """
     Merge two lists by component-wise addition.
     :param list1: input list: summand
@@ -110,7 +79,7 @@ def list_add_cwise(list1, list2):
     return list(map(lambda x, y: x + y, list1, list2))
 
 
-def list_subtract_cwise(list1, list2):
+def list_subtract_cwise(list1: List, list2: List) -> List:
     """
     Merge two lists by component-wise subtraction.
     :param list1: input list: minuend
@@ -128,7 +97,7 @@ def list_subtract_cwise(list1, list2):
     return list(map(lambda x, y: x - y, list1, list2))
 
 
-def dim_to_abs_val(input, dimensions):
+def dim_to_abs_val(input: List[int], dimensions: List[int]) -> int:
     """
     Computes scalar number out of independent dimension unit.
     :param input: vector to evaluate

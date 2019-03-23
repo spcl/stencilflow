@@ -1,9 +1,10 @@
 import collections
+from typing import List
 
 
 class BoundedQueue:
 
-    def __init__(self, name, maxsize, collection=[]):
+    def __init__(self, name: str, maxsize: int, collection: List = []) -> None:
         """
         Create new BoundedQueue with given initialization parameters.
         :param name: name of the queue
@@ -13,28 +14,28 @@ class BoundedQueue:
         # check input
         assert maxsize > 0
         # save params
-        self.maxsize = maxsize
-        self.name = name
+        self.maxsize: int = maxsize
+        self.name: str = name
         # create queue
-        self.queue = collections.deque(collection, maxsize)
+        self.queue: collection.dequeue = collections.deque(collection, maxsize)
         # init current size
-        self.current_size = len(collection)
+        self.current_size: int = len(collection)
 
-    def size(self):
+    def size(self) -> int:
         """
         Get number of data items the queue currently contains.
         :return: current queue size
         """
         return self.current_size
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Test if queue is empty.
         :return: if queue is empty
         """
         return self.size() == 0
 
-    def enqueue(self, item):
+    def enqueue(self, item) -> None:
         """
         Add data element to queue, causes an exception if queue is full.
         :param item: data element
@@ -62,7 +63,7 @@ class BoundedQueue:
         else:
             raise RuntimeError("buffer {} underflow occurred".format(self.name))
 
-    def try_enqueue(self, item):
+    def try_enqueue(self, item) -> bool:
         """
         Add data element to queue..
         :param item: data item
@@ -94,7 +95,7 @@ class BoundedQueue:
             # report: unsuccessful
             return False
 
-    def peek(self, index):
+    def peek(self, index: int):
         """
         Returns data item at position 'index' without removal, causes an exception if index > BoundedQueue.current_size
         :param index: queue position of peeking element

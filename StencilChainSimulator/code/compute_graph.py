@@ -4,29 +4,30 @@ import networkx as nx
 import helper
 from calculator import Calculator
 from base_node_class import BaseOperationNodeClass
+from typing import List, Dict, Set
 
 
 class Name(BaseOperationNodeClass):
 
-    def __init__(self, ast_node, number):
+    def __init__(self, ast_node: ast, number: int) -> None:
         super().__init__(ast_node, number)
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return ast_node.id
 
 
 class Num(BaseOperationNodeClass):
 
-    def __init__(self, ast_node, number):
+    def __init__(self, ast_node: ast, number: int) -> None:
         super().__init__(ast_node, number)
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return ast_node.n
 
 
 class Binop(BaseOperationNodeClass):
 
-    _OP_NAME_MAP = {
+    _OP_NAME_MAP: Dict[type(ast), str] = {
         ast.Add: "add",
         ast.Sub: "sub",
         ast.Mult: "mult",
@@ -34,7 +35,7 @@ class Binop(BaseOperationNodeClass):
         ast.Invert: "neg"
     }
 
-    _OP_SYM_MAP = {
+    _OP_SYM_MAP: Dict[str, str] = {
         "add": "+",
         "sub": "-",
         "mult": "*",
@@ -42,53 +43,53 @@ class Binop(BaseOperationNodeClass):
         "neg": "-"
     }
 
-    def __init__(self, ast_node, number):
+    def __init__(self, ast_node: ast, number: int) -> None:
         super().__init__(ast_node, number)
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return self._OP_NAME_MAP[type(ast_node.op)]
 
-    def generate_op_sym(self):
+    def generate_op_sym(self) -> str:
         return self._OP_SYM_MAP[self.name]
 
 
 class Call(BaseOperationNodeClass):
 
-    def __init__(self, ast_node, number):
+    def __init__(self, ast_node: ast, number: int) -> None:
         super().__init__(ast_node, number)
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return ast_node.func.id
 
 
 class Output(BaseOperationNodeClass):
 
-    def __init__(self, ast_node, number):
+    def __init__(self, ast_node: ast, number: int) -> None:
         super().__init__(ast_node, number)
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return ast_node.targets[0].id
 
 
 class Subscript(BaseOperationNodeClass):
 
-    _VAR_MAP = {
+    _VAR_MAP: Dict[str, int] = {
         "i": 0,
         "j": 0,
         "k": 0
     }
 
-    _OP_SYM_MAP = {
+    _OP_SYM_MAP: Dict[type(ast), str] = {
         ast.Add: "+",
         ast.Sub: "-"
     }
 
-    def __init__(self, ast_node, number):
-        self.index = None
-        self.create_index(ast_node=ast_node)
+    def __init__(self, ast_node: ast, number: int) -> None:
+        self.index: List[int] = None
+        self.create_index(ast_node)
         super().__init__(ast_node, number)
 
-    def create_index(self, ast_node):
+    def create_index(self, ast_node: ast) -> None:
         # create index
         self.index = list()
         for slice in ast_node.slice.value.elts:
@@ -103,25 +104,25 @@ class Subscript(BaseOperationNodeClass):
                 calculator = Calculator()
                 self.index.append(calculator.eval_expr(self._VAR_MAP, expression))
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return ast_node.value.id
 
-    def generate_label(self):
+    def generate_label(self) -> str:
         return str(self.name) + str(self.index)
 
 
 class Ternary(BaseOperationNodeClass):
 
-    def __init__(self, ast_node, number):
+    def __init__(self, ast_node: ast, number: int) -> None:
         super().__init__(ast_node, number)
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return "?"
 
 
 class Compare(BaseOperationNodeClass):
 
-    _COMP_MAP = {
+    _COMP_MAP: Dict[type(ast), type(operator)] = {
         ast.Lt: operator.lt,
         ast.LtE: operator.le,
         ast.Gt: operator.gt,
@@ -129,7 +130,7 @@ class Compare(BaseOperationNodeClass):
         ast.Eq: operator.eq
     }
 
-    _COMP_SYM = {
+    _COMP_SYM: Dict[type(operator), str] = {
         operator.lt: "<",
         operator.le: "<=",
         operator.gt: ">",
@@ -137,33 +138,33 @@ class Compare(BaseOperationNodeClass):
         operator.eq: "=="
     }
 
-    def __init__(self, ast_node, number):
-        self.op = self._COMP_MAP[type(ast_node.ops[0])]
+    def __init__(self, ast_node: ast, number: int) -> None:
+        self.op: operator = self._COMP_MAP[type(ast_node.ops[0])]
         super().__init__(ast_node, number)
 
-    def generate_name(self, ast_node):
+    def generate_name(self, ast_node: ast) -> str:
         return self._COMP_SYM[self.op]
 
 
 class ComputeGraph:
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         # read static parameters from config
-        self.config = helper.parse_json("compute_graph.config")
-        self.graph = nx.DiGraph()
-        self.tree = None
-        self.max_latency = -1
-        self.inputs = None
-        self.outputs = None
-        self.min_index = None
-        self.max_index = None
-        self.buffer_size = None
-        self.accesses = dict()  # dictionary containing all field accesses for a specific resource e.g.
+        self.config: Dict[str, int] = helper.parse_json("compute_graph.config")
+        self.graph: nx.DiGraph = nx.DiGraph()
+        self.tree: type(ast) = None
+        self.max_latency: int = -1
+        self.inputs: Set[BaseOperationNodeClass] = None
+        self.outputs: Set[BaseOperationNodeClass] = None
+        self.min_index: Dict[str, List] = None
+        self.max_index: Dict[str, List] = None
+        self.buffer_size: Dict[str, List] = None
+        self.accesses: Dict[str, List[List]] = dict()  # dictionary containing all field accesses for a specific resource e.g.
         # {"A":{[0,0,0],[0,-1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
     @staticmethod
-    def create_operation_node(node, number):
+    def create_operation_node(node: ast, number: int) -> BaseOperationNodeClass:
 
         if isinstance(node, ast.Name):  # variables or array access
             return Name(node, number)
@@ -184,7 +185,7 @@ class ComputeGraph:
         else:
             raise Exception("Unknown AST type {}".format(type(node)))
 
-    def setup_internal_buffers(self):
+    def setup_internal_buffers(self) -> None:
 
         # init dicts
         self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
@@ -217,7 +218,7 @@ class ComputeGraph:
                 updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]))
             self.accesses[field] = updated_entries
 
-    def determine_inputs_outputs(self):
+    def determine_inputs_outputs(self) -> None:
 
         # create empty sets
         self.inputs = set()
@@ -231,7 +232,7 @@ class ComputeGraph:
             if len(self.graph.succ[node]) == 0:
                 self.outputs.add(node)
 
-    def contract_edge(self, u, v):
+    def contract_edge(self, u: BaseOperationNodeClass, v: BaseOperationNodeClass) -> None:
 
         # add edges of v to u
         for edge in self.graph.succ[v]:
@@ -241,7 +242,7 @@ class ComputeGraph:
         # remove v
         self.graph.remove_node(v)
 
-    def generate_graph(self, computation_string):
+    def generate_graph(self, computation_string: str) -> nx.DiGraph:
 
         # generate abstract syntax tree
         self.tree = ast.parse(computation_string)
@@ -273,7 +274,7 @@ class ComputeGraph:
                                    "of a DAG).")
         return self.graph
 
-    def ast_tree_walk(self, node, number):
+    def ast_tree_walk(self, node: ast, number: int) -> BaseOperationNodeClass:
 
         # create node
         new_node = self.create_operation_node(node, number)  # new_node = Node(node, number)
@@ -348,14 +349,14 @@ class ComputeGraph:
     '''
 
     @staticmethod
-    def child_left_number(n):
+    def child_left_number(n: int) -> int:
         return 2*n + 1
 
     @staticmethod
-    def child_right_number(n):
+    def child_right_number(n: int) -> int:
         return 2*n
 
-    def plot_graph(self, save_path=None):
+    def plot_graph(self, save_path: str = None) -> None:
 
         # create drawing area
         import matplotlib.pyplot as plt
@@ -416,11 +417,11 @@ class ComputeGraph:
         # plot it
         plt.show()
 
-    def try_set_max_latency(self, new_val):
+    def try_set_max_latency(self, new_val: int) -> None:
         if self.max_latency < new_val:
             self.max_latency = new_val
 
-    def calculate_latency(self):
+    def calculate_latency(self) -> None:
 
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         for node in self.graph.nodes:
@@ -429,7 +430,7 @@ class ComputeGraph:
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
 
-    def latency_tree_walk(self, node):
+    def latency_tree_walk(self, node: BaseOperationNodeClass) -> None:
 
         # check node type
         if isinstance(node, Name) or isinstance(node, Num):

@@ -1,7 +1,9 @@
-from functools import reduce
 import operator
-from kernel_chain_graph import KernelChainGraph
 import helper
+from kernel_chain_graph import KernelChainGraph
+from functools import reduce
+from typing import List
+
 
 '''
     assumptions:
@@ -10,13 +12,13 @@ import helper
 '''
 datatype: at the moment, we assume float (32bit) are precise enough
 '''
-_SIZEOF_DATATYPE = 4  # in bytes
+_SIZEOF_DATATYPE: int = 4  # in bytes
 
 '''
 we assume that we can iterate over the smaller dimension by transposition of all data arrays, if not, change this to
 [64, 1024, 1024] (would lead to a factor 16 of buffer space growth
 '''
-_DIMENSIONS = [1024, 1024, 64]  # longitude x latitude x altitude
+_DIMENSIONS: List[int] = [1024, 1024, 64]  # longitude x latitude x altitude
 
 '''
 estimate for critical path length (#cycles):
@@ -28,27 +30,27 @@ Stencil Chains:
     
 -> use mean of the three: [4, 2, 35]
 '''
-_MEAN_CRITICAL_PATH_KERNEL = [4, 2, 35]
+_MEAN_CRITICAL_PATH_KERNEL: List[int] = [4, 2, 35]
 
 '''
  FPGA clock frequency: 200Mhz
 '''
-_FPGA_CLOCK_FREQUENCY = 2e8
+_FPGA_CLOCK_FREQUENCY: int = 2e8
 
 '''
  available FGPA fast memory (Stratix 10): 25MB
 '''
-_FPGA_FAST_MEMORY_SIZE = 25e6
+_FPGA_FAST_MEMORY_SIZE: int = 25e6
 
 '''
  available bandwidth to slow memory (Stratix 10): 86.4GB/s
 '''
-_FPGA_BANDWIDTH = 86.4e9
+_FPGA_BANDWIDTH: int = 86.4e9
 
 '''
  we assume that as soon as the pipeline is saturated, we can produce one result per cycle
 '''
-_CYCLES_PER_OUTPUT = 1
+_CYCLES_PER_OUTPUT: int = 1
 
 
 def do_estimate():
