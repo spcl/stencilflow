@@ -2,43 +2,41 @@ import argparse
 import operator
 import functools
 import networkx as nx
-# import matplotlib.pyplot as plt
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
+from typing import List, Dict
 
 
 class Input(BaseKernelNodeClass):
 
-    def __init__(self, name, data_queue=None):
-        super().__init__(name)
-        self.data_queue = data_queue
+    def __init__(self, name: str, data_queue: BoundedQueue = None) -> None:
+        super().__init__(name, data_queue)
 
 
 class Output(BaseKernelNodeClass):
 
     def __init__(self, name, data_queue=None):
-        super().__init__(name)
-        self.data_queue = data_queue
+        super().__init__(name, data_queue)
 
 
 class KernelChainGraph:
 
-    def __init__(self, path, plot_graph=False):
-        self.inputs = None  # type: dict # inputs[name] = input_array_data
-        self.outputs = None
-        self.path = path
-        self.dimensions = None
-        self.program = None  # type: dict  # program[stencil_name] = stencil expression
-        self.kernels = None
-        self.kernel_latency = None
-        self.channels = None  # each channel is an edge between two kernels or a kernel and an input
-        self.graph = nx.DiGraph()
+    def __init__(self, path: str, plot_graph: bool = False) -> None:
+        self.inputs: Dict[str, List] = None  # type: dict # inputs[name] = input_array_data
+        self.outputs: List[str] = None
+        self.path: str = path
+        self.dimensions: List[int] = None
+        self.program: Dict[str, str] = None  # type: dict  # program[stencil_name] = stencil expression
+        self.kernels = None # TODO: check why this is empty
+        self.kernel_latency = None # TODO: check why this is empty
+        self.channels: Dict[str, BoundedQueue] = None  # each channel is an edge between two kernels or a kernel and an input
+        self.graph: nx.DiGraph = nx.DiGraph()
 
-        self.input_nodes = dict()
-        self.output_nodes = dict()
-        self.kernel_nodes = dict()
+        self.input_nodes: Dict[str, Kernel] = dict()
+        self.output_nodes: Dict[str, Kernel] = dict()
+        self.kernel_nodes: Dict[str, Kernel] = dict()
 
         self.import_input()
         self.create_kernels()
@@ -53,7 +51,7 @@ class KernelChainGraph:
             for compute_kernel in self.kernel_nodes:
                 self.kernel_nodes[compute_kernel].graph.plot_graph()
 
-    def plot_graph(self, save_path=None):
+    def plot_graph(self, save_path: str = None) -> None:
 
         # create drawing area
         import matplotlib.pyplot as plt
@@ -62,6 +60,7 @@ class KernelChainGraph:
         ax.set_axis_off()
 
         # generate positions
+        import pydot
         positions = nx.nx_pydot.graphviz_layout(self.graph, prog='dot')
 
         # divide nodes into different lists for colouring purpose
@@ -141,7 +140,7 @@ class KernelChainGraph:
             # plot it
             fig.show()
 
-    def channel_size(self, dest_node, src_node):
+    def channel_size(self, dest_node: Kernel, src_node: Kernel) -> List[int]:
         del_buf = self.kernel_nodes[dest_node.name].delay_buffer[src_node.name]
         int_buf = self.kernel_nodes[dest_node.name].graph.buffer_size[src_node.name]
 
@@ -150,7 +149,7 @@ class KernelChainGraph:
         else:
             return int_buf
 
-    def connect_kernels(self):
+    def connect_kernels(self) -> None:
 
         for src in self.graph.nodes:
             for dest in self.graph.nodes:
@@ -174,7 +173,7 @@ class KernelChainGraph:
                     else:
                         pass  # Are there reasons for existence of those combinations?
 
-    def add_channels(self):
+    def add_channels(self) -> None:
         self.channels = dict()
 
         for src in self.graph.nodes:
@@ -221,18 +220,17 @@ class KernelChainGraph:
                     else:
                         pass  # Are there reasons for existence of those combinations?
 
-    def import_input(self):
+    def import_input(self) -> None:
         inp = helper.parse_json(self.path)
         self.program = inp["program"]
         self.inputs = inp["inputs"]
         self.outputs = inp["outputs"]
         self.dimensions = inp["dimensions"]
 
-    def total_elements(self):
-        return functools.reduce(operator.mul, self.dimensions,
-                                1)  # foldl (*) 1 [...]
+    def total_elements(self) -> int:
+        return functools.reduce(operator.mul, self.dimensions, 1)  # foldl (*) 1 [...]
 
-    def create_kernels(self):
+    def create_kernels(self) -> None:
 
         # create dict
         self.kernels = dict()
@@ -254,15 +252,14 @@ class KernelChainGraph:
             new_node = Output(name=out, data_queue=None)
             self.graph.add_node(new_node)
 
-    def compute_kernel_latency(self):
+    def compute_kernel_latency(self) -> None:
 
         # create dict
         self.kernel_latency = dict()
 
         # compute kernel latency of each kernel
         for kernel in self.kernels:
-            self.kernel_latency[kernel] = self.kernels[
-                kernel].graph.max_latency
+            self.kernel_latency[kernel] = self.kernels[kernel].graph.max_latency
 
     '''
     delay buffer entries should be of the format:
@@ -278,7 +275,7 @@ class KernelChainGraph:
     where inX are input arrays to the stencil chain and predY are the kernel predecessors/inputs
     '''
 
-    def compute_delay_buffer(self):
+    def compute_delay_buffer(self) -> None:
 
         # get topological order for top-down walk through of the graph
         try:
@@ -336,7 +333,7 @@ class KernelChainGraph:
     Since we know the output nodes as well as the path lengths the critical path is just
     max { latency(node) + max { path_length(node) | node in output nodes }
     '''
-    def compute_critical_path(self):
+    def compute_critical_path(self) -> None:
 
         critical_path_length = [0]*len(self.dimensions)
         for output in self.outputs:
