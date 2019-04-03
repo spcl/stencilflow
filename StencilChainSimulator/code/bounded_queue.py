@@ -4,7 +4,7 @@ from typing import List
 
 class BoundedQueue:
 
-    def __init__(self, name: str, maxsize: int, collection: List = []) -> None:
+    def __init__(self, name: str, maxsize: int, collection: List = [], swap_out: bool) -> None:
         """
         Create new BoundedQueue with given initialization parameters.
         :param name: name of the queue
@@ -20,6 +20,8 @@ class BoundedQueue:
         self.queue: collection.dequeue = collections.deque(collection, maxsize)
         # init current size
         self.current_size: int = len(collection)
+        # indication of where the buffer is located (slow memory or fast memory)
+        self.swap_out = swap_out
 
     def size(self) -> int:
         """
