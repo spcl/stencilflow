@@ -4,7 +4,7 @@ from typing import List
 
 class BoundedQueue:
 
-    def __init__(self, name: str, maxsize: int, collection: List = [], swap_out: bool) -> None:
+    def __init__(self, name: str, maxsize: int, swap_out: bool, collection: List = []) -> None:
         """
         Create new BoundedQueue with given initialization parameters.
         :param name: name of the queue
