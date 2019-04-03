@@ -90,6 +90,7 @@ class Kernel(BaseKernelNodeClass):
         self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
 
+
     def iter_comp_tree(self, node: BaseOperationNodeClass) -> str:
 
         pred = list(self.graph.graph.pred[node])
@@ -158,9 +159,22 @@ class Kernel(BaseKernelNodeClass):
 
     def setup_internal_buffers(self) -> None:
 
+        # slice the internal buffer into junks of accesses
+
         for buf_name in self.graph.buffer_size:
-            self.internal_buffer[buf_name] = BoundedQueue(name=buf_name,
-                                                          maxsize=self.convert_3d_to_1d(self.graph.buffer_size[buf_name])+1)
+            self.internal_buffer[buf_name] = list()
+            list.sort(self.graph.accesses[buf_name], reverse=True)
+            print(self.graph.accesses[buf_name])
+            itr = self.graph.accesses[buf_name].__iter__()
+            pre = itr.__next__()
+            for item in itr:
+                curr = item
+
+                diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
+                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff))
+
+                pre = curr
+
 
     def buffer_position(self, access: BaseKernelNodeClass) -> int:
         return self.convert_3d_to_1d(self.graph.min_index[access.name]) - self.convert_3d_to_1d(access.index)
