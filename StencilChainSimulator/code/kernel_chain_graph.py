@@ -384,6 +384,12 @@ if __name__ == "__main__":
                                                                    chain.kernel_nodes[node].graph.buffer_size))
         print()
 
+        print("internal buffer chunks info:")
+        for node in chain.kernel_nodes:
+            print("node name: {}, internal buffer chunks: {}".format(node,
+                                                                   chain.kernel_nodes[node].internal_buffer))
+        print()
+
         print("delay buffer size info:")
         for node in chain.kernel_nodes:
             print("node name: {}, delay buffer size: {}".format(node, chain.kernel_nodes[node].delay_buffer))
