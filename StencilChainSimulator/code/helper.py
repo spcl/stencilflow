@@ -123,6 +123,15 @@ def unique(iterable):
             zip(map(str, iterable), iterable)).values())
 
 
+
+def convert_3d_to_1d(dimensions: List[int], index: List[int]) -> int:
+    # convert [i, j, k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
+    # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
+    if not index:
+        return 0  # empty list
+    return dim_to_abs_val(index, dimensions)
+
+
 if __name__ == "__main__":
     example_list = [[1, 2, 2], [1, 2, 3], [3, 2, 1], [2, 3, 1]]
     print("properties of list {}:\nmin: {}\nmax: {}\n".format(
