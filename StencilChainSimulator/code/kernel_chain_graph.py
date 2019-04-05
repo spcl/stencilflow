@@ -6,6 +6,7 @@ import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
+from optimizer import Optimizer
 from typing import List, Dict
 
 
@@ -143,11 +144,7 @@ class KernelChainGraph:
     def channel_size(self, dest_node: Kernel, src_node: Kernel) -> List[int]:
         del_buf = self.kernel_nodes[dest_node.name].delay_buffer[src_node.name]
         int_buf = self.kernel_nodes[dest_node.name].graph.buffer_size[src_node.name]
-
-        if del_buf >= int_buf:  # return max
-            return del_buf
-        else:
-            return int_buf
+        return max(del_buf, int_buf)
 
     def connect_kernels(self) -> None:
 
@@ -184,8 +181,13 @@ class KernelChainGraph:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
-                                channel = BoundedQueue(name, 1 + src.convert_3d_to_1d(self.channel_size(dest, src)))
-                                # TODO: move convert_3d_to_1d into higher hierarchical level
+                                # channel = BoundedQueue(name, 1 + src.convert_3d_to_1d(self.channel_size(dest, src)))
+
+                                channel = {
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer,
+                                    "internal_buffer": dest.internal_buffer
+                                }
+
                                 self.channels[name] = channel
                                 # add channel to both endpoints
                                 src.outputs[dest.name] = channel
@@ -198,7 +200,14 @@ class KernelChainGraph:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
-                                channel = BoundedQueue(name, 1 + dest.convert_3d_to_1d(self.channel_size(dest, src)))
+
+                                #channel = BoundedQueue(name, 1 + dest.convert_3d_to_1d(self.channel_size(dest, src)))
+
+                                channel = {
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer,
+                                    "internal_buffer": dest.internal_buffer
+                                }
+
                                 self.channels[name] = channel
                                 # add channel to both endpoints
                                 src.outputs[dest.name] = channel
@@ -210,7 +219,14 @@ class KernelChainGraph:
                         if src.name == dest.name:
                             # create channel
                             name = src.name + "_" + dest.name
-                            channel = BoundedQueue(name, 1)  # no buffer
+
+                            #channel = BoundedQueue(name, 1)  # no buffer
+
+                            channel = {
+                                "delay_buffer": self.kernel_nodes[dest.name].delay_buffer,
+                                "internal_buffer": {}
+                            }
+
                             self.channels[name] = channel
                             # add channel to both endpoints
                             src.outputs[dest.name] = channel
@@ -289,9 +305,9 @@ class KernelChainGraph:
             for inp in node.input_paths:
                 max_delay = max(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
-                    node.delay_buffer[entry[-1]] = helper.list_subtract_cwise(max_delay[:-1], entry[:-1])
+                    node.delay_buffer[entry[-1]] = BoundedQueue(name=entry[-1], maxsize=1 +helper.convert_3d_to_1d(self.dimensions,helper.list_subtract_cwise(max_delay[:-1], entry[:-1])))
             if isinstance(node, Input):  # NodeType.INPUT:
-                node.delay_buffer = [0]*len(self.dimensions) + [node.name]
+                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1) # [0]*len(self.dimensions) + [node.name]
 
             for succ in self.graph.successors(node):
 
@@ -370,7 +386,8 @@ if __name__ == "__main__":
         print("channel info:")
         for u, v, channel in chain.graph.edges(data='channel'):
             if channel is not None:
-                print("channel name: {}, max channel size: {}".format(channel.name, channel.maxsize))
+                print("internal buffers:\n {}".format(channel["internal_buffer"]))
+                print("delay buffers:\n {}".format(channel["delay_buffer"]))
         print()
 
         print("field access info:")
@@ -413,7 +430,14 @@ if __name__ == "__main__":
         for node in chain.kernel_nodes:
             for u, v, channel in chain.graph.edges(data='channel'):
                 if channel is not None:
-                    total += channel.maxsize
+                    total_delay = 0
+                    for item in channel["internal_buffer"]:
+                        for entry in channel["internal_buffer"][item]:
+                            total_delay += entry.maxsize
+                    total_internal = 0
+                    for item in channel["delay_buffer"]:
+                        total_delay += channel["delay_buffer"][item].maxsize
+                    total += total_delay + total_internal
         print("total buffer size: {}\n".format(total))
 
         print("input kernel string info:")
@@ -425,4 +449,8 @@ if __name__ == "__main__":
         for node in chain.kernel_nodes:
             print("relative access kernel string of {} is: {}".format(node, chain.kernel_nodes[node].
                                                                       generate_relative_access_kernel_string()))
+
+        print("instantiate optimizer...")
+        # opt = Optimizer(chain.kernel_nodes, chain.dimensions)
+
         print()
