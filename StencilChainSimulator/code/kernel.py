@@ -171,7 +171,7 @@ class Kernel(BaseKernelNodeClass):
                 curr = item
 
                 diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
-                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff))
+                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff + 1))
 
                 pre = curr
 
