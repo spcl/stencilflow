@@ -23,6 +23,12 @@ class BoundedQueue:
         # indication of where the buffer is located (slow memory or fast memory)
         self.swap_out = swap_out
 
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
+
     def size(self) -> int:
         """
         Get number of data items the queue currently contains.
