@@ -452,5 +452,6 @@ if __name__ == "__main__":
 
         print("instantiate optimizer...")
         opt = Optimizer(chain.kernel_nodes, chain.dimensions)
- 
+        opt.minimize_fast_mem(10000000)
+
         print()
