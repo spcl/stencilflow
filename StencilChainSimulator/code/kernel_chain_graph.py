@@ -451,6 +451,6 @@ if __name__ == "__main__":
                                                                       generate_relative_access_kernel_string()))
 
         print("instantiate optimizer...")
-        # opt = Optimizer(chain.kernel_nodes, chain.dimensions)
-
+        opt = Optimizer(chain.kernel_nodes, chain.dimensions)
+ 
         print()
