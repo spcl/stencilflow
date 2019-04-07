@@ -1,5 +1,6 @@
 import operator
 import functools
+from enum import Enum
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
@@ -25,9 +26,7 @@ class Optimizer:
         self.fast_memory_use: int = 0
         self.slow_memory_use: int = 0
         self.metric_data: List[(BoundedQueue, int)] = list()  # [Queue, communication volume]
-        self.add_delay_buffers_to_metric()
-        self.add_internal_buffers_to_metric()
-        print()
+        self.add_buffers_to_metric()
 
     def minimize_comm_vol(self, fast_memory_bound: int, slow_memory_bound: int):
         # optimize for minimal communication volume use / maximal fast memory use
@@ -87,22 +86,47 @@ class Optimizer:
 
 
     def update_neighbours(self, buffers):
-        raise NotImplementedError()
+        """
+            How to determine the necessary communication volume?
+            (predecessor, successor):
+            case (fast, fast): 2C
+            case (fast, slow): C
+            case (slow, fast): C
+            case (slow, slow): 0
 
+            where C:= communication volume to stream single data array in or out of fast memory (=SIZE(data array))
 
-    def add_delay_buffers_to_metric(self):
+            Note;
+            pred of delay buffer is always fast memory
+        """
+
+    def add_buffers_to_metric(self):
         for kernel in self.kernels:
             for buf in self.kernels[kernel].delay_buffer:
-                entry = self.kernels[kernel].delay_buffer[buf]
-                self.metric_data.append((entry, 0))
-                self.fast_memory_use += entry.maxsize * _SIZEOF_DATATYPE
 
-    def add_internal_buffers_to_metric(self):
-        for kernel in self.kernels:
-            for buf in self.kernels[kernel].internal_buffer:
+                # get delay buffer first
+                del_buf = {
+                    "queue": self.kernels[kernel].delay_buffer[buf],
+                    "comm_vol": 2*self.single_comm_volume(),
+                    "type": "delay",
+                    "prev": None,
+                    "next": None}
+                self.fast_memory_use += del_buf["queue"].maxsize * _SIZEOF_DATATYPE
+                self.metric_data.append(del_buf)
+
+                # get internal buffers next
+                prev = del_buf
                 for entry in self.kernels[kernel].internal_buffer[buf]:
-                    self.metric_data.append((entry, 0))
-                    self.fast_memory_use += entry.maxsize * _SIZEOF_DATATYPE
+                    curr = {
+                    "queue": entry,
+                    "comm_vol": 2*self.single_comm_volume(),
+                    "type": "internal",
+                    "prev": prev,
+                    "next": None}
+                    prev["next"] = curr
+                    self.fast_memory_use += curr["queue"].maxsize * _SIZEOF_DATATYPE
+                    self.metric_data.append(curr)
+                    prev = curr
 
     def single_comm_volume(self):
         return reduce(operator.mul, self.dimensions) * _SIZEOF_DATATYPE
