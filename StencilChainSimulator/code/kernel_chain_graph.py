@@ -246,16 +246,15 @@ class KernelChainGraph:
 
     def create_kernels(self) -> None:
 
-        # create dict
-        self.kernel_nodes = dict()
-
         # create all kernel objects and add them to the graph
+        self.kernel_nodes = dict()
         for kernel in self.program:
             new_node = Kernel(name=kernel, kernel_string=self.program[kernel], dimensions=self.dimensions)
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
 
         # create all input nodes
+        self.input_nodes = dict()
         for inp in self.inputs:
             # check if data is in the file or in a separate file
             if isinstance(self.inputs[inp], list):
@@ -268,12 +267,14 @@ class KernelChainGraph:
                                                                    collection=coll))
             else:
                 raise Exception("Input data representation should either be implicit (list) or a path to a csv file.")
-
+            self.input_nodes[inp] = new_node
             self.graph.add_node(new_node)
 
         # create all output nodes
+        self.output_nodes = dict()
         for out in self.outputs:
             new_node = Output(name=out, data_queue=None)
+            self.output_nodes[out] = new_node
             self.graph.add_node(new_node)
 
     def compute_kernel_latency(self) -> None:
@@ -497,5 +498,6 @@ if __name__ == "__main__":
                         kernel_nodes=chain.kernel_nodes,
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions)
+        sim.step_execution()
 
         print()
