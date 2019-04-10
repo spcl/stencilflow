@@ -7,6 +7,7 @@ from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
 from optimizer import Optimizer
+from simulator import Simulator
 from typing import List, Dict
 
 
@@ -30,8 +31,7 @@ class KernelChainGraph:
         self.path: str = path
         self.dimensions: List[int] = None
         self.program: Dict[str, str] = None  # type: dict  # program[stencil_name] = stencil expression
-        self.kernels = None # TODO: check why this is empty
-        self.kernel_latency = None # TODO: check why this is empty
+        self.kernel_latency = None
         self.channels: Dict[str, BoundedQueue] = None  # each channel is an edge between two kernels or a kernel and an input
         self.graph: nx.DiGraph = nx.DiGraph()
 
@@ -249,7 +249,7 @@ class KernelChainGraph:
     def create_kernels(self) -> None:
 
         # create dict
-        self.kernels = dict()
+        self.kernel_nodes = dict()
 
         # create all kernel objects and add them to the graph
         for kernel in self.program:
@@ -482,5 +482,7 @@ if __name__ == "__main__":
         print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(total_slow, total_fast))
 
 
+        print("instantiate simulator...")
+        sim = Simulator()
 
         print()
