@@ -6,7 +6,6 @@ import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
-from optimizer import Optimizer
 from typing import List, Dict
 
 
@@ -258,8 +257,18 @@ class KernelChainGraph:
 
         # create all input nodes
         for inp in self.inputs:
-            new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
-                                                               collection=self.inputs[inp]))
+            # check if data is in the file or in a separate file
+            if isinstance(self.inputs[inp], list):
+                new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
+                                                                   collection=self.inputs[inp]))
+            elif isinstance(self.inputs[inp], str):
+                from numpy import genfromtxt
+                coll = list(genfromtxt(self.inputs[inp], delimiter=';'))
+                new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
+                                                                   collection=coll))
+            else:
+                raise Exception("Input data representation should either be implicit (list) or a path to a csv file.")
+
             self.graph.add_node(new_node)
 
         # create all output nodes
@@ -450,6 +459,7 @@ if __name__ == "__main__":
                                                                       generate_relative_access_kernel_string()))
 
         print("instantiate optimizer...")
+        from optimizer import Optimizer
         opt = Optimizer(chain.kernel_nodes, chain.dimensions)
         bound = 12001
         opt.minimize_fast_mem(communication_volume_bound=bound)
@@ -483,7 +493,9 @@ if __name__ == "__main__":
 
         print("instantiate simulator...")
         from simulator import Simulator
-
-        sim = Simulator()
+        sim = Simulator(input_nodes=chain.input_nodes,
+                        kernel_nodes=chain.kernel_nodes,
+                        output_nodes=chain.output_nodes,
+                        dimensions=chain.dimensions)
 
         print()
