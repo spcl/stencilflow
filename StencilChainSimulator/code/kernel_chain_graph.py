@@ -14,11 +14,23 @@ class Input(BaseKernelNodeClass):
     def __init__(self, name: str, data_queue: BoundedQueue = None) -> None:
         super().__init__(name, data_queue)
 
+    def read(self):
+        """
+        :return: a data item or None if everything has already been read
+        """
+        if self.data_queue.is_empty():
+            return None
+        else:
+            return self.data_queue.dequeue()
+
 
 class Output(BaseKernelNodeClass):
 
     def __init__(self, name, data_queue=None):
         super().__init__(name, data_queue)
+
+    def write(self, item) -> None:
+        self.data_queue.enqueue(item)
 
 
 class KernelChainGraph:
