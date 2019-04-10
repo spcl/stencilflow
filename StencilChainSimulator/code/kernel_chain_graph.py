@@ -452,8 +452,8 @@ if __name__ == "__main__":
 
         print("instantiate optimizer...")
         opt = Optimizer(chain.kernel_nodes, chain.dimensions)
-        bound = 10000
-        opt.minimize_fast_mem(communication_volume_bound=12001)
+        bound = 12001
+        opt.minimize_fast_mem(communication_volume_bound=bound)
         print("optimize fast memory usage with comm volume bound= {}".format(bound))
         print("single stream comm vol is: {}".format(opt.single_comm_volume()))
 
