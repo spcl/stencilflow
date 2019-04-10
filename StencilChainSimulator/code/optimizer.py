@@ -120,7 +120,6 @@ class Optimizer:
             Note;
             pred of delay buffer is always fast memory
         """
-        pre_fast = None
         if buffer["type"] == "delay":
             pre_fast = True
         elif buffer["prev"]["queue"].swap_out:
@@ -128,7 +127,6 @@ class Optimizer:
         else:
             pre_fast = True
 
-        succ_fast = None
         if buffer["next"] is None:
             succ_fast = True
         elif buffer["next"]["queue"].swap_out:

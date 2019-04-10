@@ -452,6 +452,35 @@ if __name__ == "__main__":
 
         print("instantiate optimizer...")
         opt = Optimizer(chain.kernel_nodes, chain.dimensions)
-        opt.minimize_fast_mem(10000000)
+        bound = 10000
+        opt.minimize_fast_mem(communication_volume_bound=12001)
+        print("optimize fast memory usage with comm volume bound= {}".format(bound))
+        print("single stream comm vol is: {}".format(opt.single_comm_volume()))
+
+        print("total buffer info:")
+        total = 0
+        for node in chain.kernel_nodes:
+            for u, v, channel in chain.graph.edges(data='channel'):
+                if channel is not None:
+                    total_fast = 0
+                    total_slow = 0
+                    for item in channel["internal_buffer"]:
+                        for entry in channel["internal_buffer"][item]:
+                            if entry.swap_out:
+                                print("internal buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
+                                total_slow += entry.maxsize
+                            else:
+                                print("internal buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
+                                total_fast += entry.maxsize
+                    for item in channel["delay_buffer"]:
+                        if entry.swap_out:
+                            print("delay buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
+                            total_slow += entry.maxsize
+                        else:
+                            print("delay buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
+                            total_fast += entry.maxsize
+        print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(total_slow, total_fast))
+
+
 
         print()
