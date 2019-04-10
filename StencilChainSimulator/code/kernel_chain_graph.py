@@ -7,7 +7,6 @@ from kernel import Kernel
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
 from optimizer import Optimizer
-from simulator import Simulator
 from typing import List, Dict
 
 
@@ -274,8 +273,8 @@ class KernelChainGraph:
         self.kernel_latency = dict()
 
         # compute kernel latency of each kernel
-        for kernel in self.kernels:
-            self.kernel_latency[kernel] = self.kernels[kernel].graph.max_latency
+        for kernel in self.kernel_nodes:
+            self.kernel_latency[kernel] = self.kernel_nodes[kernel].graph.max_latency
 
     '''
     delay buffer entries should be of the format:
@@ -483,6 +482,8 @@ if __name__ == "__main__":
 
 
         print("instantiate simulator...")
+        from simulator import Simulator
+
         sim = Simulator()
 
         print()
