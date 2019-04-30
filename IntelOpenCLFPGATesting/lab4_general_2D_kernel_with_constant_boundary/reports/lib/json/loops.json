@@ -1,0 +1,842 @@
+{
+  "columns":
+  ["", "Pipelined", "II", "Bottleneck", "Details"]
+  , "children":
+  [
+    {
+      "name":"Kernel: host_reader"
+      , "data":
+      ["", "", ""]
+      , "debug":
+      [
+        [
+          {
+            "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+            , "line":26
+          }
+        ]
+      ]
+      , "details":
+      [
+        {
+          "type":"brief"
+          , "text":"Single work-item execution"
+        }
+        , {
+          "type":"text"
+          , "text":"Single work-item execution"
+        }
+        , {
+          "type":"text"
+          , "text":"See %L for more information"
+          , "links":
+          [
+            {
+              "guide":"Best Practices Guide : Kernels"
+              , "link":"https://www.altera.com/documentation/mwh1391807516407.html#ipp1476408832230"
+            }
+          ]
+        }
+      ]
+      , "children":
+      [
+        {
+          "name":"host_reader.B2"
+          , "data":
+          ["Yes", "~1", "n/a"]
+          , "debug":
+          [
+            [
+              {
+                "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                , "line":30
+              }
+            ]
+          ]
+          , "details":
+          [
+            {
+              "type":"text"
+              , "text":"Loop orchestration compiler optimization is enabled."
+            }
+            , {
+              "type":"brief"
+              , "text":"II is an approximation."
+            }
+            , {
+              "type":"text"
+              , "text":"II is an approximation due to the following stallable instructions:"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"Load Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"31"
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"Store Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"32"
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"Channel Write Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"31"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+          , "children":
+          [
+          ]
+        }
+      ]
+    }
+    , {
+      "name":"Kernel: kernelA"
+      , "data":
+      ["", "", ""]
+      , "debug":
+      [
+        [
+          {
+            "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+            , "line":103
+          }
+        ]
+      ]
+      , "details":
+      [
+        {
+          "type":"brief"
+          , "text":"Single work-item execution"
+        }
+        , {
+          "type":"text"
+          , "text":"Single work-item execution"
+        }
+        , {
+          "type":"text"
+          , "text":"See %L for more information"
+          , "links":
+          [
+            {
+              "guide":"Best Practices Guide : Kernels"
+              , "link":"https://www.altera.com/documentation/mwh1391807516407.html#ipp1476408832230"
+            }
+          ]
+        }
+      ]
+      , "children":
+      [
+        {
+          "name":"kernelA.B2"
+          , "data":
+          ["Yes", "~1", "Fmax"]
+          , "debug":
+          [
+            [
+              {
+                "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                , "line":121
+              }
+            ]
+          ]
+          , "details":
+          [
+            {
+              "type":"text"
+              , "text":"Compiler lowered Fmax (system clock frequency) due to data dependency on variable(s):"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"row_index (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"115"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"The critical path that caused lower Fmax:"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"Number of nodes in critical path exceeded what the compiler has captured. Only the top 8 failing nodes are listed."
+                  , "details":
+                  [
+                    {
+                      "type":"text"
+                      , "text":"0.19 clock cycles 32-bit Integer Compare Operation (%L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"74"
+                        }
+                      ]
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"0.19 clock cycles 32-bit Integer Add Operation (%L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"74"
+                        }
+                      ]
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"0.19 clock cycles 32-bit Integer Compare Operation (%L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"62"
+                        }
+                      ]
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"0.08 clock cycles 32-bit Select Operation (%L, %L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"115"
+                        }
+                        , {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"76"
+                        }
+                      ]
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"0.08 clock cycles 1-bit Or Operation (%L, %L, %L, %L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"115"
+                        }
+                        , {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"50"
+                        }
+                        , {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"76"
+                        }
+                        , {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"80"
+                        }
+                      ]
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"0.08 clock cycles 1-bit And Operation (%L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"74"
+                        }
+                      ]
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"0.08 clock cycles 32-bit Select Operation (%L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"62"
+                        }
+                      ]
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"0.08 clock cycles 1-bit Or Operation (%L, %L, %L, %L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"50"
+                        }
+                        , {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"74"
+                        }
+                        , {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"76"
+                        }
+                        , {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"80"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"Loop orchestration compiler optimization is enabled."
+            }
+            , {
+              "type":"brief"
+              , "text":"Data dependency"
+            }
+            , {
+              "type":"text"
+              , "text":"See %L for more information"
+              , "links":
+              [
+                {
+                  "guide":"Best Practices Guide : Loops in a Single Work-Item Kernel"
+                  , "link":"https://www.altera.com/documentation/mwh1391807516407.html#wfa1476380079940"
+                }
+              ]
+            }
+          ]
+          , "children":
+          [
+            {
+              "name":"Fully unrolled loop"
+              , "data":
+              ["n/a", "n/a", "n/a"]
+              , "debug":
+              [
+                [
+                  {
+                    "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                    , "line":98
+                  }
+                ]
+              ]
+              , "details":
+              [
+                {
+                  "type":"brief"
+                  , "text":"Unrolled by #pragma unroll"
+                }
+                , {
+                  "type":"text"
+                  , "text":"Unrolled by #pragma unroll"
+                }
+              ]
+              , "children":
+              [
+              ]
+            }
+          ]
+        }
+        , {
+          "name":"kernelA.B4"
+          , "data":
+          ["Yes", ">=1", "n/a"]
+          , "debug":
+          [
+            [
+              {
+                "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                , "line":130
+              }
+            ]
+          ]
+          , "details":
+          [
+            {
+              "type":"text"
+              , "text":"Iteration executed serially across kernelA.B5. Only a single loop iteration will execute inside this region due to memory dependency:"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"From: Channel Read Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"81"
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"To: Channel Read Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"81"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"Iteration executed serially due to memory dependency:"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"From: Channel Read Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"81"
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"To: Channel Read Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"81"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"Iteration executed serially across kernelA.B5. Only a single loop iteration will execute inside this region due to memory dependency:"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"From: Channel Read Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"81"
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"To: Channel Read Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"81"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"Iteration executed serially across kernelA.B5. Only a single loop iteration will execute inside this region due to data dependency on variable(s):"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"shift_register_buffer (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"118"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"Iteration executed serially across kernelA.B5. Only a single loop iteration will execute inside this region due to data dependency on variable(s):"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"row_index (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"115"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"Iteration executed serially across kernelA.B5. Only a single loop iteration will execute inside this region due to data dependency on variable(s):"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"index (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"114"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"text"
+              , "text":"Iteration executed serially across kernelA.B5. Only a single loop iteration will execute inside this region due to data dependency on variable(s):"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"phase (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"113"
+                    }
+                  ]
+                }
+              ]
+            }
+            , {
+              "type":"brief"
+              , "text":"Serial exe: Memory dependency"
+            }
+            , {
+              "type":"text"
+              , "text":"See %L for more information"
+              , "links":
+              [
+                {
+                  "guide":"Best Practices Guide : Nested Loops"
+                  , "link":"https://www.altera.com/documentation/mwh1391807516407.html#rfr1469543500580"
+                }
+              ]
+            }
+          ]
+          , "children":
+          [
+            {
+              "name":"kernelA.B5"
+              , "data":
+              ["Yes", "~1", "Fmax"]
+              , "debug":
+              [
+                [
+                  {
+                    "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                    , "line":138
+                  }
+                ]
+              ]
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"Compiler lowered Fmax (system clock frequency) due to data dependency on variable(s):"
+                  , "details":
+                  [
+                    {
+                      "type":"text"
+                      , "text":"row_index (%L)"
+                      , "links":
+                      [
+                        {
+                          "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                          , "line":"115"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"The critical path that caused lower Fmax:"
+                  , "details":
+                  [
+                    {
+                      "type":"text"
+                      , "text":"Number of nodes in critical path exceeded what the compiler has captured. Only the top 6 failing nodes are listed."
+                      , "details":
+                      [
+                        {
+                          "type":"text"
+                          , "text":"0.27 clock cycles 32-bit Integer Add Operation (%L)"
+                          , "links":
+                          [
+                            {
+                              "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                              , "line":"76"
+                            }
+                          ]
+                        }
+                        , {
+                          "type":"text"
+                          , "text":"0.27 clock cycles 32-bit Integer Compare Operation (%L)"
+                          , "links":
+                          [
+                            {
+                              "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                              , "line":"62"
+                            }
+                          ]
+                        }
+                        , {
+                          "type":"text"
+                          , "text":"0.12 clock cycles 32-bit Select Operation (%L)"
+                          , "links":
+                          [
+                            {
+                              "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                              , "line":"62"
+                            }
+                          ]
+                        }
+                        , {
+                          "type":"text"
+                          , "text":"0.12 clock cycles llvm.fpga.sfc.entry Operation (%L)"
+                          , "links":
+                          [
+                            {
+                              "filename":"Unknown location"
+                              , "line":"0"
+                            }
+                          ]
+                        }
+                        , {
+                          "type":"text"
+                          , "text":"0.12 clock cycles 32-bit Select Operation (%L, %L, %L)"
+                          , "links":
+                          [
+                            {
+                              "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                              , "line":"115"
+                            }
+                            , {
+                              "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                              , "line":"76"
+                            }
+                            , {
+                              "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                              , "line":"80"
+                            }
+                          ]
+                        }
+                        , {
+                          "type":"text"
+                          , "text":"0.12 clock cycles 32-bit Extractvalue Operation (%L)"
+                          , "links":
+                          [
+                            {
+                              "filename":"Unknown location"
+                              , "line":"0"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"Loop orchestration compiler optimization is enabled."
+                }
+                , {
+                  "type":"brief"
+                  , "text":"Data dependency"
+                }
+                , {
+                  "type":"text"
+                  , "text":"See %L for more information"
+                  , "links":
+                  [
+                    {
+                      "guide":"Best Practices Guide : Loops in a Single Work-Item Kernel"
+                      , "link":"https://www.altera.com/documentation/mwh1391807516407.html#wfa1476380079940"
+                    }
+                  ]
+                }
+              ]
+              , "children":
+              [
+                {
+                  "name":"Fully unrolled loop"
+                  , "data":
+                  ["n/a", "n/a", "n/a"]
+                  , "debug":
+                  [
+                    [
+                      {
+                        "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                        , "line":98
+                      }
+                    ]
+                  ]
+                  , "details":
+                  [
+                    {
+                      "type":"brief"
+                      , "text":"Unrolled by #pragma unroll"
+                    }
+                    , {
+                      "type":"text"
+                      , "text":"Unrolled by #pragma unroll"
+                    }
+                  ]
+                  , "children":
+                  [
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    , {
+      "name":"Kernel: host_writer"
+      , "data":
+      ["", "", ""]
+      , "debug":
+      [
+        [
+          {
+            "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+            , "line":172
+          }
+        ]
+      ]
+      , "details":
+      [
+        {
+          "type":"brief"
+          , "text":"Single work-item execution"
+        }
+        , {
+          "type":"text"
+          , "text":"Single work-item execution"
+        }
+        , {
+          "type":"text"
+          , "text":"See %L for more information"
+          , "links":
+          [
+            {
+              "guide":"Best Practices Guide : Kernels"
+              , "link":"https://www.altera.com/documentation/mwh1391807516407.html#ipp1476408832230"
+            }
+          ]
+        }
+      ]
+      , "children":
+      [
+        {
+          "name":"host_writer.B2"
+          , "data":
+          ["Yes", "~1", "n/a"]
+          , "debug":
+          [
+            [
+              {
+                "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                , "line":175
+              }
+            ]
+          ]
+          , "details":
+          [
+            {
+              "type":"text"
+              , "text":"Loop orchestration compiler optimization is enabled."
+            }
+            , {
+              "type":"brief"
+              , "text":"II is an approximation."
+            }
+            , {
+              "type":"text"
+              , "text":"II is an approximation due to the following stallable instructions:"
+              , "details":
+              [
+                {
+                  "type":"text"
+                  , "text":"Channel Read Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"176"
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"Store Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"176"
+                    }
+                  ]
+                }
+                , {
+                  "type":"text"
+                  , "text":"Store Operation (%L)"
+                  , "links":
+                  [
+                    {
+                      "filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+                      , "line":"177"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+          , "children":
+          [
+          ]
+        }
+      ]
+    }
+  ]
+}

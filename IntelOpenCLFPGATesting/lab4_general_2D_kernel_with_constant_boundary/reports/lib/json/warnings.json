@@ -1,0 +1,10 @@
+{"rows":[
+{"name":"use of logical '&&' with constant operand"
+,"debug":[[{"filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+,"line":39}]]
+,"details":["/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl:39:17: warning: use of logical '&&' with constant operand"]}
+,{"name":"control may reach end of non-void function"
+,"debug":[[{"filename":"/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl"
+,"line":90}]]
+,"details":["/scratch/hpc-prf-cosmo/andreas/lab4/channels.cl:90:1: warning: control may reach end of non-void function"]}
+]}

@@ -1,0 +1,211 @@
+{
+  "performanceSummary":
+  {
+    "name":"Kernel Summary"
+    , "columns":
+    ["Kernel Name", "Kernel Type", "Autorun", "Workgroup Size", "# Compute Units", "HyperFlex Control Optimizations"]
+    , "children":
+    [
+      {
+        "name":"host_reader"
+        , "data":
+        [
+          "Single work-item"
+          , "No"
+          , [1, 1, 1]
+          , 1
+          , "On"
+        ]
+        , "details":
+        [
+          {
+            "type":"text"
+            , "text":"Kernel type: Single work-item"
+          }
+          , {
+            "type":"text"
+            , "text":"Required workgroup size: (1, 1, 1)"
+          }
+          , {
+            "type":"text"
+            , "text":"Maximum workgroup size: 1"
+          }
+        ]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/upb/departments/pc2/users/c/cosmo002/scratch/lab1/channels.cl"
+              , "line":6
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"host_writer"
+        , "data":
+        [
+          "Single work-item"
+          , "No"
+          , [1, 1, 1]
+          , 1
+          , "On"
+        ]
+        , "details":
+        [
+          {
+            "type":"text"
+            , "text":"Kernel type: Single work-item"
+          }
+          , {
+            "type":"text"
+            , "text":"Required workgroup size: (1, 1, 1)"
+          }
+          , {
+            "type":"text"
+            , "text":"Maximum workgroup size: 1"
+          }
+        ]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/upb/departments/pc2/users/c/cosmo002/scratch/lab1/channels.cl"
+              , "line":23
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"kernelA"
+        , "data":
+        [
+          "Single work-item"
+          , "No"
+          , [1, 1, 1]
+          , 1
+          , "On"
+        ]
+        , "details":
+        [
+          {
+            "type":"text"
+            , "text":"Kernel type: Single work-item"
+          }
+          , {
+            "type":"text"
+            , "text":"Required workgroup size: (1, 1, 1)"
+          }
+          , {
+            "type":"text"
+            , "text":"Maximum workgroup size: 1"
+          }
+        ]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/upb/departments/pc2/users/c/cosmo002/scratch/lab1/channels.cl"
+              , "line":14
+            }
+          ]
+        ]
+      }
+    ]
+  }
+  , "estimatedResources":
+  {
+    "name":"Estimated Resource Usage"
+    , "columns":
+    ["Kernel Name", "ALUTs ", "FFs  ", "RAMs ", "DSPs ", "MLABs"]
+    , "children":
+    [
+      {
+        "name":"host_reader"
+        , "data":
+        [2449, 4084, 17, 0, 8]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/upb/departments/pc2/users/c/cosmo002/scratch/lab1/channels.cl"
+              , "line":6
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"host_writer"
+        , "data":
+        [2354, 4189, 20, 0, 8]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/upb/departments/pc2/users/c/cosmo002/scratch/lab1/channels.cl"
+              , "line":23
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"kernelA"
+        , "data":
+        [1940, 1960, 3, 1, 8]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/upb/departments/pc2/users/c/cosmo002/scratch/lab1/channels.cl"
+              , "line":14
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"Kernel Subtotal"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [6743, 10233, 40, 1, 24]
+      }
+      , {
+        "name":"Global Interconnect"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [7490, 15614, 52, 0, 0]
+      }
+      , {
+        "name":"Board Interface"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [480580, 961160, 2766, 1292, 0]
+      }
+      , {
+        "name":"Total"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [494845, 987286, 2860, 1293, 24]
+        , "data_percent":
+        [35.7119, 35.6251, 31.9375, 28.9391, 69.257]
+      }
+      , {
+        "name":"Available"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [1385660, 2771320, 8955, 4468, 0]
+      }
+    ]
+  }
+  , "compileWarnings":
+  {
+    "name":"Compile Warnings"
+    , "children":
+    [
+    ]
+  }
+}
