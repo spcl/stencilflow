@@ -1,0 +1,13 @@
+aoc: Environment checks are completed successfully.
+aoc: Cached files in /var/tmp/aocl/ may be used to reduce compilation time
+You are now compiling the full flow!!
+aoc: Selected target board p520_max_sg280l
+aoc: Running OpenCL parser....
+aoc: OpenCL parser completed successfully.
+aoc: Linking Object files....
+aoc: Compiling for Emulation ....
+aoc: Emulator Compilation completed successfully.
+Emulator flow is successful.
+To execute emulated kernel, invoke host with 
+	env CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 <host_program>
+ For multi device emulations replace the 1 with the number of devices you wish to emulate

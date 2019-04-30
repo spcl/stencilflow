@@ -1,0 +1,8 @@
+{"name":"Info","rows":[
+{"classes":["info-table"],"name":"Project Name","data":["channels"]},
+{"name":"Target Family, Device, Board","data":["Stratix 10, 1SG280LU3F50E1VGS1, nalla_pcie:p520_max_sg280l"]},
+{"name":"AOC Version","data":["18.1.1 Build 263"]},
+{"name":"Quartus Version","data":["18.1.1 Build 263 Pro"]},
+{"name":"Command","data":["aoc -v -board=p520_max_sg280l channels.cl -global-ring -duplicate-ring -o channels.aocx"]},
+{"name":"Reports Generated At","data":["Sat Apr 27 01:19:16 2019"]}
+]}
