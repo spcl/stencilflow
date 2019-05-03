@@ -181,12 +181,6 @@ class Kernel(BaseKernelNodeClass):
 
     def try_read(self):
 
-        # TODO: test this method as soon as the kernel_chain_graph has linked the input queues with the output queues
-        # of different kernels
-
-        # reset old state
-        self.reset_old_compute_state()
-
         # check if all inputs are available
         all_available = True
         for inp in self.graph.inputs:
@@ -219,7 +213,7 @@ class Kernel(BaseKernelNodeClass):
 
         return all_available
 
-    def try_execute(self) -> bool:
+    def try_execute(self):
 
         # check if read has been successful
         if self.read_success:
@@ -234,10 +228,7 @@ class Kernel(BaseKernelNodeClass):
             # write bubble to latency-simulating buffer
             self.out_delay_queue.enqueue(None)
 
-        self.exec_success = True
-        return self.exec_success
-
-    def try_write(self) -> bool:
+    def try_write(self):
 
         # check if data (not a bubble) is available
         data = self.out_delay_queue.dequeue()
@@ -248,9 +239,6 @@ class Kernel(BaseKernelNodeClass):
                     outp.enqueue(self.result)
                 except Exception as ex:
                     self.diagnostics(ex)
-
-        return self.available
-
     '''
         interface for error overview reporting (gets called in case of an exception)
 
