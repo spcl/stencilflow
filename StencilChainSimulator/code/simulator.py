@@ -1,40 +1,49 @@
-from kernel_chain_graph import KernelChainGraph
-
 
 class Simulator:
 
-    def __init__(self, path: str) -> None:
-        self.chain_graph = KernelChainGraph(path)
+    def __init__(self, input_nodes, kernel_nodes, output_nodes, dimensions) -> None:
+        self.dimensions = dimensions
+        self.input_nodes = input_nodes
+        self.kernel_nodes = kernel_nodes
+        self.output_nodes = output_nodes
 
-
-    '''
     def step_execution(self):
+
+        """
         # try to read all kernel inputs
-        for kernel in self.kernels:
+        for kernel in self.kernel_nodes:
             try:
-                kernel.try_read()
+                self.kernel_nodes[kernel].reset_old_compute_state()
+                self.kernel_nodes[kernel].try_read()
             except Exception as ex:
                 self.diagnostics(ex)
+        """
         # try to execute all kernels
-        for kernel in self.kernels:
+        for kernel in self.kernel_nodes:
             try:
-                kernel.try_execute()
+                self.kernel_nodes[kernel].try_execute()
             except Exception as ex:
                 self.diagnostics(ex)
+
         # try to write all kernel outputs
-        for kernel in self.kernels:
+        for kernel in self.output_nodes:
             try:
                 kernel.try_write()
             except Exception as ex:
                 self.diagnostics(ex)
 
+        for kernel in self.kernel_nodes:
+            try:
+                kernel.try_write()
+            except Exception as ex:
+                self.diagnostics(ex)
+
+
     def diagnostics(self, exception):
         # gather info from all kernels
-        for kernel in self.kernels:
-            kernel.diagnostics()
+        for kernel in self.kernel_nodes:
+            self.kernel_nodes[kernel].diagnostics()
         raise exception
-    '''
-
 
 """
     Procedure: 
