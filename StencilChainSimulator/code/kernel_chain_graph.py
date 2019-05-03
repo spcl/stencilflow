@@ -14,14 +14,15 @@ class Input(BaseKernelNodeClass):
     def __init__(self, name: str, data_queue: BoundedQueue = None) -> None:
         super().__init__(name, data_queue)
 
-    def read(self):
-        """
-        :return: a data item or None if everything has already been read
-        """
+    def try_write(self):
+        # feed data into pipeline inputs (all kernels that feed from this input data array)
         if self.data_queue.is_empty():
-            return None
+            for successor in self.outputs:
+                self.outputs[successor].enqueue(0)
         else:
-            return self.data_queue.dequeue()
+            data = self.data_queue.dequeue()
+            for successor in self.outputs:
+                self.outputs[successor].enqueue(data)
 
 
 class Output(BaseKernelNodeClass):
@@ -29,20 +30,22 @@ class Output(BaseKernelNodeClass):
     def __init__(self, name, data_queue=None):
         super().__init__(name, data_queue)
 
-    def write(self, item) -> None:
-        self.data_queue.enqueue(item)
+    def try_read(self):
+        for inp in self.input_paths:
+            if not self.data_queue.is_empty():
+                self.input_paths[inp].append(self.data_queue.dequeue())
 
 
 class KernelChainGraph:
 
     def __init__(self, path: str, plot_graph: bool = False) -> None:
-        self.inputs: Dict[str, List] = None  # type: dict # inputs[name] = input_array_data
-        self.outputs: List[str] = None
+        self.inputs: Dict[str, List] = dict()
+        self.outputs: List[str] = list()
         self.path: str = path
-        self.dimensions: List[int] = None
-        self.program: Dict[str, str] = None  # type: dict  # program[stencil_name] = stencil expression
+        self.dimensions: List[int] = list()
+        self.program: Dict[str, str] = dict()  # type: dict  # program[stencil_name] = stencil expression
         self.kernel_latency = None
-        self.channels: Dict[str, BoundedQueue] = None  # each channel is an edge between two kernels or a kernel and an input
+        self.channels: Dict[str, BoundedQueue] = dict()  # each channel is an edge between two kernels or a kernel and an input
         self.graph: nx.DiGraph = nx.DiGraph()
 
         self.input_nodes: Dict[str, Kernel] = dict()
@@ -370,7 +373,7 @@ class KernelChainGraph:
     Since we know the output nodes as well as the path lengths the critical path is just
     max { latency(node) + max { path_length(node) | node in output nodes }
     '''
-    def compute_critical_path(self) -> None:
+    def compute_critical_path(self) -> int:
 
         critical_path_length = [0]*len(self.dimensions)
         for output in self.outputs:
