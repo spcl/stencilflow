@@ -137,6 +137,21 @@ def load_input_arrays(program: Dict) -> Dict:
     return input_arrays
 
 
+def save_output(outputs: Dict, output_dir = None):
+    """
+    Saves output arrays to individual files.
+    :param outputs: Dictionary of array names to numpy arrays.
+    :param output_dir: Folder to store files in.
+    """
+
+    if output_dir is None:
+        output_dir = ""
+
+    for arr_name, arr_data in outputs.items():
+        path = os.path.join(output_dir, arr_name + ".dat")
+        arr_data.tofile(path)
+
+
 def unique(iterable):
     """ Removes duplicates in the passed iterable. """
     try:
