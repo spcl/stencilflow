@@ -9,7 +9,6 @@ class Simulator:
 
     def step_execution(self):
 
-        """
         # try to read all kernel inputs
         for kernel in self.kernel_nodes:
             try:
@@ -17,7 +16,7 @@ class Simulator:
                 self.kernel_nodes[kernel].try_read()
             except Exception as ex:
                 self.diagnostics(ex)
-        """
+
         # try to execute all kernels
         for kernel in self.kernel_nodes:
             try:
@@ -38,11 +37,34 @@ class Simulator:
             except Exception as ex:
                 self.diagnostics(ex)
 
+    def initialize(self):
+        # import data
+        for input in self.input_nodes:
+            input.read_input_from_file()
+
+
+    def finalize(self):
+        # save data
+        for output in self.output_nodes:
+            output.write_result_to_file()
+
+
+
+    def simulate(self):
+
+        self.initialize()
+
+        # run simulation # TODO: how to detect that the simulation has been completed?
+        # while(...):
+        #   self.step_execution()
+
+        self.finalize()
+
 
     def diagnostics(self, exception):
         # gather info from all kernels
-        for kernel in self.kernel_nodes:
-            self.kernel_nodes[kernel].diagnostics()
+        # for kernel in self.kernel_nodes:
+        #    self.kernel_nodes[kernel].diagnostics()
         raise exception
 
 """
