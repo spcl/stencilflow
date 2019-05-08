@@ -32,6 +32,8 @@ class Input(BaseKernelNodeClass):
             for successor in self.outputs:
                 self.outputs[successor].enqueue(data)
 
+    def read_input_from_file(self):
+        raise NotImplementedError() # TODO
 
 class Output(BaseKernelNodeClass):
 
@@ -43,13 +45,17 @@ class Output(BaseKernelNodeClass):
         pass
 
     def try_read(self):
+        assert len(self.input_paths) == 1 # there should be only a single one
         for inp in self.input_paths:
-            if not self.data_queue.is_empty():
+            if not self.data_queue.is_empty(): # read an entry and store it to result
                 self.input_paths[inp].append(self.data_queue.dequeue())
 
     def try_write(self):
         #  nothing to do
         pass
+
+    def write_result_to_file(self):
+        raise NotImplementedError() # TODO
 
 
 class KernelChainGraph:
