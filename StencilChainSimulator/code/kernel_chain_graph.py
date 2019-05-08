@@ -294,8 +294,12 @@ class KernelChainGraph:
             elif isinstance(self.inputs[inp], str): # external file
                 coll = None
 
-                if self.inputs[inp].lower().endswith(('.dat', '.bin', '.data', '.h5')): # binary data
+                if self.inputs[inp].lower().endswith(('.dat', '.bin', '.data')): # general binary data
                     raise NotImplementedError("No implementation for reading binary files exists yet.")
+                if self.inputs[inp].lower().endswith('.h5'):
+                    from h5py import File
+                    f = File(self.inputs[inp], 'r')
+                    coll = list(f[list(f.keys())[0]]) # read data from first key
                 elif self.inputs[inp].lower().endswith('.csv'):
                     from numpy import genfromtxt
                     coll = list(genfromtxt(self.inputs[inp], delimiter=';'))
