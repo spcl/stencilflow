@@ -29,6 +29,9 @@ class BoundedQueue:
     def __str__(self):
         return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
 
+    def init_queue(self, data):
+        self.queue: collections.deque = collections.deque(data, self.maxsize)
+
     def size(self) -> int:
         """
         Get number of data items the queue currently contains.
