@@ -91,21 +91,23 @@ class Kernel(BaseKernelNodeClass):
         self.setup_internal_buffers()
 
 
-    def iter_comp_tree(self, node: BaseOperationNodeClass) -> str:
+    def iter_comp_tree(self, node: BaseOperationNodeClass, index_relative_to_center=True) -> str:
 
         pred = list(self.graph.graph.pred[node])
 
         if isinstance(node, Binop):
-            lhs = pred[1]
-            rhs = pred[0]
+            lhs = pred[0]
+            rhs = pred[1]
             return "(" + self.iter_comp_tree(lhs) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs) + ")"
-            # return self.iter_comp_tree(lhs) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs)
         elif isinstance(node, Call):
             return node.name + "(" + self.iter_comp_tree(pred[0]) + ")"
         elif isinstance(node, Name) or isinstance(node, Num):
             return str(node.name)
         elif isinstance(node, Subscript):
-            dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
+            if index_relative_to_center:
+                dim_index = node.index
+            else:
+                dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             word_index = self.convert_3d_to_1d(dim_index)
             return node.name + "[" + str(word_index) + "]"
         elif isinstance(node, Ternary):
@@ -120,7 +122,7 @@ class Kernel(BaseKernelNodeClass):
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
-    def generate_relative_access_kernel_string(self) -> str:
+    def generate_relative_access_kernel_string(self, relative_to_center=True) -> str:
         # format: 'res = vdc[index1] + vout[index2]'
 
         res = []
@@ -140,7 +142,7 @@ class Kernel(BaseKernelNodeClass):
         output_node = output_node[0]
 
         res.append("res = " + self.iter_comp_tree(
-            list(self.graph.graph.pred[output_node])[0]))
+            list(self.graph.graph.pred[output_node])[0], index_relative_to_center=relative_to_center))
 
         return "; ".join(res)
 
