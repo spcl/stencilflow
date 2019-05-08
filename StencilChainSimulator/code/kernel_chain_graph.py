@@ -295,7 +295,8 @@ class KernelChainGraph:
                 coll = None
 
                 if self.inputs[inp].lower().endswith(('.dat', '.bin', '.data')): # general binary data
-                    raise NotImplementedError("No implementation for reading binary files exists yet.")
+                    from numpy import fromfile
+                    coll = fromfile(self.inputs[inp], float)
                 if self.inputs[inp].lower().endswith('.h5'):
                     from h5py import File
                     f = File(self.inputs[inp], 'r')
