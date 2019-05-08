@@ -14,6 +14,14 @@ class Input(BaseKernelNodeClass):
     def __init__(self, name: str, data_queue: BoundedQueue = None) -> None:
         super().__init__(name, data_queue)
 
+    def reset_old_compute_state(self):
+        # nothing to do
+        pass
+
+    def try_read(self):
+        # nothing to do
+        pass
+
     def try_write(self):
         # feed data into pipeline inputs (all kernels that feed from this input data array)
         if self.data_queue.is_empty():
@@ -30,10 +38,18 @@ class Output(BaseKernelNodeClass):
     def __init__(self, name, data_queue=None):
         super().__init__(name, data_queue)
 
+    def reset_old_compute_state(self):
+        # nothing to do
+        pass
+
     def try_read(self):
         for inp in self.input_paths:
             if not self.data_queue.is_empty():
                 self.input_paths[inp].append(self.data_queue.dequeue())
+
+    def try_write(self):
+        #  nothing to do
+        pass
 
 
 class KernelChainGraph:
@@ -275,9 +291,15 @@ class KernelChainGraph:
             if isinstance(self.inputs[inp], list):
                 new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
                                                                    collection=self.inputs[inp]))
-            elif isinstance(self.inputs[inp], str):
-                from numpy import genfromtxt
-                coll = list(genfromtxt(self.inputs[inp], delimiter=';'))
+            elif isinstance(self.inputs[inp], str): # external file
+                coll = None
+
+                if self.inputs[inp].lower().endswith(('.dat', '.bin', '.data', '.h5')): # binary data
+                    raise NotImplementedError("No implementation for reading binary files exists yet.")
+                elif self.inputs[inp].lower().endswith('.csv'):
+                    from numpy import genfromtxt
+                    coll = list(genfromtxt(self.inputs[inp], delimiter=';'))
+
                 new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
                                                                    collection=coll))
             else:
