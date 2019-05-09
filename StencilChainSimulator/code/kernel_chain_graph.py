@@ -546,6 +546,6 @@ if __name__ == "__main__":
                         kernel_nodes=chain.kernel_nodes,
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions)
-        sim.step_execution()
+        sim.simulate()
 
         print()
