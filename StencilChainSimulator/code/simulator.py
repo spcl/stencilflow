@@ -57,6 +57,8 @@ class Simulator:
         # run simulation # TODO: how to detect that the simulation has been completed?
         # while(...):
         #   self.step_execution()
+        self.step_execution()
+
 
         self.finalize()
 
