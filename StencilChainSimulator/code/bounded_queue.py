@@ -31,6 +31,7 @@ class BoundedQueue:
 
     def init_queue(self, data):
         self.queue: collections.deque = collections.deque(data, self.maxsize)
+        self.current_size = len(data)
 
     def size(self) -> int:
         """
