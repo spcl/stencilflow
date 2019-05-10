@@ -32,8 +32,29 @@ class Input(BaseKernelNodeClass):
             for successor in self.outputs:
                 self.outputs[successor].enqueue(data)
 
-    def read_input_from_file(self):
-        raise NotImplementedError() # TODO
+    def init_input_data(self, inputs):
+
+        # check if data is in the file or in a separate file
+        if isinstance(inputs[self.name], list):
+            self.data_queue.init_queue(inputs[self.name])
+
+        elif isinstance(inputs[self.name], str):  # external file
+            coll = None
+
+            if inputs[self.name].lower().endswith(('.dat', '.bin', '.data')): # general binary data
+                from numpy import fromfile
+                coll = fromfile(inputs[self.name], float)
+            if inputs[self.name].lower().endswith('.h5'):
+                from h5py import File
+                f = File(inputs[self.name], 'r')
+                coll = list(f[list(f.keys())[0]]) # read data from first key
+            elif inputs[self.name].lower().endswith('.csv'):
+                from numpy import genfromtxt
+                coll = list(genfromtxt(inputs[self.name], delimiter=';'))
+
+            self.data_queue.init_queue(coll)
+        else:
+            raise Exception("Input data representation should either be implicit (list) or a path to a csv file.")
 
 class Output(BaseKernelNodeClass):
 
@@ -290,31 +311,10 @@ class KernelChainGraph:
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
 
-        # create all input nodes
+        # create all input nodes (without data, we will add data in the simulator if necessary)
         self.input_nodes = dict()
         for inp in self.inputs:
-            # check if data is in the file or in a separate file
-            if isinstance(self.inputs[inp], list):
-                new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
-                                                                   collection=self.inputs[inp]))
-            elif isinstance(self.inputs[inp], str): # external file
-                coll = None
-
-                if self.inputs[inp].lower().endswith(('.dat', '.bin', '.data')): # general binary data
-                    from numpy import fromfile
-                    coll = fromfile(self.inputs[inp], float)
-                if self.inputs[inp].lower().endswith('.h5'):
-                    from h5py import File
-                    f = File(self.inputs[inp], 'r')
-                    coll = list(f[list(f.keys())[0]]) # read data from first key
-                elif self.inputs[inp].lower().endswith('.csv'):
-                    from numpy import genfromtxt
-                    coll = list(genfromtxt(self.inputs[inp], delimiter=';'))
-
-                new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
-                                                                   collection=coll))
-            else:
-                raise Exception("Input data representation should either be implicit (list) or a path to a csv file.")
+            new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements()))
             self.input_nodes[inp] = new_node
             self.graph.add_node(new_node)
 
@@ -543,6 +543,7 @@ if __name__ == "__main__":
         print("instantiate simulator...")
         from simulator import Simulator
         sim = Simulator(input_nodes=chain.input_nodes,
+                        input_config = chain.inputs,
                         kernel_nodes=chain.kernel_nodes,
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions)

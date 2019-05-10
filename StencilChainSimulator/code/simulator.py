@@ -1,9 +1,10 @@
 
 class Simulator:
 
-    def __init__(self, input_nodes, kernel_nodes, output_nodes, dimensions) -> None:
+    def __init__(self, input_nodes, input_config, kernel_nodes, output_nodes, dimensions) -> None:
         self.dimensions = dimensions
         self.input_nodes = input_nodes
+        self.input_config = input_config
         self.kernel_nodes = kernel_nodes
         self.output_nodes = output_nodes
 
@@ -40,7 +41,7 @@ class Simulator:
     def initialize(self):
         # import data
         for input in self.input_nodes:
-            input.read_input_from_file()
+            self.input_nodes[input].init_input_data(self.input_config)
 
 
     def finalize(self):
