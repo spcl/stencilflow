@@ -240,8 +240,9 @@ class KernelChainGraph:
                                 # channel = BoundedQueue(name, 1 + src.convert_3d_to_1d(self.channel_size(dest, src)))
 
                                 channel = {
-                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer,
-                                    "internal_buffer": dest.internal_buffer
+                                    "name": name,
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
+                                    "internal_buffer": dest.internal_buffer[src.name]
                                 }
 
                                 self.channels[name] = channel
@@ -260,8 +261,9 @@ class KernelChainGraph:
                                 #channel = BoundedQueue(name, 1 + dest.convert_3d_to_1d(self.channel_size(dest, src)))
 
                                 channel = {
-                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer,
-                                    "internal_buffer": dest.internal_buffer
+                                    "name": name,
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
+                                    "internal_buffer": dest.internal_buffer[src.name]
                                 }
 
                                 self.channels[name] = channel
@@ -279,7 +281,8 @@ class KernelChainGraph:
                             #channel = BoundedQueue(name, 1)  # no buffer
 
                             channel = {
-                                "delay_buffer": self.kernel_nodes[dest.name].delay_buffer,
+                                "name": name,
+                                "delay_buffer": self.output_nodes[dest.name].delay_buffer[src.name],
                                 "internal_buffer": {}
                             }
 
