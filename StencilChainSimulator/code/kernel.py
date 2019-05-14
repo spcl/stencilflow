@@ -291,7 +291,7 @@ if __name__ == "__main__":
     print("Kernel string conversion:")
     print("dimensions are: {}".format(dim))
     print(kernel5.kernel_string)
-    print(kernel5.generate_relative_access_kernel_string(relative_to_center=True))
+    print(kernel5.generate_relative_access_kernel_string(relative_to_center=False))
     print()
 
     kernel6 = Kernel("dummy", "res = a if (a > b) else b", dim)
