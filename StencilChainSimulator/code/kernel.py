@@ -98,9 +98,9 @@ class Kernel(BaseKernelNodeClass):
         if isinstance(node, Binop):
             lhs = pred[0]
             rhs = pred[1]
-            return "(" + self.iter_comp_tree(lhs) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs) + ")"
+            return "(" + self.iter_comp_tree(lhs, index_relative_to_center) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs, index_relative_to_center) + ")"
         elif isinstance(node, Call):
-            return node.name + "(" + self.iter_comp_tree(pred[0]) + ")"
+            return node.name + "(" + self.iter_comp_tree(pred[0], index_relative_to_center) + ")"
         elif isinstance(node, Name) or isinstance(node, Num):
             return str(node.name)
         elif isinstance(node, Subscript):
@@ -116,9 +116,9 @@ class Kernel(BaseKernelNodeClass):
             lhs = [x for x in pred if type(x) != Compare][0]
             rhs = [x for x in pred if type(x) != Compare][1]
 
-            return "{} if {} else {}".format(self.iter_comp_tree(lhs), self.iter_comp_tree(compare), self.iter_comp_tree(rhs))
+            return "{} if {} else {}".format(self.iter_comp_tree(lhs, index_relative_to_center), self.iter_comp_tree(compare, index_relative_to_center), self.iter_comp_tree(rhs, index_relative_to_center))
         elif isinstance(node, Compare):
-            return "{} {} {}".format(self.iter_comp_tree(pred[0]), str(node.name), self.iter_comp_tree(pred[1]))
+            return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center), str(node.name), self.iter_comp_tree(pred[1], index_relative_to_center))
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
@@ -131,7 +131,7 @@ class Kernel(BaseKernelNodeClass):
         for n in self.graph.graph.nodes:
             if isinstance(n, Name):
                 res.append(n.name + " = " + self.iter_comp_tree(
-                    list(self.graph.graph.pred[n])[0]))
+                    list(self.graph.graph.pred[n])[0], relative_to_center))
 
         # Treat output node
         output_node = [
@@ -187,7 +187,7 @@ class Kernel(BaseKernelNodeClass):
         for inp in self.graph.inputs:
             if isinstance(inp, Num):
                 pass
-            elif self.inputs[inp.name].peek(self.buffer_position(inp)) is None:  # check if array access location
+            elif self.inputs[inp.name]['internal_buffer'][inp.name][0].try_peek_last() is None:  # check if array access location
                 #  is filled with a bubble
                 all_available = False
                 break
@@ -287,11 +287,11 @@ if __name__ == "__main__":
     print(kernel4.generate_relative_access_kernel_string())
     print()
 
-    kernel5 = Kernel("dummy", "res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k]", dim)
+    kernel5 = Kernel("dummy", "res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k] + a[i,j,k]", dim)
     print("Kernel string conversion:")
     print("dimensions are: {}".format(dim))
     print(kernel5.kernel_string)
-    print(kernel5.generate_relative_access_kernel_string())
+    print(kernel5.generate_relative_access_kernel_string(relative_to_center=True))
     print()
 
     kernel6 = Kernel("dummy", "res = a if (a > b) else b", dim)
