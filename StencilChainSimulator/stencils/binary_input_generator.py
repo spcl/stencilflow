@@ -21,7 +21,6 @@ elif _GENERATOR == "const":
 elif _GENERATOR == "incr":
     # increasing value
     data = np.arange(0.0, _N, dtype="float64")
-
 else:
     print("Generator {} not supported. Exit.".format(_GENERATOR))
     exit()
