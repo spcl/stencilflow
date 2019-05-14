@@ -33,6 +33,13 @@ class BoundedQueue:
         self.queue: collections.deque = collections.deque(data, self.maxsize)
         self.current_size = len(data)
 
+    def try_peek_last(self):
+        # check bound
+        if self.current_size > 0:
+            return self.queue[self.current_size-1]
+        else:
+            return None
+
     def size(self) -> int:
         """
         Get number of data items the queue currently contains.
