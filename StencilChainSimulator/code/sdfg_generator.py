@@ -55,7 +55,7 @@ def generate_sdfg(name, chain):
         sdfg.add_stream(
             stream_name,
             DATA_TYPE,
-            buffer_size=edge[2]["channel"].maxsize,
+            buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
             storage=StorageType.FPGA_Local,
             transient=True)
 
