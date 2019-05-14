@@ -1,15 +1,15 @@
 import numpy as np
 
 # general parameters
-_N = 10*10*10
-_GENERATOR = "incr"  # {const, random, incr}
-_FILENAME = "inB"
-_DATA_TYPE = "csv" # {csv, bin, dat}
+_N = 4*4*4
+_GENERATOR = "const"  # {const, random, incr}
+_FILENAME = "inC"
+_DATA_TYPE = "dat"  # {csv, bin, dat}
 # random
 _LOWER_BOUND = 0.0
 _UPPER_BOUND = 10.0
 # constant
-_CONSTANT = 1.0
+_CONSTANT = 3.0
 
 # generate data
 if _GENERATOR == "random":
