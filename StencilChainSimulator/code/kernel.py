@@ -166,7 +166,6 @@ class Kernel(BaseKernelNodeClass):
         for buf_name in self.graph.buffer_size:
             self.internal_buffer[buf_name] = list()
             list.sort(self.graph.accesses[buf_name], reverse=True)
-            print(self.graph.accesses[buf_name])
             itr = self.graph.accesses[buf_name].__iter__()
             pre = itr.__next__()
             for item in itr:
