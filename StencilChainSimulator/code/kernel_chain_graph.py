@@ -5,14 +5,14 @@ import networkx as nx
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass
+from base_node_class import BaseKernelNodeClass, Precision, BoundaryCondition
 from typing import List, Dict
 
 
 class Input(BaseKernelNodeClass):
 
-    def __init__(self, name: str, data_queue: BoundedQueue = None) -> None:
-        super().__init__(name, data_queue)
+    def __init__(self, name: str, precision: Precision, data_queue: BoundedQueue = None) -> None:
+        super().__init__(name, data_queue, precision)
 
     def reset_old_compute_state(self):
         # nothing to do
@@ -58,8 +58,8 @@ class Input(BaseKernelNodeClass):
 
 class Output(BaseKernelNodeClass):
 
-    def __init__(self, name, data_queue=None):
-        super().__init__(name, data_queue)
+    def __init__(self, name, precision: Precision, data_queue=None):
+        super().__init__(name, precision, data_queue)
 
     def reset_old_compute_state(self):
         # nothing to do
@@ -310,21 +310,29 @@ class KernelChainGraph:
         # create all kernel objects and add them to the graph
         self.kernel_nodes = dict()
         for kernel in self.program:
-            new_node = Kernel(name=kernel, kernel_string=self.program[kernel], dimensions=self.dimensions)
+            new_node = Kernel(name=kernel,
+                              kernel_string=self.program[kernel]["computation_string"],
+                              dimensions=self.dimensions,
+                              precision=Precision.to_prec(self.program[kernel]["precision"]),
+                              boundary_conditions=self.program[kernel]["boundary_condition"])
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
 
         # create all input nodes (without data, we will add data in the simulator if necessary)
         self.input_nodes = dict()
         for inp in self.inputs:
-            new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements()))
+            new_node = Input(name=inp,
+                             precision=Precision.to_prec(self.inputs[inp]["precision"]),
+                             data_queue=BoundedQueue(name=inp, maxsize=self.total_elements()))
             self.input_nodes[inp] = new_node
             self.graph.add_node(new_node)
 
         # create all output nodes
         self.output_nodes = dict()
         for out in self.outputs:
-            new_node = Output(name=out, data_queue=None)
+            new_node = Output(name=out,
+                              precision=Precision.to_prec(self.program[out]["precision"]),
+                              data_queue=None)
             self.output_nodes[out] = new_node
             self.graph.add_node(new_node)
 

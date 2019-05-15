@@ -2,7 +2,7 @@ import helper
 from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
+from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass, Precision, BoundaryCondition
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
 from typing import List, Dict
 
@@ -55,12 +55,13 @@ class Kernel(BaseKernelNodeClass):
                       if we reach the bound i == N, TODO: special handling?
     """
 
-    def __init__(self, name: str, kernel_string: str, dimensions: List[int], plot_graph: bool = False) -> None:
-        super().__init__(name, None)
+    def __init__(self, name: str, kernel_string: str, dimensions: List[int], precision: Precision, boundary_conditions: Dict[str, str], plot_graph: bool = False) -> None:
+        super().__init__(name, None, precision)
 
         # store arguments
         self.kernel_string: str = kernel_string  # raw kernel string input
         self.dimensions: List[int] = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
+        self.boundary_conditions = boundary_conditions
 
         # read static parameters from config
         self.config: Dict = helper.parse_json("kernel.config")
