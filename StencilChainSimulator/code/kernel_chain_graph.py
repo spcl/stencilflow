@@ -34,23 +34,25 @@ class Input(BaseKernelNodeClass):
 
     def init_input_data(self, inputs):
 
+        # TODO: make use of passed data_type = inputs[self.name]["data_type"]
+
         # check if data is in the file or in a separate file
-        if isinstance(inputs[self.name], list):
+        if isinstance(inputs[self.name]["data"], list):
             self.data_queue.init_queue(inputs[self.name])
 
-        elif isinstance(inputs[self.name], str):  # external file
+        elif isinstance(inputs[self.name]["data"], str):  # external file
             coll = None
 
-            if inputs[self.name].lower().endswith(('.dat', '.bin', '.data')): # general binary data
+            if inputs[self.name]["data"].lower().endswith(('.dat', '.bin', '.data')):  # general binary data
                 from numpy import fromfile
-                coll = fromfile(inputs[self.name], float)
-            if inputs[self.name].lower().endswith('.h5'):
+                coll = fromfile(inputs[self.name]["data"], float)
+            if inputs[self.name]["data"].lower().endswith('.h5'):
                 from h5py import File
-                f = File(inputs[self.name], 'r')
-                coll = list(f[list(f.keys())[0]]) # read data from first key
-            elif inputs[self.name].lower().endswith('.csv'):
+                f = File(inputs[self.name]["data"], 'r')
+                coll = list(f[list(f.keys())[0]])  # read data from first key
+            elif inputs[self.name]["data"].lower().endswith('.csv'):
                 from numpy import genfromtxt
-                coll = list(genfromtxt(inputs[self.name], delimiter=';'))
+                coll = list(genfromtxt(inputs[self.name]["data"], delimiter=','))
 
             self.data_queue.init_queue(coll)
         else:
