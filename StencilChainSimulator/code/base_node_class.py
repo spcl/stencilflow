@@ -19,16 +19,16 @@ class BoundaryCondition(Enum):
             raise Exception("{} is not a valid boundary condition string".format(text))
 
 
-class Precision(Enum):
+class DataType(Enum):
     FLOAT32 = 1
     FLOAT64 = 2
 
     @staticmethod
     def to_prec(text: str):
         if text == "float32":
-            return Precision.FLOAT32
+            return DataType.FLOAT32
         elif text == "float64":
-            return Precision.FLOAT64
+            return DataType.FLOAT64
         else:
             raise Exception("{} is not a valid precision string".format(text))
 
@@ -37,13 +37,13 @@ class BaseKernelNodeClass:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name: str, data_queue, precision: Precision) -> None:
+    def __init__(self, name: str, data_queue, data_type: DataType) -> None:
         self.name: str = name
         self.data_queue: BoundedQueue = data_queue
         self.input_paths: Dict[str, List] = dict()
         self.outputs: Dict[str, BoundedQueue] = dict()
         self.delay_buffer: Dict[str, List] = dict()
-        self.precision = precision
+        self.data_type = data_type
 
     def generate_label(self) -> str:  # wrapper for customizations
         return self.name
