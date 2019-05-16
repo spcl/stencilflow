@@ -1,0 +1,223 @@
+{
+  "performanceSummary":
+  {
+    "name":"Kernel Summary"
+    , "columns":
+    ["Kernel Name", "Kernel Type", "Autorun", "Workgroup Size", "# Compute Units", "HyperFlex Control Optimizations"]
+    , "children":
+    [
+      {
+        "name":"host_reader"
+        , "data":
+        [
+          "Single work-item"
+          , "No"
+          , [1, 1, 1]
+          , 1
+          , "Off"
+        ]
+        , "details":
+        [
+          {
+            "type":"text"
+            , "text":"Kernel type: Single work-item"
+          }
+          , {
+            "type":"text"
+            , "text":"Required workgroup size: (1, 1, 1)"
+          }
+          , {
+            "type":"text"
+            , "text":"Maximum workgroup size: 1"
+          }
+          , {
+            "type":"text"
+            , "text":"Stall latency disabled due to instruction llvm.fpga.printf Operation which does not support stall latency."
+          }
+        ]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl"
+              , "line":26
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"host_writer"
+        , "data":
+        [
+          "Single work-item"
+          , "No"
+          , [1, 1, 1]
+          , 1
+          , "Off"
+        ]
+        , "details":
+        [
+          {
+            "type":"text"
+            , "text":"Kernel type: Single work-item"
+          }
+          , {
+            "type":"text"
+            , "text":"Required workgroup size: (1, 1, 1)"
+          }
+          , {
+            "type":"text"
+            , "text":"Maximum workgroup size: 1"
+          }
+          , {
+            "type":"text"
+            , "text":"Stall latency disabled due to instruction in Kernel host_reader"
+          }
+        ]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl"
+              , "line":149
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"kernelA"
+        , "data":
+        [
+          "Single work-item"
+          , "No"
+          , [1, 1, 1]
+          , 1
+          , "Off"
+        ]
+        , "details":
+        [
+          {
+            "type":"text"
+            , "text":"Kernel type: Single work-item"
+          }
+          , {
+            "type":"text"
+            , "text":"Required workgroup size: (1, 1, 1)"
+          }
+          , {
+            "type":"text"
+            , "text":"Maximum workgroup size: 1"
+          }
+          , {
+            "type":"text"
+            , "text":"Stall latency disabled due to instruction in Kernel host_reader"
+          }
+        ]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl"
+              , "line":91
+            }
+          ]
+        ]
+      }
+    ]
+  }
+  , "estimatedResources":
+  {
+    "name":"Estimated Resource Usage"
+    , "columns":
+    ["Kernel Name", "ALUTs ", "FFs  ", "RAMs ", "DSPs ", "MLABs"]
+    , "children":
+    [
+      {
+        "name":"host_reader"
+        , "data":
+        [4786, 8739, 46, 0, 25]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl"
+              , "line":26
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"host_writer"
+        , "data":
+        [3510, 8806, 48, 0, 26]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl"
+              , "line":149
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"kernelA"
+        , "data":
+        [44108, 108414, 386, 5, 530]
+        , "debug":
+        [
+          [
+            {
+              "filename":"/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl"
+              , "line":91
+            }
+          ]
+        ]
+      }
+      , {
+        "name":"Kernel Subtotal"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [52404, 125959, 480, 5, 581]
+      }
+      , {
+        "name":"Global Interconnect"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [23988, 32192, 104, 0, 0]
+      }
+      , {
+        "name":"Board Interface"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [480580, 961160, 2766, 1292, 0]
+      }
+      , {
+        "name":"Total"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [556996, 1119522, 3352, 1297, 581]
+        , "data_percent":
+        [40.1972, 40.3967, 37.4316, 29.0286, 78.2824]
+      }
+      , {
+        "name":"Available"
+        , "classes":
+        ["summary-highlight", "nohover"]
+        , "data":
+        [1385660, 2771320, 8955, 4468, 0]
+      }
+    ]
+  }
+  , "compileWarnings":
+  {
+    "name":"Compile Warnings"
+    , "children":
+    [
+    ]
+  }
+}

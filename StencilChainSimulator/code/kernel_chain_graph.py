@@ -5,33 +5,92 @@ import networkx as nx
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass
+from base_node_class import BaseKernelNodeClass, DataType, BoundaryCondition
 from typing import List, Dict
 
 
 class Input(BaseKernelNodeClass):
 
-    def __init__(self, name: str, data_queue: BoundedQueue = None) -> None:
-        super().__init__(name, data_queue)
+    def __init__(self, name: str, data_type: DataType, data_queue: BoundedQueue = None) -> None:
+        super().__init__(name, data_queue, data_type)
 
+    def reset_old_compute_state(self):
+        # nothing to do
+        pass
+
+    def try_read(self):
+        # nothing to do
+        pass
+
+    def try_write(self):
+        # feed data into pipeline inputs (all kernels that feed from this input data array)
+        if self.data_queue.is_empty():
+            for successor in self.outputs:
+                self.outputs[successor].enqueue(0)
+        else:
+            data = self.data_queue.dequeue()
+            for successor in self.outputs:
+                self.outputs[successor].enqueue(data)
+
+    def init_input_data(self, inputs):
+
+        # TODO: make use of passed data_type = inputs[self.name]["data_type"]
+
+        # check if data is in the file or in a separate file
+        if isinstance(inputs[self.name]["data"], list):
+            self.data_queue.init_queue(inputs[self.name])
+
+        elif isinstance(inputs[self.name]["data"], str):  # external file
+            coll = None
+
+            if inputs[self.name]["data"].lower().endswith(('.dat', '.bin', '.data')):  # general binary data
+                from numpy import fromfile
+                coll = fromfile(inputs[self.name]["data"], float)
+            if inputs[self.name]["data"].lower().endswith('.h5'):
+                from h5py import File
+                f = File(inputs[self.name]["data"], 'r')
+                coll = list(f[list(f.keys())[0]])  # read data from first key
+            elif inputs[self.name]["data"].lower().endswith('.csv'):
+                from numpy import genfromtxt
+                coll = list(genfromtxt(inputs[self.name]["data"], delimiter=','))
+
+            self.data_queue.init_queue(coll)
+        else:
+            raise Exception("Input data representation should either be implicit (list) or a path to a csv file.")
 
 class Output(BaseKernelNodeClass):
 
-    def __init__(self, name, data_queue=None):
-        super().__init__(name, data_queue)
+    def __init__(self, name, data_type: DataType, data_queue=None):
+        super().__init__(name, data_type, data_queue)
+
+    def reset_old_compute_state(self):
+        # nothing to do
+        pass
+
+    def try_read(self):
+        assert len(self.input_paths) == 1 # there should be only a single one
+        for inp in self.input_paths:
+            if not self.data_queue.is_empty(): # read an entry and store it to result
+                self.input_paths[inp].append(self.data_queue.dequeue())
+
+    def try_write(self):
+        #  nothing to do
+        pass
+
+    def write_result_to_file(self):
+        raise NotImplementedError() # TODO
 
 
 class KernelChainGraph:
 
     def __init__(self, path: str, plot_graph: bool = False) -> None:
-        self.inputs: Dict[str, List] = None  # type: dict # inputs[name] = input_array_data
-        self.outputs: List[str] = None
+        self.inputs: Dict[str, List] = dict()
+        self.outputs: List[str] = list()
         self.path: str = path
-        self.dimensions: List[int] = None
-        self.program: Dict[str, str] = None  # type: dict  # program[stencil_name] = stencil expression
-        self.kernels = None # TODO: check why this is empty
-        self.kernel_latency = None # TODO: check why this is empty
-        self.channels: Dict[str, BoundedQueue] = None  # each channel is an edge between two kernels or a kernel and an input
+        self.dimensions: List[int] = list()
+        self.program: Dict[str, str] = dict()  # type: dict  # program[stencil_name] = stencil expression
+        self.kernel_latency = None
+        self.channels: Dict[str, BoundedQueue] = dict()  # each channel is an edge between two kernels or a kernel and an input
         self.graph: nx.DiGraph = nx.DiGraph()
 
         self.input_nodes: Dict[str, Kernel] = dict()
@@ -143,11 +202,7 @@ class KernelChainGraph:
     def channel_size(self, dest_node: Kernel, src_node: Kernel) -> List[int]:
         del_buf = self.kernel_nodes[dest_node.name].delay_buffer[src_node.name]
         int_buf = self.kernel_nodes[dest_node.name].graph.buffer_size[src_node.name]
-
-        if del_buf >= int_buf:  # return max
-            return del_buf
-        else:
-            return int_buf
+        return max(del_buf, int_buf)
 
     def connect_kernels(self) -> None:
 
@@ -184,8 +239,14 @@ class KernelChainGraph:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
-                                channel = BoundedQueue(name, 1 + src.convert_3d_to_1d(self.channel_size(dest, src)))
-                                # TODO: move convert_3d_to_1d into higher hierarchical level
+                                # channel = BoundedQueue(name, 1 + src.convert_3d_to_1d(self.channel_size(dest, src)))
+
+                                channel = {
+                                    "name": name,
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
+                                    "internal_buffer": dest.internal_buffer[src.name]
+                                }
+
                                 self.channels[name] = channel
                                 # add channel to both endpoints
                                 src.outputs[dest.name] = channel
@@ -198,7 +259,15 @@ class KernelChainGraph:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
-                                channel = BoundedQueue(name, 1 + dest.convert_3d_to_1d(self.channel_size(dest, src)))
+
+                                #channel = BoundedQueue(name, 1 + dest.convert_3d_to_1d(self.channel_size(dest, src)))
+
+                                channel = {
+                                    "name": name,
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
+                                    "internal_buffer": dest.internal_buffer[src.name]
+                                }
+
                                 self.channels[name] = channel
                                 # add channel to both endpoints
                                 src.outputs[dest.name] = channel
@@ -210,7 +279,15 @@ class KernelChainGraph:
                         if src.name == dest.name:
                             # create channel
                             name = src.name + "_" + dest.name
-                            channel = BoundedQueue(name, 1)  # no buffer
+
+                            #channel = BoundedQueue(name, 1)  # no buffer
+
+                            channel = {
+                                "name": name,
+                                "delay_buffer": self.output_nodes[dest.name].delay_buffer[src.name],
+                                "internal_buffer": {}
+                            }
+
                             self.channels[name] = channel
                             # add channel to both endpoints
                             src.outputs[dest.name] = channel
@@ -232,24 +309,33 @@ class KernelChainGraph:
 
     def create_kernels(self) -> None:
 
-        # create dict
-        self.kernels = dict()
-
         # create all kernel objects and add them to the graph
+        self.kernel_nodes = dict()
         for kernel in self.program:
-            new_node = Kernel(name=kernel, kernel_string=self.program[kernel], dimensions=self.dimensions)
+            new_node = Kernel(name=kernel,
+                              kernel_string=self.program[kernel]["computation_string"],
+                              dimensions=self.dimensions,
+                              data_type=DataType.to_prec(self.program[kernel]["data_type"]),
+                              boundary_conditions=self.program[kernel]["boundary_condition"])
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
 
-        # create all input nodes
+        # create all input nodes (without data, we will add data in the simulator if necessary)
+        self.input_nodes = dict()
         for inp in self.inputs:
-            new_node = Input(name=inp, data_queue=BoundedQueue(name=inp, maxsize=self.total_elements(),
-                                                               collection=self.inputs[inp]))
+            new_node = Input(name=inp,
+                             data_type=DataType.to_prec(self.inputs[inp]["data_type"]),
+                             data_queue=BoundedQueue(name=inp, maxsize=self.total_elements()))
+            self.input_nodes[inp] = new_node
             self.graph.add_node(new_node)
 
         # create all output nodes
+        self.output_nodes = dict()
         for out in self.outputs:
-            new_node = Output(name=out, data_queue=None)
+            new_node = Output(name=out,
+                              data_type=DataType.to_prec(self.program[out]["data_type"]),
+                              data_queue=None)
+            self.output_nodes[out] = new_node
             self.graph.add_node(new_node)
 
     def compute_kernel_latency(self) -> None:
@@ -258,8 +344,8 @@ class KernelChainGraph:
         self.kernel_latency = dict()
 
         # compute kernel latency of each kernel
-        for kernel in self.kernels:
-            self.kernel_latency[kernel] = self.kernels[kernel].graph.max_latency
+        for kernel in self.kernel_nodes:
+            self.kernel_latency[kernel] = self.kernel_nodes[kernel].graph.max_latency
 
     '''
     delay buffer entries should be of the format:
@@ -289,9 +375,9 @@ class KernelChainGraph:
             for inp in node.input_paths:
                 max_delay = max(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
-                    node.delay_buffer[entry[-1]] = helper.list_subtract_cwise(max_delay[:-1], entry[:-1])
+                    node.delay_buffer[entry[-1]] = BoundedQueue(name=entry[-1], maxsize=1 +helper.convert_3d_to_1d(self.dimensions,helper.list_subtract_cwise(max_delay[:-1], entry[:-1])))
             if isinstance(node, Input):  # NodeType.INPUT:
-                node.delay_buffer = [0]*len(self.dimensions) + [node.name]
+                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1) # [0]*len(self.dimensions) + [node.name]
 
             for succ in self.graph.successors(node):
 
@@ -333,7 +419,7 @@ class KernelChainGraph:
     Since we know the output nodes as well as the path lengths the critical path is just
     max { latency(node) + max { path_length(node) | node in output nodes }
     '''
-    def compute_critical_path(self) -> None:
+    def compute_critical_path(self) -> int:
 
         critical_path_length = [0]*len(self.dimensions)
         for output in self.outputs:
@@ -370,7 +456,8 @@ if __name__ == "__main__":
         print("channel info:")
         for u, v, channel in chain.graph.edges(data='channel'):
             if channel is not None:
-                print("channel name: {}, max channel size: {}".format(channel.name, channel.maxsize))
+                print("internal buffers:\n {}".format(channel["internal_buffer"]))
+                print("delay buffers:\n {}".format(channel["delay_buffer"]))
         print()
 
         print("field access info:")
@@ -382,6 +469,12 @@ if __name__ == "__main__":
         for node in chain.kernel_nodes:
             print("node name: {}, internal buffer size: {}".format(node,
                                                                    chain.kernel_nodes[node].graph.buffer_size))
+        print()
+
+        print("internal buffer chunks info:")
+        for node in chain.kernel_nodes:
+            print("node name: {}, internal buffer chunks: {}".format(node,
+                                                                   chain.kernel_nodes[node].internal_buffer))
         print()
 
         print("delay buffer size info:")
@@ -407,7 +500,14 @@ if __name__ == "__main__":
         for node in chain.kernel_nodes:
             for u, v, channel in chain.graph.edges(data='channel'):
                 if channel is not None:
-                    total += channel.maxsize
+                    total_delay = 0
+                    for item in channel["internal_buffer"]:
+                        for entry in channel["internal_buffer"][item]:
+                            total_delay += entry.maxsize
+                    total_internal = 0
+                    for item in channel["delay_buffer"]:
+                        total_delay += channel["delay_buffer"][item].maxsize
+                    total += total_delay + total_internal
         print("total buffer size: {}\n".format(total))
 
         print("input kernel string info:")
@@ -419,4 +519,47 @@ if __name__ == "__main__":
         for node in chain.kernel_nodes:
             print("relative access kernel string of {} is: {}".format(node, chain.kernel_nodes[node].
                                                                       generate_relative_access_kernel_string()))
+
+        print("instantiate optimizer...")
+        from optimizer import Optimizer
+        opt = Optimizer(chain.kernel_nodes, chain.dimensions)
+        bound = 12001
+        opt.minimize_fast_mem(communication_volume_bound=bound)
+        print("optimize fast memory usage with comm volume bound= {}".format(bound))
+        print("single stream comm vol is: {}".format(opt.single_comm_volume()))
+
+        print("total buffer info:")
+        total = 0
+        for node in chain.kernel_nodes:
+            for u, v, channel in chain.graph.edges(data='channel'):
+                if channel is not None:
+                    total_fast = 0
+                    total_slow = 0
+                    for item in channel["internal_buffer"]:
+                        for entry in channel["internal_buffer"][item]:
+                            if entry.swap_out:
+                                print("internal buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
+                                total_slow += entry.maxsize
+                            else:
+                                print("internal buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
+                                total_fast += entry.maxsize
+                    for item in channel["delay_buffer"]:
+                        if entry.swap_out:
+                            print("delay buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
+                            total_slow += entry.maxsize
+                        else:
+                            print("delay buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
+                            total_fast += entry.maxsize
+        print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(total_slow, total_fast))
+
+
+        print("instantiate simulator...")
+        from simulator import Simulator
+        sim = Simulator(input_nodes=chain.input_nodes,
+                        input_config = chain.inputs,
+                        kernel_nodes=chain.kernel_nodes,
+                        output_nodes=chain.output_nodes,
+                        dimensions=chain.dimensions)
+        sim.simulate()
+
         print()

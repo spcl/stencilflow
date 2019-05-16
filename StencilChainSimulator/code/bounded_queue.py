@@ -4,7 +4,7 @@ from typing import List
 
 class BoundedQueue:
 
-    def __init__(self, name: str, maxsize: int, collection: List = []) -> None:
+    def __init__(self, name: str, maxsize: int, swap_out: bool = False, collection: List = []) -> None:
         """
         Create new BoundedQueue with given initialization parameters.
         :param name: name of the queue
@@ -20,6 +20,25 @@ class BoundedQueue:
         self.queue: collection.dequeue = collections.deque(collection, maxsize)
         # init current size
         self.current_size: int = len(collection)
+        # indication of where the buffer is located (slow memory or fast memory)
+        self.swap_out = swap_out
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
+
+    def init_queue(self, data):
+        self.queue: collections.deque = collections.deque(data, self.maxsize)
+        self.current_size = len(data)
+
+    def try_peek_last(self):
+        # check bound
+        if self.current_size > 0:
+            return self.queue[self.current_size-1]
+        else:
+            return None
 
     def size(self) -> int:
         """

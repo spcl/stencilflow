@@ -55,7 +55,7 @@ def generate_sdfg(name, chain):
         sdfg.add_stream(
             stream_name,
             DATA_TYPE,
-            buffer_size=edge[2]["channel"].maxsize,
+            buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
             storage=StorageType.FPGA_Local,
             transient=True)
 
@@ -191,17 +191,16 @@ def generate_sdfg(name, chain):
         buffer_accesses = collections.OrderedDict()
         for field, relative in node.graph.accesses.items():
             # Deduplicate, as we can have multiple accesses to the same index
-            abs_indices = helper.unique([
-                helper.dim_to_abs_val(i, node.dimensions)
-                for i in relative
-            ])
-            buffer_size = max(abs_indices) - min(abs_indices) + 1
+            abs_indices = helper.unique(
+                [helper.dim_to_abs_val(i, node.dimensions) for i in relative] +
+                ([0]
+                 if node.boundary_conditions[field]["type"] == "copy" else []))
+            max_access = max(abs_indices)
+            min_access = min(abs_indices)
+            buffer_size = max_access - min_access + 1
             memory_accesses.append(field)
             buffer_sizes[field] = buffer_size
-            buffer_accesses[field] = [
-                relative_to_buffer_index(buffer_size, i) for i in abs_indices
-            ]
-
+            buffer_accesses[field] = [i - min_access for i in abs_indices]
 
         entry, exit = state.add_map(
             node.name, iterators, schedule=ScheduleType.FPGA_Device)
@@ -226,14 +225,17 @@ def generate_sdfg(name, chain):
         update_state = nested_sdfg.add_state(node.name + "_update")
 
         code = "\n".join([
-            dace.types._CTYPES[DATA_TYPE] + " " + expr.strip() + ";" for expr
-            in node.generate_relative_access_kernel_string().split(";")
+            dace.types._CTYPES[DATA_TYPE] + " " + expr.strip() + ";"
+            for expr in node.generate_relative_access_kernel_string(
+                relative_to_center=False).split(";")
         ])
         # Replace array accesses with memlet names
         pattern = re.compile("(([a-zA-Z_][a-zA-Z0-9_]*)\[([^\]]+)\])")
         for full_str, field, index in re.findall(pattern, code):
             buffer_index = relative_to_buffer_index(buffer_sizes[field],
                                                     int(index))
+            if int(index) > 0:
+                raise ValueError("Received positive index " + full_str + ".")
             code = code.replace(full_str, "{}_{}".format(field, buffer_index))
         code += "\n".join([""] + [
             "write_channel_intel({}_inner_out, res);".format(output)

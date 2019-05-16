@@ -2,7 +2,7 @@ import helper
 from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
+from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass, DataType, BoundaryCondition
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
 from typing import List, Dict
 
@@ -55,12 +55,13 @@ class Kernel(BaseKernelNodeClass):
                       if we reach the bound i == N, TODO: special handling?
     """
 
-    def __init__(self, name: str, kernel_string: str, dimensions: List[int], plot_graph: bool = False) -> None:
-        super().__init__(name, None)
+    def __init__(self, name: str, kernel_string: str, dimensions: List[int], data_type: DataType, boundary_conditions: Dict[str, str], plot_graph: bool = False) -> None:
+        super().__init__(name, None, data_type)
 
         # store arguments
         self.kernel_string: str = kernel_string  # raw kernel string input
         self.dimensions: List[int] = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
+        self.boundary_conditions = boundary_conditions
 
         # read static parameters from config
         self.config: Dict = helper.parse_json("kernel.config")
@@ -90,21 +91,24 @@ class Kernel(BaseKernelNodeClass):
         self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
 
-    def iter_comp_tree(self, node: BaseOperationNodeClass) -> str:
+
+    def iter_comp_tree(self, node: BaseOperationNodeClass, index_relative_to_center=True) -> str:
 
         pred = list(self.graph.graph.pred[node])
 
         if isinstance(node, Binop):
-            lhs = pred[1]
-            rhs = pred[0]
-            return "(" + self.iter_comp_tree(lhs) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs) + ")"
-            # return self.iter_comp_tree(lhs) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs)
+            lhs = pred[0]
+            rhs = pred[1]
+            return "(" + self.iter_comp_tree(lhs, index_relative_to_center) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs, index_relative_to_center) + ")"
         elif isinstance(node, Call):
-            return node.name + "(" + self.iter_comp_tree(pred[0]) + ")"
+            return node.name + "(" + self.iter_comp_tree(pred[0], index_relative_to_center) + ")"
         elif isinstance(node, Name) or isinstance(node, Num):
             return str(node.name)
         elif isinstance(node, Subscript):
-            dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
+            if index_relative_to_center:
+                dim_index = node.index
+            else:
+                dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             word_index = self.convert_3d_to_1d(dim_index)
             return node.name + "[" + str(word_index) + "]"
         elif isinstance(node, Ternary):
@@ -113,13 +117,13 @@ class Kernel(BaseKernelNodeClass):
             lhs = [x for x in pred if type(x) != Compare][0]
             rhs = [x for x in pred if type(x) != Compare][1]
 
-            return "{} if {} else {}".format(self.iter_comp_tree(lhs), self.iter_comp_tree(compare), self.iter_comp_tree(rhs))
+            return "{} if {} else {}".format(self.iter_comp_tree(lhs, index_relative_to_center), self.iter_comp_tree(compare, index_relative_to_center), self.iter_comp_tree(rhs, index_relative_to_center))
         elif isinstance(node, Compare):
-            return "{} {} {}".format(self.iter_comp_tree(pred[0]), str(node.name), self.iter_comp_tree(pred[1]))
+            return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center), str(node.name), self.iter_comp_tree(pred[1], index_relative_to_center))
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
-    def generate_relative_access_kernel_string(self) -> str:
+    def generate_relative_access_kernel_string(self, relative_to_center=True) -> str:
         # format: 'res = vdc[index1] + vout[index2]'
 
         res = []
@@ -128,7 +132,7 @@ class Kernel(BaseKernelNodeClass):
         for n in self.graph.graph.nodes:
             if isinstance(n, Name):
                 res.append(n.name + " = " + self.iter_comp_tree(
-                    list(self.graph.graph.pred[n])[0]))
+                    list(self.graph.graph.pred[n])[0], relative_to_center))
 
         # Treat output node
         output_node = [
@@ -139,7 +143,7 @@ class Kernel(BaseKernelNodeClass):
         output_node = output_node[0]
 
         res.append("res = " + self.iter_comp_tree(
-            list(self.graph.graph.pred[output_node])[0]))
+            list(self.graph.graph.pred[output_node])[0], index_relative_to_center=relative_to_center))
 
         return "; ".join(res)
 
@@ -158,27 +162,33 @@ class Kernel(BaseKernelNodeClass):
 
     def setup_internal_buffers(self) -> None:
 
+        # slice the internal buffer into junks of accesses
+
         for buf_name in self.graph.buffer_size:
-            self.internal_buffer[buf_name] = BoundedQueue(name=buf_name,
-                                                          maxsize=self.convert_3d_to_1d(self.graph.buffer_size[buf_name])+1)
+            self.internal_buffer[buf_name] = list()
+            list.sort(self.graph.accesses[buf_name], reverse=True)
+            itr = self.graph.accesses[buf_name].__iter__()
+            pre = itr.__next__()
+            for item in itr:
+                curr = item
+
+                diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
+                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff + 1))
+
+                pre = curr
+
 
     def buffer_position(self, access: BaseKernelNodeClass) -> int:
         return self.convert_3d_to_1d(self.graph.min_index[access.name]) - self.convert_3d_to_1d(access.index)
 
     def try_read(self):
 
-        # TODO: test this method as soon as the kernel_chain_graph has linked the input queues with the output queues
-        # of different kernels
-
-        # reset old state
-        self.reset_old_compute_state()
-
         # check if all inputs are available
         all_available = True
         for inp in self.graph.inputs:
             if isinstance(inp, Num):
                 pass
-            elif self.inputs[inp.name].peek(self.buffer_position(inp)) is None:  # check if array access location
+            elif self.inputs[inp.name]['internal_buffer'][inp.name][0].try_peek_last() is None:  # check if array access location
                 #  is filled with a bubble
                 all_available = False
                 break
@@ -205,7 +215,7 @@ class Kernel(BaseKernelNodeClass):
 
         return all_available
 
-    def try_execute(self) -> bool:
+    def try_execute(self):
 
         # check if read has been successful
         if self.read_success:
@@ -220,10 +230,7 @@ class Kernel(BaseKernelNodeClass):
             # write bubble to latency-simulating buffer
             self.out_delay_queue.enqueue(None)
 
-        self.exec_success = True
-        return self.exec_success
-
-    def try_write(self) -> bool:
+    def try_write(self):
 
         # check if data (not a bubble) is available
         data = self.out_delay_queue.dequeue()
@@ -234,9 +241,6 @@ class Kernel(BaseKernelNodeClass):
                     outp.enqueue(self.result)
                 except Exception as ex:
                     self.diagnostics(ex)
-
-        return self.available
-
     '''
         interface for error overview reporting (gets called in case of an exception)
 
@@ -284,11 +288,11 @@ if __name__ == "__main__":
     print(kernel4.generate_relative_access_kernel_string())
     print()
 
-    kernel5 = Kernel("dummy", "res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k]", dim)
+    kernel5 = Kernel("dummy", "res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k] + a[i,j,k]", dim)
     print("Kernel string conversion:")
     print("dimensions are: {}".format(dim))
     print(kernel5.kernel_string)
-    print(kernel5.generate_relative_access_kernel_string())
+    print(kernel5.generate_relative_access_kernel_string(relative_to_center=False))
     print()
 
     kernel6 = Kernel("dummy", "res = a if (a > b) else b", dim)

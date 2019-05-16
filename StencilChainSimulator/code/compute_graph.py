@@ -185,7 +185,7 @@ class ComputeGraph:
         else:
             raise Exception("Unknown AST type {}".format(type(node)))
 
-    def setup_internal_buffers(self) -> None:
+    def setup_internal_buffers(self, relative_to_center=True) -> None:
 
         # init dicts
         self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
@@ -211,12 +211,14 @@ class ComputeGraph:
         for buffer_name in self.min_index:
             self.buffer_size[buffer_name] = [abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
 
-        # update access to have [0,0,0] for the max_index (subtract it from all)
-        for field in self.accesses:
-            updated_entries = list()
-            for entry in self.accesses[field]:
-                updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]))
-            self.accesses[field] = updated_entries
+        if not relative_to_center:
+            # update access to have [0,0,0] for the max_index (subtract it from all)
+            for field in self.accesses:
+                updated_entries = list()
+                for entry in self.accesses[field]:
+                    updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]))
+                self.accesses[field] = updated_entries
+
 
     def determine_inputs_outputs(self) -> None:
 
