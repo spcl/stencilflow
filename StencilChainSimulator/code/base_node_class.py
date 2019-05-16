@@ -3,6 +3,7 @@ from typing import List, Dict
 from bounded_queue import BoundedQueue
 from enum import Enum
 import ast
+import dace.types
 
 
 class BoundaryCondition(Enum):
@@ -31,6 +32,15 @@ class DataType(Enum):
             return DataType.FLOAT64
         else:
             raise Exception("{} is not a valid precision string".format(text))
+
+    @staticmethod
+    def to_dace(dtype):
+        if dtype == DataType.FLOAT32:
+            return dace.types.float32
+        elif dtype == DataType.FLOAT64:
+            return dace.types.float64
+        else:
+            raise ValueError("Unsupported data type: " + str(dtype))
 
 
 class BaseKernelNodeClass:

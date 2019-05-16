@@ -14,6 +14,7 @@ from dace.memlet import Memlet
 from dace.sdfg import SDFG
 from dace.types import ScheduleType, StorageType, Language
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
+from base_node_class import DataType
 
 DATA_TYPE = float
 ITERATORS = ["i", "j", "k"]
@@ -200,7 +201,10 @@ def generate_sdfg(name, chain):
             buffer_size = max_access - min_access + 1
             memory_accesses.append(field)
             buffer_sizes[field] = buffer_size
-            buffer_accesses[field] = [i - min_access for i in abs_indices]
+            # (indices relative to center, buffer indices, buffer center index)
+            buffer_accesses[field] = (relative,
+                                      [i - min_access for i in abs_indices],
+                                      -min_access)
 
         entry, exit = state.add_map(
             node.name, iterators, schedule=ScheduleType.FPGA_Device)
@@ -224,7 +228,37 @@ def generate_sdfg(name, chain):
         # Update state, which reads new values from memory
         update_state = nested_sdfg.add_state(node.name + "_update")
 
-        code = "\n".join([
+        # TODO: data type per field
+        dtype = DataType.to_dace(node.data_type).ctype
+
+        boundary_code = ""
+        # Loop over each field
+        for (field, (accesses, accesses_buffer,
+                     center)) in buffer_accesses.items():
+            # Loop over each access to this field
+            for indices, offset_buffer in zip(accesses, accesses_buffer):
+                # Loop over each index of this access
+                cond = []
+                for i, offset in enumerate(indices):
+                    if offset < 0:
+                        cond.append(ITERATORS[i] + " < " + str(-offset))
+                    elif offset > 0:
+                        cond.append(ITERATORS[i] + " >= " +
+                                    str(node.dimensions[i] - offset))
+                if len(cond) == 0:
+                    boundary_code += "{} {}_{} = _{}_{};\n".format(
+                        dtype, field, offset_buffer, field, offset_buffer)
+                else:
+                    if node.boundary_conditions[field]["type"] == "copy":
+                        boundary_val = "_{}_{}".format(field, center)
+                    elif node.boundary_conditions[field]["type"] == "constant":
+                        boundary_val = node.boundary_conditions[field]["value"]
+                    boundary_code += (
+                        "{} {}_{} = ({}) ? ({}) : (_{}_{});\n".format(
+                            dtype, field, offset_buffer, " || ".join(cond),
+                            boundary_val, field, offset_buffer))
+
+        code = boundary_code + "\n" + "\n".join([
             dace.types._CTYPES[DATA_TYPE] + " " + expr.strip() + ";"
             for expr in node.generate_relative_access_kernel_string(
                 relative_to_center=False).split(";")
@@ -245,13 +279,13 @@ def generate_sdfg(name, chain):
         # Compute state, which reads from input channels, performs the compute,
         # and writes to the output channel(s)
         compute_state = nested_sdfg.add_state(node.name + "_compute")
+        compute_inputs = list(
+            itertools.chain.from_iterable(
+                [["_{}_{}".format(name, offset) for offset in offsets]
+                 for name, (_, offsets, _) in buffer_accesses.items()]))
         compute_tasklet = compute_state.add_tasklet(
             node.name + "_compute",
-            list(
-                itertools.chain.from_iterable(
-                    [["{}_{}".format(name, access) for access in accesses]
-                     for name, accesses in buffer_accesses.items()])),
-            [name + "_inner_out" for name in outputs],
+            compute_inputs, [name + "_inner_out" for name in outputs],
             code,
             language=Language.CPP)
 
@@ -375,13 +409,13 @@ def generate_sdfg(name, chain):
 
             # Make compute state
             compute_read = compute_state.add_read(buffer_name_inner_read)
-            for index in buffer_accesses[field_name]:
+            for offset in buffer_accesses[field_name][1]:
                 compute_state.add_memlet_path(
                     compute_read,
                     compute_tasklet,
-                    dst_conn=field_name + "_{}".format(index),
+                    dst_conn="_" + field_name + "_" + str(offset),
                     memlet=Memlet.simple(
-                        compute_read.data, str(index), num_accesses=1))
+                        compute_read.data, str(offset), num_accesses=1))
 
         for out_name in outputs:
 
