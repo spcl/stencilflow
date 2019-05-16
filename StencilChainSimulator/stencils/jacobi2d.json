@@ -1,10 +1,22 @@
 {
 	"inputs": {
-		"a": []
+		"a": {
+      "data": [],
+      "data_type": "float32"
+    }
 	},
 	"outputs": ["b"],
 	"dimensions": [128, 128],
 	"program": {
-		"b": "res = 0.25 * (a[i-1,j] + a[i+1,j] + a[i,j-1] + a[i,j+1])"
+		"b": {
+      "computation_string": "b = 0.25 * (a[i-1,j] + a[i+1,j] + a[i,j-1] + a[i,j+1])",
+      "boundary_condition": {
+        "a": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "data_type": "float32"
+    }
 	}
 }
