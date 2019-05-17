@@ -30,6 +30,8 @@ class BaseKernelNodeClass:
         self.input_paths: Dict[str, List] = dict()
         self.outputs: Dict[str, BoundedQueue] = dict()
         self.delay_buffer: Dict[str, List] = dict()
+        if not isinstance(data_type, dace.types.typeclass):
+            raise TypeError("Expected dace.types.typeclass, got: " + type(data_type).__name__)
         self.data_type = data_type
 
     def generate_label(self) -> str:  # wrapper for customizations

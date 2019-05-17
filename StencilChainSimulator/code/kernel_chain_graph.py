@@ -13,7 +13,7 @@ from dace.types import typeclass
 class Input(BaseKernelNodeClass):
 
     def __init__(self, name: str, data_type: typeclass, data_queue: BoundedQueue = None) -> None:
-        super().__init__(name, data_queue, data_type)
+        super().__init__(name=name, data_queue=data_queue, data_type=data_type)
 
     def reset_old_compute_state(self):
         # nothing to do
@@ -62,7 +62,7 @@ class Input(BaseKernelNodeClass):
 class Output(BaseKernelNodeClass):
 
     def __init__(self, name, data_type: typeclass, data_queue=None):
-        super().__init__(name, data_type, data_queue)
+        super().__init__(name=name, data_type=data_type, data_queue=data_queue)
 
     def reset_old_compute_state(self):
         # nothing to do
