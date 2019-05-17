@@ -30,15 +30,19 @@ class BoundedQueue:
         return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
 
     def init_queue(self, data):
-        self.queue: collections.deque = collections.deque(data, self.maxsize)
-        self.current_size = len(data)
+
+        if self.maxsize < len(data):
+            self.queue: collections.deque = collections.deque(data, self.maxsize)
+            self.current_size = len(data)
+        else:
+            raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})".format(self.maxsize, len(data)))
 
     def try_peek_last(self):
         # check bound
         if self.current_size > 0:
             return self.queue[self.current_size-1]
         else:
-            return None
+            return False
 
     def size(self) -> int:
         """
@@ -53,6 +57,13 @@ class BoundedQueue:
         :return: if queue is empty
         """
         return self.size() == 0
+
+    def is_full(self) -> bool:
+        """
+        Test if queue is full.
+        :return: if queue is full
+        """
+        return self.size() == self.maxsize
 
     def enqueue(self, item) -> None:
         """
