@@ -59,5 +59,24 @@ class BoundedQueueTest(unittest.TestCase):
         queue.dequeue()
         self.assertFalse(queue.try_peek_last())
 
+
+from calculator import Calculator
+from numpy import cos
+class CalculatorTest(unittest.TestCase):
+
+    def test_calc(self):
+        # init vars
+        variables = dict()
+        variables["a"] = 7.0
+        variables["b"] = 2.0
+        # init calc
+        computation = "cos(a + b) if (a > b) else (a + 5) * b"
+        calculator = Calculator()
+        # do manual calculation and compare result
+        result = cos(variables["a"] + variables["b"]) if (variables["a"] > variables["b"]) else (variables["a"] + 5) * variables["b"]
+        self.assertEqual(calculator.eval_expr(variables, computation), result)
+
+
+
 if __name__ == '__main__':
     unittest.main()
