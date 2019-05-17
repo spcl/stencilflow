@@ -20,34 +20,11 @@ class BoundaryCondition(Enum):
             raise Exception("{} is not a valid boundary condition string".format(text))
 
 
-class DataType(Enum):
-    FLOAT32 = 1
-    FLOAT64 = 2
-
-    @staticmethod
-    def to_prec(text: str):
-        if text == "float32":
-            return DataType.FLOAT32
-        elif text == "float64":
-            return DataType.FLOAT64
-        else:
-            raise Exception("{} is not a valid precision string".format(text))
-
-    @staticmethod
-    def to_dace(dtype):
-        if dtype == DataType.FLOAT32:
-            return dace.types.float32
-        elif dtype == DataType.FLOAT64:
-            return dace.types.float64
-        else:
-            raise ValueError("Unsupported data type: " + str(dtype))
-
-
 class BaseKernelNodeClass:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name: str, data_queue, data_type: DataType) -> None:
+    def __init__(self, name: str, data_queue, data_type: dace.types.typeclass) -> None:
         self.name: str = name
         self.data_queue: BoundedQueue = data_queue
         self.input_paths: Dict[str, List] = dict()

@@ -35,6 +35,15 @@ else:
     dace.config.Config.set("compiler", "intel_fpga", "mode", value="hardware")
 program = sdfg.compile()
 
+# Load data from disk
+input_arrays = helper.load_input_arrays(program_description)
+
+# Initialize output arrays
+output_arrays = {
+    arr_name: np.empty(program_description["dimensions"], dtype=float)
+    for arr_name in program_description["outputs"]
+}
+
 # Compile program (if running emulation)
 build_folder = os.path.join(".dacecache", name, "build")
 if args.mode == "emulation":
@@ -44,15 +53,6 @@ if args.mode == "emulation":
 elif args.mode == "hardware":
     if not os.path.exists(os.path.join(build_folder, name + "_hardware.aocx")):
         raise FileNotFoundError("Hardware kernel has not been built.")
-
-# Load data from disk
-input_arrays = helper.load_input_arrays(program_description)
-
-# Initialize output arrays
-output_arrays = {
-    arr_name: np.empty(program_description["dimensions"], dtype=float)
-    for arr_name in program_description["outputs"]
-}
 
 # Run program
 args = {

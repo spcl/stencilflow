@@ -12,9 +12,8 @@ import dace
 from dace.graph.edges import InterstateEdge
 from dace.memlet import Memlet
 from dace.sdfg import SDFG
-from dace.types import ScheduleType, StorageType, Language
+from dace.types import ScheduleType, StorageType, Language, typeclass
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
-from base_node_class import DataType
 
 DATA_TYPE = float
 ITERATORS = ["i", "j", "k"]
@@ -229,7 +228,7 @@ def generate_sdfg(name, chain):
         update_state = nested_sdfg.add_state(node.name + "_update")
 
         # TODO: data type per field
-        dtype = DataType.to_dace(node.data_type).ctype
+        dtype = node.data_type.ctype
 
         boundary_code = ""
         # Loop over each field
@@ -371,7 +370,7 @@ def generate_sdfg(name, chain):
                 shift_write = shift_state.add_write(buffer_name_inner_write)
                 shift_entry, shift_exit = shift_state.add_map(
                     "shift_{}".format(field_name),
-                    {"i": "0:{} - 1".format(size)},
+                    {"i_shift": "0:{} - 1".format(size)},
                     schedule=ScheduleType.FPGA_Device,
                     unroll=True)
                 shift_tasklet = shift_state.add_tasklet(
@@ -386,14 +385,14 @@ def generate_sdfg(name, chain):
                     shift_tasklet,
                     dst_conn=field_name + "_shift_in",
                     memlet=Memlet.simple(
-                        shift_read.data, "i + 1", num_accesses=1))
+                        shift_read.data, "i_shift + 1", num_accesses=1))
                 shift_state.add_memlet_path(
                     shift_tasklet,
                     shift_exit,
                     shift_write,
                     src_conn=field_name + "_shift_out",
                     memlet=Memlet.simple(
-                        shift_write.data, "i", num_accesses=1))
+                        shift_write.data, "i_shift", num_accesses=1))
 
             update_read = update_state.add_read(stream_name_inner)
             update_write = update_state.add_write(buffer_name_inner_write)

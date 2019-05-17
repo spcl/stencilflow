@@ -2,9 +2,10 @@ import helper
 from compute_graph import ComputeGraph
 from calculator import Calculator
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass, DataType, BoundaryCondition
+from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass, BoundaryCondition
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
 from typing import List, Dict
+import dace.types
 
 
 class Kernel(BaseKernelNodeClass):
@@ -55,7 +56,7 @@ class Kernel(BaseKernelNodeClass):
                       if we reach the bound i == N, TODO: special handling?
     """
 
-    def __init__(self, name: str, kernel_string: str, dimensions: List[int], data_type: DataType, boundary_conditions: Dict[str, str], plot_graph: bool = False) -> None:
+    def __init__(self, name: str, kernel_string: str, dimensions: List[int], data_type: dace.types.typeclass, boundary_conditions: Dict[str, str], plot_graph: bool = False) -> None:
         super().__init__(name, None, data_type)
 
         # store arguments

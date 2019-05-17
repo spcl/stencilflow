@@ -5,13 +5,14 @@ import networkx as nx
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass, DataType, BoundaryCondition
+from base_node_class import BaseKernelNodeClass, BoundaryCondition
 from typing import List, Dict
+from dace.types import typeclass
 
 
 class Input(BaseKernelNodeClass):
 
-    def __init__(self, name: str, data_type: DataType, data_queue: BoundedQueue = None) -> None:
+    def __init__(self, name: str, data_type: typeclass, data_queue: BoundedQueue = None) -> None:
         super().__init__(name, data_queue, data_type)
 
     def reset_old_compute_state(self):
@@ -60,7 +61,7 @@ class Input(BaseKernelNodeClass):
 
 class Output(BaseKernelNodeClass):
 
-    def __init__(self, name, data_type: DataType, data_queue=None):
+    def __init__(self, name, data_type: typeclass, data_queue=None):
         super().__init__(name, data_type, data_queue)
 
     def reset_old_compute_state(self):
@@ -315,7 +316,7 @@ class KernelChainGraph:
             new_node = Kernel(name=kernel,
                               kernel_string=self.program[kernel]["computation_string"],
                               dimensions=self.dimensions,
-                              data_type=DataType.to_prec(self.program[kernel]["data_type"]),
+                              data_type=self.program[kernel]["data_type"],
                               boundary_conditions=self.program[kernel]["boundary_condition"])
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
@@ -324,7 +325,7 @@ class KernelChainGraph:
         self.input_nodes = dict()
         for inp in self.inputs:
             new_node = Input(name=inp,
-                             data_type=DataType.to_prec(self.inputs[inp]["data_type"]),
+                             data_type=self.inputs[inp]["data_type"],
                              data_queue=BoundedQueue(name=inp, maxsize=self.total_elements()))
             self.input_nodes[inp] = new_node
             self.graph.add_node(new_node)
@@ -333,7 +334,7 @@ class KernelChainGraph:
         self.output_nodes = dict()
         for out in self.outputs:
             new_node = Output(name=out,
-                              data_type=DataType.to_prec(self.program[out]["data_type"]),
+                              data_type=self.program[out]["data_type"],
                               data_queue=None)
             self.output_nodes[out] = new_node
             self.graph.add_node(new_node)
