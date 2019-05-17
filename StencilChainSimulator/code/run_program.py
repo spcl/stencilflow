@@ -13,6 +13,7 @@ from kernel_chain_graph import KernelChainGraph
 
 parser = argparse.ArgumentParser()
 parser.add_argument("stencil_file")
+parser.add_argument("--print-result", dest="print_result", action="store_true")
 parser.add_argument("mode", choices=["emulation", "hardware"])
 args = parser.parse_args()
 
@@ -57,14 +58,18 @@ elif args.mode == "hardware":
         raise FileNotFoundError("Hardware kernel has not been built.")
 
 # Run program
-args = {
+dace_args = {
     key + "_host": val
     for key, val in itertools.chain(input_arrays.items(),
                                     output_arrays.items())
 }
 print("Executing DaCe program...")
-program(**args)
+program(**dace_args)
 print("Finished running program.")
+
+if args.print_result:
+    for key, val in output_arrays.items():
+        print(key + ":", val)
 
 # Write results to file
 output_folder = os.path.join("results", name)
