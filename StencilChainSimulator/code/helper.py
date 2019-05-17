@@ -62,8 +62,8 @@ def parse_json(config_path: str) -> Dict:
           if isinstance(val, dict):
               walk(val)
           else:
-             if key == "data_type":
-                d[key] = str_to_dtype(val)
+              if key == "data_type":
+                  d[key] = str_to_dtype(val)
     walk(config)
 
     # return dict
@@ -152,7 +152,7 @@ def load_array(source):
     elif isinstance(data, np.ndarray):
         return data
     else:
-        return np.array(data, dtype=source["data_type"])
+        return np.array(data, dtype=source["data_type"].type)
 
 
 def load_input_arrays(program: Dict) -> Dict:
