@@ -36,9 +36,11 @@ else:
 program = sdfg.compile()
 
 # Load data from disk
+print("Loading input arrays...")
 input_arrays = helper.load_input_arrays(program_description)
 
 # Initialize output arrays
+print("Initializing output arrays...")
 output_arrays = {
     arr_name: np.empty(program_description["dimensions"], dtype=float)
     for arr_name in program_description["outputs"]
