@@ -76,6 +76,26 @@ class CalculatorTest(unittest.TestCase):
         result = cos(variables["a"] + variables["b"]) if (variables["a"] > variables["b"]) else (variables["a"] + 5) * variables["b"]
         self.assertEqual(calculator.eval_expr(variables, computation), result)
 
+import main
+class MainTest(unittest.TestCase):
+
+    def test(self):
+        pass
+
+
+import helper
+class HelperTest(unittest.TestCase):
+
+    def test(self):
+        pass
+
+
+from compute_graph import ComputeGraph
+class ComputeGraphTest(unittest.TestCase):
+
+    def test(self):
+        pass
+
 
 from kernel import Kernel
 class KernelTest(unittest.TestCase):
