@@ -77,6 +77,33 @@ class CalculatorTest(unittest.TestCase):
         self.assertEqual(calculator.eval_expr(variables, computation), result)
 
 
+from kernel import Kernel
+class KernelTest(unittest.TestCase):
+
+    def test(self):
+        pass
+
+
+from kernel_chain_graph import KernelChainGraph
+class KernelChainGraphTest(unittest.TestCase):
+
+    def test(self):
+        pass
+
+
+from optimizer import Optimizer
+class OptimizerTest(unittest.TestCase):
+
+    def test(self):
+        pass
+
+
+from simulator import Simulator
+class SimulatorTest(unittest.TestCase):
+
+    def test(self):
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()
