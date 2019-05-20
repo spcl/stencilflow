@@ -39,7 +39,7 @@ class Input(BaseKernelNodeClass):
 
         # check if data is in the file or in a separate file
         if isinstance(inputs[self.name]["data"], list):
-            self.data_queue.init_queue(inputs[self.name])
+            self.data_queue.init_queue(inputs[self.name]["data"])
 
         elif isinstance(inputs[self.name]["data"], str):  # external file
             coll = None
@@ -503,11 +503,9 @@ if __name__ == "__main__":
                 if channel is not None:
                     total_delay = 0
                     for item in channel["internal_buffer"]:
-                        for entry in channel["internal_buffer"][item]:
-                            total_delay += entry.maxsize
+                        total_delay += item.maxsize
                     total_internal = 0
-                    for item in channel["delay_buffer"]:
-                        total_delay += channel["delay_buffer"][item].maxsize
+                    total_delay += channel["delay_buffer"].maxsize
                     total += total_delay + total_internal
         print("total buffer size: {}\n".format(total))
 
@@ -537,20 +535,19 @@ if __name__ == "__main__":
                     total_fast = 0
                     total_slow = 0
                     for item in channel["internal_buffer"]:
-                        for entry in channel["internal_buffer"][item]:
-                            if entry.swap_out:
-                                print("internal buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
-                                total_slow += entry.maxsize
-                            else:
-                                print("internal buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
-                                total_fast += entry.maxsize
-                    for item in channel["delay_buffer"]:
                         if entry.swap_out:
-                            print("delay buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
+                            print("internal buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
                             total_slow += entry.maxsize
                         else:
-                            print("delay buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
+                            print("internal buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
                             total_fast += entry.maxsize
+                    entry = channel["delay_buffer"]
+                    if entry.swap_out:
+                        print("delay buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
+                        total_slow += entry.maxsize
+                    else:
+                        print("delay buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
+                        total_fast += entry.maxsize
         print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(total_slow, total_fast))
 
 
