@@ -77,8 +77,8 @@ class CalculatorTest(unittest.TestCase):
         self.assertEqual(calculator.eval_expr(variables, computation), result)
 
 
-import main
-class MainTest(unittest.TestCase):
+#import run_program
+class RunProgramTest(unittest.TestCase):
 
     def test(self):
         pass
@@ -110,17 +110,37 @@ class HelperTest(unittest.TestCase):
 
 
 from compute_graph import ComputeGraph
+import json
+import os
 class ComputeGraphTest(unittest.TestCase):
 
     def test(self):
-        pass
+
+        computation = "out = cos(3.14);res = A[i,j,k] if (A[i,j,k]+1 > A[i,j,k]-B[i,j,k]) else out"
+        graph = ComputeGraph()
+        graph.generate_graph(computation)
+        graph.calculate_latency()
+        with open('compute_graph.config') as json_file:
+            op_latency = json.load(json_file)
+        self.assertEqual(op_latency["op_latency"]["cos"] + 1, graph.max_latency)
+        filename = "compute_graph_unittest.png"
+        graph.plot_graph(filename)  # write graph to file
+        os.remove(filename)
 
 
 from kernel import Kernel
+from base_node_class import DataType
 class KernelTest(unittest.TestCase):
 
     def test(self):
-        pass
+        dimensions = [100, 100, 100]
+        kernel = Kernel(name="dummy",
+                        kernel_string="SUBST = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k]; res = SUBST + a[i,j,k]",
+                        dimensions=dimensions,
+                        data_type=DataType.FLOAT64,
+                        boundary_conditions={"a": {"type": "constant", "value": 1.0}})
+        self.assertEqual(kernel.generate_relative_access_kernel_string(),
+                         "SUBST = (((a[0] + a[-1]) + a[-100]) + a[-10000]); res = (SUBST + a[0])")
 
 
 from kernel_chain_graph import KernelChainGraph
