@@ -76,6 +76,7 @@ class CalculatorTest(unittest.TestCase):
         result = cos(variables["a"] + variables["b"]) if (variables["a"] > variables["b"]) else (variables["a"] + 5) * variables["b"]
         self.assertEqual(calculator.eval_expr(variables, computation), result)
 
+
 import main
 class MainTest(unittest.TestCase):
 
@@ -84,10 +85,28 @@ class MainTest(unittest.TestCase):
 
 
 import helper
+import os
+import numpy as np
 class HelperTest(unittest.TestCase):
 
     def test(self):
-        pass
+        self.assertEqual(helper.max_dict_entry_key({"a": [1, 0, 0], "b": [0, 1, 0], "c": [0, 0, 1]}), "a")
+        self.assertEqual(helper.list_add_cwise([1, 2, 3], [3, 2, 1]), [4, 4, 4])
+        self.assertEqual(helper.list_subtract_cwise([1, 2, 3], [1, 2, 3]), [0, 0, 0])
+        self.assertEqual(helper.dim_to_abs_val([3, 2, 1], [10, 10, 10]), 321)
+        self.assertEqual(helper.convert_3d_to_1d([10, 10, 10], [3, 2, 1]), 321)
+        self.assertListEqual(list(helper.load_array("testing/helper_test.csv")), [7.0, 7.0])
+        self.assertListEqual(list(helper.load_array("testing/helper_test.dat")), [7.0, 7.0])
+
+        out_data = np.array([1.0, 2.0, 3.0])
+        file = "test.dat"
+        helper.save_array(out_data, file)
+        in_data = helper.load_array(file)
+        self.assertTrue(helper.arrays_are_equal(out_data, in_data))
+        os.remove(file)
+
+        not_unique = [1.0, 2.0, 1.0]
+        self.assertListEqual(sorted(helper.unique(not_unique)), [1.0, 2.0])
 
 
 from compute_graph import ComputeGraph
