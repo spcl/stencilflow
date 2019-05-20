@@ -454,6 +454,16 @@ class ComputeGraph:
                 child.latency = node.latency
                 self.latency_tree_walk(child)
 
+        elif isinstance(node, Ternary):
+            for child in self.graph.pred[node]:
+                child.latency = node.latency
+                self.latency_tree_walk(child)
+
+        elif isinstance(node, Compare):
+            for child in self.graph.pred[node]:
+                child.latency = node.latency
+                self.latency_tree_walk(child)
+
         self.try_set_max_latency(node.latency)
 
 
