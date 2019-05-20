@@ -1,6 +1,6 @@
 import unittest
-
 from bounded_queue import BoundedQueue
+
 class BoundedQueueTest(unittest.TestCase):
 
     def test_init(self):
@@ -62,6 +62,7 @@ class BoundedQueueTest(unittest.TestCase):
 
 from calculator import Calculator
 from numpy import cos
+
 class CalculatorTest(unittest.TestCase):
 
     def test_calc(self):

@@ -13,6 +13,7 @@ from kernel_chain_graph import KernelChainGraph
 
 parser = argparse.ArgumentParser()
 parser.add_argument("stencil_file")
+parser.add_argument("--print-result", dest="print_result", action="store_true")
 parser.add_argument("mode", choices=["emulation", "hardware"])
 args = parser.parse_args()
 
@@ -35,6 +36,17 @@ else:
     dace.config.Config.set("compiler", "intel_fpga", "mode", value="hardware")
 program = sdfg.compile()
 
+# Load data from disk
+print("Loading input arrays...")
+input_arrays = helper.load_input_arrays(program_description)
+
+# Initialize output arrays
+print("Initializing output arrays...")
+output_arrays = {
+    arr_name: np.empty(program_description["dimensions"], dtype=float)
+    for arr_name in program_description["outputs"]
+}
+
 # Compile program (if running emulation)
 build_folder = os.path.join(".dacecache", name, "build")
 if args.mode == "emulation":
@@ -45,24 +57,19 @@ elif args.mode == "hardware":
     if not os.path.exists(os.path.join(build_folder, name + "_hardware.aocx")):
         raise FileNotFoundError("Hardware kernel has not been built.")
 
-# Load data from disk
-input_arrays = helper.load_input_arrays(program_description)
-
-# Initialize output arrays
-output_arrays = {
-    arr_name: np.empty(program_description["dimensions"], dtype=float)
-    for arr_name in program_description["outputs"]
-}
-
 # Run program
-args = {
+dace_args = {
     key + "_host": val
     for key, val in itertools.chain(input_arrays.items(),
                                     output_arrays.items())
 }
 print("Executing DaCe program...")
-program(**args)
+program(**dace_args)
 print("Finished running program.")
+
+if args.print_result:
+    for key, val in output_arrays.items():
+        print(key + ":", val)
 
 # Write results to file
 output_folder = os.path.join("results", name)

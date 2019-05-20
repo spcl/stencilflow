@@ -6,6 +6,7 @@ import warnings
 import operator
 from functools import reduce
 from typing import List, Dict
+import dace
 import numpy as np
 
 
@@ -27,6 +28,16 @@ def deprecated(func):
     return new_func
 
 
+def str_to_dtype(dtype_str: str) -> dace.types.typeclass:
+    if not isinstance(dtype_str, str):
+        raise TypeError("Expected string, got: " + type(dtype_str).__name__)
+    try:
+        return getattr(dace.types, dtype_str)
+    except AttributeError:
+        pass
+    raise AttributeError("Unsupported data type: " + dtype_str)
+
+
 def parse_json(config_path: str) -> Dict:
     """
     Read input file from disk and parse it.
@@ -45,6 +56,15 @@ def parse_json(config_path: str) -> Dict:
     with open(config_path, "r") as file_handle:
         # try to parse it
         config = json.loads(file_handle.read())  # type: dict
+
+    def walk(d):
+        for key, val in d.items():
+          if isinstance(val, dict):
+              walk(val)
+          else:
+              if key == "data_type":
+                  d[key] = str_to_dtype(val)
+    walk(config)
 
     # return dict
     return config
@@ -121,17 +141,18 @@ def load_array(source):
     :param source: Path to csv file, binary file, or iterable.
     :return: Data stored in a numpy array.
     """
-    if isinstance(source, str):
-        if source.endswith(".csv"):
-            return np.genfromtxt(source, float, delimiter=',')
-        elif source.endswith(".dat"):
-            return np.fromfile(source, float)
+    data = source["data"]
+    if isinstance(data, str):
+        if data.endswith(".csv"):
+            return np.genfromtxt(data, float, delimiter=',')
+        elif data.endswith(".dat"):
+            return np.fromfile(data, float)
         else:
-            raise ValueError("Invalid file type: " + source)
-    elif isinstance(source, np.ndarray):
-        return source
+            raise ValueError("Invalid file type: " + data)
+    elif isinstance(data, np.ndarray):
+        return data
     else:
-        return np.array(source, dtype=float)
+        return np.array(data, dtype=source["data_type"].type)
 
 
 def load_input_arrays(program: Dict) -> Dict:

@@ -12,11 +12,9 @@ import dace
 from dace.graph.edges import InterstateEdge
 from dace.memlet import Memlet
 from dace.sdfg import SDFG
-from dace.types import ScheduleType, StorageType, Language
+from dace.types import ScheduleType, StorageType, Language, typeclass
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
-from base_node_class import DataType
 
-DATA_TYPE = float
 ITERATORS = ["i", "j", "k"]
 
 
@@ -33,6 +31,7 @@ def make_iterators(chain):
 
 def make_stream_name(src_name, dst_name):
     return src_name + "_to_" + dst_name
+
 
 def relative_to_buffer_index(buffer_size, index):
     return buffer_size - 1 - abs(index)
@@ -55,7 +54,7 @@ def generate_sdfg(name, chain):
 
         sdfg.add_stream(
             stream_name,
-            DATA_TYPE,
+            edge[0].data_type,
             buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
             storage=StorageType.FPGA_Local,
             transient=True)
@@ -63,13 +62,13 @@ def generate_sdfg(name, chain):
     def add_input(node):
 
         # Host-side array, which will be an input argument
-        sdfg.add_array(node.name + "_host", chain.dimensions, DATA_TYPE)
+        sdfg.add_array(node.name + "_host", chain.dimensions, node.data_type)
 
         # Device-side copy
         sdfg.add_array(
             node.name,
             chain.dimensions,
-            DATA_TYPE,
+            node.data_type,
             storage=StorageType.FPGA_Global,
             transient=True)
         access_node = state.add_read(node.name)
@@ -124,13 +123,13 @@ def generate_sdfg(name, chain):
     def add_output(node):
 
         # Host-side array, which will be an output argument
-        sdfg.add_array(node.name + "_host", chain.dimensions, DATA_TYPE)
+        sdfg.add_array(node.name + "_host", chain.dimensions, node.data_type)
 
         # Device-side copy
         sdfg.add_array(
             node.name,
             chain.dimensions,
-            DATA_TYPE,
+            node.data_type,
             storage=StorageType.FPGA_Global,
             transient=True)
         write_node = state.add_write(node.name)
@@ -215,9 +214,9 @@ def generate_sdfg(name, chain):
         # Add nested SDFG to do 1) shift buffers 2) read from input 3) compute
         nested_sdfg = SDFG(node.name, parent=sdfg)
         nested_sdfg_tasklet = state.add_nested_sdfg(
-            nested_sdfg, sdfg,
-            ([name + "_in" for name in memory_accesses] +
-             [name + "_buffer_in" for name, _ in buffer_sizes.items()]),
+            nested_sdfg,
+            sdfg, ([name + "_in" for name in memory_accesses] +
+                   [name + "_buffer_in" for name, _ in buffer_sizes.items()]),
             ([name + "_out" for name in outputs] +
              [name + "_buffer_out" for name, _ in buffer_sizes.items()]),
             name=node.name)
@@ -229,7 +228,7 @@ def generate_sdfg(name, chain):
         update_state = nested_sdfg.add_state(node.name + "_update")
 
         # TODO: data type per field
-        dtype = DataType.to_dace(node.data_type).ctype
+        dtype = node.data_type
 
         boundary_code = ""
         # Loop over each field
@@ -247,7 +246,8 @@ def generate_sdfg(name, chain):
                                     str(node.dimensions[i] - offset))
                 if len(cond) == 0:
                     boundary_code += "{} {}_{} = _{}_{};\n".format(
-                        dtype, field, offset_buffer, field, offset_buffer)
+                        dtype.ctype, field, offset_buffer, field,
+                        offset_buffer)
                 else:
                     if node.boundary_conditions[field]["type"] == "copy":
                         boundary_val = "_{}_{}".format(field, center)
@@ -255,11 +255,12 @@ def generate_sdfg(name, chain):
                         boundary_val = node.boundary_conditions[field]["value"]
                     boundary_code += (
                         "{} {}_{} = ({}) ? ({}) : (_{}_{});\n".format(
-                            dtype, field, offset_buffer, " || ".join(cond),
-                            boundary_val, field, offset_buffer))
+                            dtype.ctype, field, offset_buffer,
+                            " || ".join(cond), boundary_val, field,
+                            offset_buffer))
 
         code = boundary_code + "\n" + "\n".join([
-            dace.types._CTYPES[DATA_TYPE] + " " + expr.strip() + ";"
+            dtype.ctype + " " + expr.strip() + ";"
             for expr in node.generate_relative_access_kernel_string(
                 relative_to_center=False).split(";")
         ])
@@ -318,17 +319,17 @@ def generate_sdfg(name, chain):
             buffer_name_inner_write = "{}_buffer_out".format(field_name)
 
             # Create buffer transient in outer SDFG
+            # TODO: use data type from edge
             if size > 1:
                 desc_outer = sdfg.add_array(
-                    buffer_name_outer,
-                    [size],
-                    DATA_TYPE,
+                    buffer_name_outer, [size],
+                    dtype,
                     storage=StorageType.FPGA_Local,
                     transient=True)
             else:
                 desc_outer = sdfg.add_scalar(
                     buffer_name_outer,
-                    DATA_TYPE,
+                    dtype,
                     storage=StorageType.FPGA_Registers,
                     transient=True)
 
@@ -371,7 +372,7 @@ def generate_sdfg(name, chain):
                 shift_write = shift_state.add_write(buffer_name_inner_write)
                 shift_entry, shift_exit = shift_state.add_map(
                     "shift_{}".format(field_name),
-                    {"i": "0:{} - 1".format(size)},
+                    {"i_shift": "0:{} - 1".format(size)},
                     schedule=ScheduleType.FPGA_Device,
                     unroll=True)
                 shift_tasklet = shift_state.add_tasklet(
@@ -386,14 +387,14 @@ def generate_sdfg(name, chain):
                     shift_tasklet,
                     dst_conn=field_name + "_shift_in",
                     memlet=Memlet.simple(
-                        shift_read.data, "i + 1", num_accesses=1))
+                        shift_read.data, "i_shift + 1", num_accesses=1))
                 shift_state.add_memlet_path(
                     shift_tasklet,
                     shift_exit,
                     shift_write,
                     src_conn=field_name + "_shift_out",
                     memlet=Memlet.simple(
-                        shift_write.data, "i", num_accesses=1))
+                        shift_write.data, "i_shift", num_accesses=1))
 
             update_read = update_state.add_read(stream_name_inner)
             update_write = update_state.add_write(buffer_name_inner_write)
