@@ -69,3 +69,4 @@ output_folder = os.path.join("results", name)
 os.makedirs(output_folder, exist_ok=True)
 helper.save_output_arrays(output_arrays, output_folder)
 print("Results saved to " + output_folder)
+
