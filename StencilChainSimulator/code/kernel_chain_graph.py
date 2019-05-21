@@ -31,7 +31,7 @@ class Input(BaseKernelNodeClass):
         else:
             data = self.data_queue.dequeue()
             for successor in self.outputs:
-                self.outputs[successor].enqueue(data)
+                self.outputs[successor]["delay_buffer"].enqueue(data)
 
     def init_input_data(self, inputs):
 
@@ -61,18 +61,20 @@ class Input(BaseKernelNodeClass):
 
 class Output(BaseKernelNodeClass):
 
-    def __init__(self, name, data_type: typeclass, data_queue=None):
-        super().__init__(name=name, data_type=data_type, data_queue=data_queue)
+    def __init__(self, name: str, data_type: typeclass, dimensions: List[int], data_queue=None):
+        super().__init__(name=name, data_type=data_type, data_queue=BoundedQueue(name="output",
+                                                                                 maxsize=functools.reduce(operator.mul, dimensions),
+                                                                                 collection=[]))
 
     def reset_old_compute_state(self):
         # nothing to do
         pass
 
     def try_read(self):
-        assert len(self.input_paths) == 1 # there should be only a single one
-        for inp in self.input_paths:
-            if not self.data_queue.is_empty(): # read an entry and store it to result
-                self.input_paths[inp].append(self.data_queue.dequeue())
+        assert len(self.inputs) == 1 # there should be only a single one
+        for inp in self.inputs:
+            if self.inputs[inp]["delay_buffer"].try_peek_last() is not False and self.inputs[inp]["delay_buffer"].try_peek_last() is not None:
+                self.data_queue.enqueue(self.inputs[inp]["delay_buffer"][0].dequeue())
 
     def try_write(self):
         #  nothing to do
@@ -292,7 +294,7 @@ class KernelChainGraph:
                             self.channels[name] = channel
                             # add channel to both endpoints
                             src.outputs[dest.name] = channel
-                            dest.data_queue = channel
+                            dest.inputs[src.name] = channel
                             # add to edge
                             self.graph[src][dest]['channel'] = channel
                     else:
@@ -335,6 +337,7 @@ class KernelChainGraph:
         for out in self.outputs:
             new_node = Output(name=out,
                               data_type=self.program[out]["data_type"],
+                              dimensions=self.dimensions,
                               data_queue=None)
             self.output_nodes[out] = new_node
             self.graph.add_node(new_node)
