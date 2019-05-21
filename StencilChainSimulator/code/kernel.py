@@ -82,7 +82,6 @@ class Kernel(BaseKernelNodeClass):
         self.read_success: bool = False
         self.exec_success: bool = False
         self.result: float = None
-        self.inputs: Dict[str, BoundedQueue] = dict()
         self.outputs: Dict[str, BoundedQueue] = dict()
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
@@ -199,7 +198,7 @@ class Kernel(BaseKernelNodeClass):
                 pass
             elif len(self.inputs[inp.name]['internal_buffer']) == 0:
                 pass
-            elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None:  # check if array access location
+            elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is False or self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None:  # check if array access location
                 #  is filled with a bubble
                 all_available = False
                 break
