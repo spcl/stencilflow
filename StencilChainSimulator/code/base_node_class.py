@@ -28,6 +28,7 @@ class BaseKernelNodeClass:
         self.name: str = name
         self.data_queue: BoundedQueue = data_queue
         self.input_paths: Dict[str, List] = dict()
+        self.inputs: Dict[str, BoundedQueue] = dict()
         self.outputs: Dict[str, BoundedQueue] = dict()
         self.delay_buffer: Dict[str, List] = dict()
         if not isinstance(data_type, dace.types.typeclass):
