@@ -173,8 +173,8 @@ class Kernel(BaseKernelNodeClass):
                 pass
             elif len(self.graph.accesses[buf_name]) == 1:
                 # this line would add an additional internal buffer for fields that only have a single access
-                # self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=1))  # TODO: check if this is always 1, also for non-[0,0,0] indices
-                pass
+                # TODO: check if this is always 1, also for non-[0,0,0] indices
+                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=1))
             else:
                 itr = self.graph.accesses[buf_name].__iter__()
                 pre = itr.__next__()
