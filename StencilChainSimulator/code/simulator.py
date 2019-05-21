@@ -9,8 +9,14 @@ class Simulator:
         self.output_nodes = output_nodes
 
     def step_execution(self):
-
-        # try to read all kernel inputs
+        """
+            try to read all kernel inputs
+        """
+        for output in self.output_nodes:
+            try:
+                self.output_nodes[output].try_read()
+            except Exception as ex:
+                self.diagnostics(ex)
         for kernel in self.kernel_nodes:
             try:
                 self.kernel_nodes[kernel].reset_old_compute_state()
@@ -18,23 +24,26 @@ class Simulator:
             except Exception as ex:
                 self.diagnostics(ex)
 
-        # try to execute all kernels
+        """
+            try to execute all kernels
+        """
         for kernel in self.kernel_nodes:
             try:
                 self.kernel_nodes[kernel].try_execute()
             except Exception as ex:
                 self.diagnostics(ex)
 
-        # try to write all kernel outputs
-        for kernel in self.output_nodes:
+        """
+            try to write all kernel outputs
+        """
+        for input in self.input_nodes:
             try:
-                kernel.try_write()
+                self.input_nodes[input].try_write()
             except Exception as ex:
                 self.diagnostics(ex)
-
         for kernel in self.kernel_nodes:
             try:
-                kernel.try_write()
+                self.kernel_nodes[kernel].try_write()
             except Exception as ex:
                 self.diagnostics(ex)
 
@@ -47,7 +56,7 @@ class Simulator:
     def finalize(self):
         # save data
         for output in self.output_nodes:
-            output.write_result_to_file()
+            self.output_nodes[output].write_result_to_file()
 
 
 
