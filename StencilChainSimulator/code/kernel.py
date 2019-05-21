@@ -168,15 +168,23 @@ class Kernel(BaseKernelNodeClass):
         for buf_name in self.graph.buffer_size:
             self.internal_buffer[buf_name] = list()
             list.sort(self.graph.accesses[buf_name], reverse=True)
-            itr = self.graph.accesses[buf_name].__iter__()
-            pre = itr.__next__()
-            for item in itr:
-                curr = item
 
-                diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
-                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff + 1))
+            if len(self.graph.accesses[buf_name]) == 0:
+                pass
+            elif len(self.graph.accesses[buf_name]) == 1:
+                # this line would add an additional internal buffer for fields that only have a single access
+                # self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=1))  # TODO: check if this is always 1, also for non-[0,0,0] indices
+                pass
+            else:
+                itr = self.graph.accesses[buf_name].__iter__()
+                pre = itr.__next__()
+                for item in itr:
+                    curr = item
 
-                pre = curr
+                    diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
+                    self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff + 1))
+
+                    pre = curr
 
 
     def buffer_position(self, access: BaseKernelNodeClass) -> int:
@@ -189,7 +197,9 @@ class Kernel(BaseKernelNodeClass):
         for inp in self.graph.inputs:
             if isinstance(inp, Num):
                 pass
-            elif self.inputs[inp.name]['internal_buffer'][inp.name][0].try_peek_last() is None:  # check if array access location
+            elif len(self.inputs[inp.name]['internal_buffer']) == 0:
+                pass
+            elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None:  # check if array access location
                 #  is filled with a bubble
                 all_available = False
                 break
