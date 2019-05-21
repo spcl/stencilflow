@@ -162,7 +162,7 @@ from simulator import Simulator
 class SimulatorTest(unittest.TestCase):
 
     def test(self):
-        pass
+        pass # TODO: implement when simulator is ready
 
 
 if __name__ == '__main__':
