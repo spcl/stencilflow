@@ -534,7 +534,7 @@ if __name__ == "__main__":
                 if channel is not None:
                     total_fast = 0
                     total_slow = 0
-                    for item in channel["internal_buffer"]:
+                    for entry in channel["internal_buffer"]:
                         if entry.swap_out:
                             print("internal buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
                             total_slow += entry.maxsize
