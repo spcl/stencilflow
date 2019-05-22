@@ -20,8 +20,7 @@ class Input(BaseKernelNodeClass):
         pass
 
     def try_read(self):
-        # nothing to do
-        pass
+        pass # nothing to do
 
     def try_write(self):
         # feed data into pipeline inputs (all kernels that feed from this input data array)
@@ -32,11 +31,10 @@ class Input(BaseKernelNodeClass):
             data = self.data_queue.dequeue()
             for successor in self.outputs:
                 self.outputs[successor]["delay_buffer"].enqueue(data)
+                self.program_counter += 1
 
     def init_input_data(self, inputs):
-
         # TODO: make use of passed data_type = inputs[self.name]["data_type"]
-
         # check if data is in the file or in a separate file
         if isinstance(inputs[self.name]["data"], list):
             self.data_queue.init_queue(inputs[self.name]["data"])
@@ -75,10 +73,10 @@ class Output(BaseKernelNodeClass):
         for inp in self.inputs:
             if self.inputs[inp]["delay_buffer"].try_peek_last() is not False and self.inputs[inp]["delay_buffer"].try_peek_last() is not None:
                 self.data_queue.enqueue(self.inputs[inp]["delay_buffer"][0].dequeue())
+                self.program_counter += 1
 
     def try_write(self):
-        #  nothing to do
-        pass
+        pass  # nothing to do
 
     def write_result_to_file(self):
         raise NotImplementedError() # TODO

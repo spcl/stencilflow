@@ -234,6 +234,7 @@ class Kernel(BaseKernelNodeClass):
                 self.result = self.calculator.eval_expr(self.var_map, self.kernel_string)
                 # write result to latency-simulating buffer
                 self.out_delay_queue.enqueue(self.result)
+                self.program_counter += 1
             except Exception as ex:
                 self.diagnostics(ex)
         else:

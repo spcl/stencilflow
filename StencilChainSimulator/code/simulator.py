@@ -1,3 +1,5 @@
+import functools
+import operator
 
 class Simulator:
 
@@ -52,26 +54,36 @@ class Simulator:
         for input in self.input_nodes:
             self.input_nodes[input].init_input_data(self.input_config)
 
-
     def finalize(self):
         # save data
         for output in self.output_nodes:
             self.output_nodes[output].write_result_to_file()
 
+    def all_done(self) -> bool:
+        total_elements = functools.reduce(operator.mul, self.dimensions)
 
+        for input in self.input_nodes:
+            if self.input_nodes[input].program_counter < total_elements:
+                return False
+
+        for kernel in self.kernel_nodes:
+            if self.kernel_nodes[kernel].program_counter < total_elements:
+                return False
+
+        for output in self.output_nodes:
+            if self.output_nodes[output].program_counter < total_elements:
+                return False
+        return True
 
     def simulate(self):
 
         self.initialize()
 
-        # run simulation # TODO: how to detect that the simulation has been completed?
-        # while(...):
-        #   self.step_execution()
-        self.step_execution()
-
+        # run simulation
+        while not self.all_done():
+            self.step_execution()
 
         self.finalize()
-
 
     def diagnostics(self, exception):
         # gather info from all kernels

@@ -31,6 +31,7 @@ class BaseKernelNodeClass:
         self.inputs: Dict[str, BoundedQueue] = dict()
         self.outputs: Dict[str, BoundedQueue] = dict()
         self.delay_buffer: Dict[str, List] = dict()
+        self.program_counter = 0
         if not isinstance(data_type, dace.types.typeclass):
             raise TypeError("Expected dace.types.typeclass, got: " + type(data_type).__name__)
         self.data_type = data_type
