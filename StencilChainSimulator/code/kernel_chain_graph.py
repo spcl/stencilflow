@@ -26,7 +26,7 @@ class Input(BaseKernelNodeClass):
         # feed data into pipeline inputs (all kernels that feed from this input data array)
         if self.data_queue.is_empty():
             for successor in self.outputs:
-                self.outputs[successor].enqueue(0)
+                self.outputs[successor].enqueue(None)
         else:
             data = self.data_queue.dequeue()
             for successor in self.outputs:
