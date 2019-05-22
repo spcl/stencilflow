@@ -242,7 +242,8 @@ class KernelChainGraph:
                                 channel = {
                                     "name": name,
                                     "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
-                                    "internal_buffer": dest.internal_buffer[src.name]
+                                    "internal_buffer": dest.internal_buffer[src.name],
+                                    "data_type": src.data_type
                                 }
 
                                 self.channels[name] = channel
@@ -263,7 +264,8 @@ class KernelChainGraph:
                                 channel = {
                                     "name": name,
                                     "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
-                                    "internal_buffer": dest.internal_buffer[src.name]
+                                    "internal_buffer": dest.internal_buffer[src.name],
+                                    "data_type": src.data_type
                                 }
 
                                 self.channels[name] = channel
@@ -283,7 +285,8 @@ class KernelChainGraph:
                             channel = {
                                 "name": name,
                                 "delay_buffer": self.output_nodes[dest.name].delay_buffer[src.name],
-                                "internal_buffer": {}
+                                "internal_buffer": {},
+                                "data_type": src.data_type
                             }
 
                             self.channels[name] = channel
