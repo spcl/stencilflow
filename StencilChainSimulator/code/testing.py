@@ -3,16 +3,16 @@ from bounded_queue import BoundedQueue
 
 class BoundedQueueTest(unittest.TestCase):
 
-    def test_init(self):
+    def test_import(self):
         # init
         queue = BoundedQueue(name="test",
                              maxsize=5)
         # init_queue
         collection = [1.0, 2.0, 3.0, 4.0, 5.0]
-        queue.init_queue(collection)
+        queue.import_data(collection)
         self.assertEqual(queue.size(), len(collection))
         self.assertEqual(queue.peek(1), collection[1])
-        self.assertRaises(RuntimeError, queue.init_queue, 6*[1.0])
+        self.assertRaises(RuntimeError, queue.import_data, 6*[1.0])
 
     def test_enq_deq(self):
         # init
@@ -130,7 +130,7 @@ class ComputeGraphTest(unittest.TestCase):
 
 
 from kernel import Kernel
-from base_node_class import DataType
+import dace.types
 class KernelTest(unittest.TestCase):
 
     def test(self):
@@ -138,7 +138,7 @@ class KernelTest(unittest.TestCase):
         kernel = Kernel(name="dummy",
                         kernel_string="SUBST = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k]; res = SUBST + a[i,j,k]",
                         dimensions=dimensions,
-                        data_type=DataType.FLOAT64,
+                        data_type=dace.types.float64,
                         boundary_conditions={"a": {"type": "constant", "value": 1.0}})
         self.assertEqual(kernel.generate_relative_access_kernel_string(),
                          "SUBST = (((a[0] + a[-1]) + a[-100]) + a[-10000]); res = (SUBST + a[0])")
