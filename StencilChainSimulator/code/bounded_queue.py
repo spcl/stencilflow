@@ -29,13 +29,16 @@ class BoundedQueue:
     def __str__(self):
         return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
 
-    def init_queue(self, data):
+    def import_data(self, data):
 
         if self.maxsize < len(data):
             raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})".format(self.maxsize, len(data)))
         else:
             self.queue: collections.deque = collections.deque(data, self.maxsize)
             self.current_size = len(data)
+
+    def export_data(self):
+        return list(self.queue)
 
     def try_peek_last(self):
         # check bound

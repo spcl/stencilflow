@@ -5,7 +5,7 @@ import networkx as nx
 import helper
 from kernel import Kernel
 from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass, BoundaryCondition
+from base_node_class import BaseKernelNodeClass
 from typing import List, Dict
 from dace.types import typeclass
 
@@ -16,11 +16,10 @@ class Input(BaseKernelNodeClass):
         super().__init__(name=name, data_queue=data_queue, data_type=data_type)
 
     def reset_old_compute_state(self):
-        # nothing to do
-        pass
+        pass  # nothing to do
 
     def try_read(self):
-        pass # nothing to do
+        pass  # nothing to do
 
     def try_write(self):
         # feed data into pipeline inputs (all kernels that feed from this input data array)
@@ -37,7 +36,7 @@ class Input(BaseKernelNodeClass):
         # TODO: make use of passed data_type = inputs[self.name]["data_type"]
         # check if data is in the file or in a separate file
         if isinstance(inputs[self.name]["data"], list):
-            self.data_queue.init_queue(inputs[self.name]["data"])
+            self.data_queue.import_data(inputs[self.name]["data"])
 
         elif isinstance(inputs[self.name]["data"], str):  # external file
             coll = None
@@ -53,7 +52,7 @@ class Input(BaseKernelNodeClass):
                 from numpy import genfromtxt
                 coll = list(genfromtxt(inputs[self.name]["data"], delimiter=','))
 
-            self.data_queue.init_queue(coll)
+            self.data_queue.import_data(coll)
         else:
             raise Exception("Input data representation should either be implicit (list) or a path to a csv file.")
 
@@ -65,11 +64,10 @@ class Output(BaseKernelNodeClass):
                                                                                  collection=[]))
 
     def reset_old_compute_state(self):
-        # nothing to do
-        pass
+        pass  # nothing to do
 
     def try_read(self):
-        assert len(self.inputs) == 1 # there should be only a single one
+        assert len(self.inputs) == 1  # there should be only a single one
         for inp in self.inputs:
             if self.inputs[inp]["delay_buffer"].try_peek_last() is not False and self.inputs[inp]["delay_buffer"].try_peek_last() is not None:
                 self.data_queue.enqueue(self.inputs[inp]["delay_buffer"][0].dequeue())
@@ -79,8 +77,7 @@ class Output(BaseKernelNodeClass):
         pass  # nothing to do
 
     def write_result_to_file(self):
-        raise NotImplementedError() # TODO
-
+        helper.save_array(self.data_queue.export_data(), "{}_{}.dat".format(self.name, "out"))
 
 class KernelChainGraph:
 
