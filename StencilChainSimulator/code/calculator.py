@@ -77,6 +77,10 @@ class Calculator:
 
         @classmethod
         def evaluate(cls, variable_map: Dict[str, float], expression: str) -> float:
+
+            if "=" in expression:
+                expression = expression[expression.find("=")+1:]
+
             tree = ast.parse(expression)
             calc = cls()
             calc.var_map = variable_map
@@ -108,7 +112,6 @@ if __name__ == "__main__":
         print("name: " + var + " value: " + str(variables[var]))
 
     computation = "cos(a + b) if (a > b) else (a + 5) * b"
-
     calculator = Calculator()
     result = calculator.eval_expr(variables, computation)
     print(computation + " = " + str(result))
