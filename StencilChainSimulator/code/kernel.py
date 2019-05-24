@@ -230,9 +230,9 @@ class Kernel(BaseKernelNodeClass):
             elif len(self.inputs[inp.name]['internal_buffer']) == 0:
                 pass
             elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is False or \
-                    self.inputs[inp.name]['internal_buffer'][
-                        0].try_peek_last() is None:  # check if array access location
-                #  is filled with a bubble
+                    self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None or \
+                    self.inputs[inp.name]['delay_buffer'].try_peek_last() is None:
+                # check if array access location is filled with a bubble
                 all_available = False
                 break
 
@@ -313,7 +313,7 @@ class Kernel(BaseKernelNodeClass):
             # write result to all output queues
             for outp in self.outputs:
                 try:
-                    outp.enqueue(self.result)
+                    self.outputs[outp]["delay_buffer"].enqueue(data)  # use delay buffer to be consistent with others, db is used to write to output data queue here
                 except Exception as ex:
                     self.diagnostics(ex)
 
