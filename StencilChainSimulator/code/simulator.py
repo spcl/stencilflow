@@ -86,13 +86,7 @@ class Simulator:
         self.finalize()
 
     def diagnostics(self, exception):
-        # gather info from all kernels
+        # TODO: gather info from all kernels
         # for kernel in self.kernel_nodes:
         #    self.kernel_nodes[kernel].diagnostics()
         raise exception
-
-"""
-    Procedure: 
-    (1) INPUT nodes: feed all outgoing queues with data
-    (2) run all kernels (read->execute->write)
-"""
