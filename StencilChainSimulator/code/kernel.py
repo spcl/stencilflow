@@ -196,6 +196,16 @@ class Kernel(BaseKernelNodeClass):
     def buffer_position(self, access: BaseKernelNodeClass) -> int:
         return self.convert_3d_to_1d(self.graph.min_index[access.name]) - self.convert_3d_to_1d(access.index)
 
+    def index_to_ijk(self, index: List[int]):
+        if len(index):
+            return "[i{},j{},k{}]".format(
+                "" if index[0] == 0 else "+{}".format(index[0]),
+                "" if index[1] == 0 else "+{}".format(index[1]),
+                "" if index[2] == 0 else "+{}".format(index[2])
+            )
+        else:
+            raise NotImplementedError("Method index_to_ijk has not been implemented for |indices|!=3, here: |indices|={}".format(len(index)))
+
     def try_read(self):
 
         # check if all inputs are available
@@ -218,10 +228,18 @@ class Kernel(BaseKernelNodeClass):
                 # read inputs into var_map
                 if isinstance(inp, Num):
                     self.var_map[inp.name] = float(inp.name)
-                elif isinstance(inp, Name) or isinstance(inp, Subscript):
+                elif isinstance(inp, Name):
                     # get value from internal_buffer
                     try:
                         self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
+                    except Exception as ex:
+                        self.diagnostics(ex)
+                elif isinstance(inp, Subscript):
+                    # get value from internal buffer
+                    try:
+                        name = inp.name + self.index_to_ijk(inp.index)
+                        pos = self.buffer_number(inp)
+                        self.var_map[name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
                     except Exception as ex:
                         self.diagnostics(ex)
 
