@@ -61,7 +61,7 @@ class Output(BaseKernelNodeClass):
     def __init__(self, name: str, data_type: typeclass, dimensions: List[int], data_queue=None):
         super().__init__(name=name, data_type=data_type, data_queue=BoundedQueue(name="output",
                                                                                  maxsize=functools.reduce(operator.mul, dimensions),
-                                                                                 collection=[None]*functools.reduce(operator.mul, dimensions)))
+                                                                                 collection=[]))
 
     def reset_old_compute_state(self):
         pass  # nothing to do
@@ -70,8 +70,10 @@ class Output(BaseKernelNodeClass):
         assert len(self.inputs) == 1  # there should be only a single one
         for inp in self.inputs:
             if self.inputs[inp]["delay_buffer"].try_peek_last() is not False and self.inputs[inp]["delay_buffer"].try_peek_last() is not None:
-                self.data_queue.enqueue(self.inputs[inp]["delay_buffer"][0].dequeue())
+                self.data_queue.enqueue(self.inputs[inp]["delay_buffer"].dequeue())
                 self.program_counter += 1
+            elif self.inputs[inp]["delay_buffer"].try_peek_last() is not False:
+                self.inputs[inp]["delay_buffer"].dequeue()  # remove bubble
 
     def try_write(self):
         pass  # nothing to do
