@@ -1,3 +1,4 @@
+import functools
 from typing import List, Dict
 
 import dace.types
@@ -8,6 +9,7 @@ from bounded_queue import BoundedQueue
 from calculator import Calculator
 from compute_graph import ComputeGraph
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
+import numpy as np
 
 
 class Kernel(BaseKernelNodeClass):
@@ -189,7 +191,7 @@ class Kernel(BaseKernelNodeClass):
                     curr = item
 
                     diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
-                    self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff + 1, collection=[None]*(diff + 1)))
+                    self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff, collection=[None]*diff))
 
                     pre = curr
 
@@ -198,13 +200,25 @@ class Kernel(BaseKernelNodeClass):
 
     def index_to_ijk(self, index: List[int]):
         if len(index):
+            '''
             return "[i{},j{},k{}]".format(
                 "" if index[0] == 0 else "+{}".format(index[0]),
                 "" if index[1] == 0 else "+{}".format(index[1]),
                 "" if index[2] == 0 else "+{}".format(index[2])
             )
+            '''
+            '''
+            return "_{}_{}_{}".format(index[0], index[1], index[2])
+            '''
+            return "_{}".format(helper.convert_3d_to_1d(self.dimensions, index))
         else:
             raise NotImplementedError("Method index_to_ijk has not been implemented for |indices|!=3, here: |indices|={}".format(len(index)))
+
+    def buffer_number(self, node: Subscript):
+        selected = [x for x in self.graph.inputs if x.name == node.name]
+        ordered = sorted(selected, key=lambda x:x.index)
+        return ordered.index(node) - 1
+
 
     def try_read(self):
 
@@ -239,7 +253,10 @@ class Kernel(BaseKernelNodeClass):
                     try:
                         name = inp.name + self.index_to_ijk(inp.index)
                         pos = self.buffer_number(inp)
-                        self.var_map[name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
+                        if pos == -1:  # delay buffer
+                            self.var_map[name] = self.inputs[inp.name]["delay_buffer"].try_peek_last()
+                        elif pos >= 0:
+                            self.var_map[name] = self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
                     except Exception as ex:
                         self.diagnostics(ex)
 
@@ -275,7 +292,10 @@ class Kernel(BaseKernelNodeClass):
         if self.read_success:
             # execute calculation
             try:
-                self.result = self.calculator.eval_expr(self.var_map, self.kernel_string)
+
+                computation = self.generate_relative_access_kernel_string(relative_to_center=True).replace("[", "_")\
+                    .replace("]", "").replace(" ", "")
+                self.result = self.calculator.eval_expr(self.var_map, computation)
                 # write result to latency-simulating buffer
                 self.out_delay_queue.enqueue(self.result)
                 self.program_counter += 1
@@ -308,7 +328,7 @@ class Kernel(BaseKernelNodeClass):
     '''
 
     def diagnostics(self, ex) -> None:
-        raise NotImplementedError()
+        raise ex
 
     '''
         simple test kernel for debugging
