@@ -1,15 +1,16 @@
-import helper
-from compute_graph import ComputeGraph
-from calculator import Calculator
-from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass, BoundaryCondition
-from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
 from typing import List, Dict
+
 import dace.types
+
+import helper
+from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
+from bounded_queue import BoundedQueue
+from calculator import Calculator
+from compute_graph import ComputeGraph
+from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
 
 
 class Kernel(BaseKernelNodeClass):
-
     """
         interface for FPGA-like execution (get called from the scheduler)
 
@@ -56,7 +57,8 @@ class Kernel(BaseKernelNodeClass):
                       if we reach the bound i == N, TODO: special handling?
     """
 
-    def __init__(self, name: str, kernel_string: str, dimensions: List[int], data_type: dace.types.typeclass, boundary_conditions: Dict[str, str], plot_graph: bool = False) -> None:
+    def __init__(self, name: str, kernel_string: str, dimensions: List[int], data_type: dace.types.typeclass,
+                 boundary_conditions: Dict[str, str], plot_graph: bool = False) -> None:
         super().__init__(name, None, data_type)
 
         # store arguments
@@ -85,12 +87,13 @@ class Kernel(BaseKernelNodeClass):
         self.outputs: Dict[str, BoundedQueue] = dict()
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
-        self.out_delay_queue: BoundedQueue = BoundedQueue("delay_output", self.graph.max_latency, [None]*(self.graph.max_latency-1))
+        self.out_delay_queue: BoundedQueue = BoundedQueue(name="delay_output",
+                                                          maxsize=self.graph.max_latency,
+                                                          collection=[None] * (self.graph.max_latency - 1))
 
         # setup internal buffer queues
         self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
-
 
     def iter_comp_tree(self, node: BaseOperationNodeClass, index_relative_to_center=True) -> str:
 
@@ -99,7 +102,9 @@ class Kernel(BaseKernelNodeClass):
         if isinstance(node, Binop):
             lhs = pred[0]
             rhs = pred[1]
-            return "(" + self.iter_comp_tree(lhs, index_relative_to_center) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(rhs, index_relative_to_center) + ")"
+            return "(" + self.iter_comp_tree(lhs,
+                                             index_relative_to_center) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(
+                rhs, index_relative_to_center) + ")"
         elif isinstance(node, Call):
             return node.name + "(" + self.iter_comp_tree(pred[0], index_relative_to_center) + ")"
         elif isinstance(node, Name) or isinstance(node, Num):
@@ -117,9 +122,12 @@ class Kernel(BaseKernelNodeClass):
             lhs = [x for x in pred if type(x) != Compare][0]
             rhs = [x for x in pred if type(x) != Compare][1]
 
-            return "{} if {} else {}".format(self.iter_comp_tree(lhs, index_relative_to_center), self.iter_comp_tree(compare, index_relative_to_center), self.iter_comp_tree(rhs, index_relative_to_center))
+            return "{} if {} else {}".format(self.iter_comp_tree(lhs, index_relative_to_center),
+                                             self.iter_comp_tree(compare, index_relative_to_center),
+                                             self.iter_comp_tree(rhs, index_relative_to_center))
         elif isinstance(node, Compare):
-            return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center), str(node.name), self.iter_comp_tree(pred[1], index_relative_to_center))
+            return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center), str(node.name),
+                                     self.iter_comp_tree(pred[1], index_relative_to_center))
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
@@ -173,7 +181,7 @@ class Kernel(BaseKernelNodeClass):
             elif len(self.graph.accesses[buf_name]) == 1:
                 # this line would add an additional internal buffer for fields that only have a single access
                 # TODO: check if this is always 1, also for non-[0,0,0] indices
-                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=1))
+                self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=1, collection=[None]))
             else:
                 itr = self.graph.accesses[buf_name].__iter__()
                 pre = itr.__next__()
@@ -181,10 +189,9 @@ class Kernel(BaseKernelNodeClass):
                     curr = item
 
                     diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
-                    self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff + 1))
+                    self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff + 1, collection=[None]*(diff + 1)))
 
                     pre = curr
-
 
     def buffer_position(self, access: BaseKernelNodeClass) -> int:
         return self.convert_3d_to_1d(self.graph.min_index[access.name]) - self.convert_3d_to_1d(access.index)
@@ -198,18 +205,20 @@ class Kernel(BaseKernelNodeClass):
                 pass
             elif len(self.inputs[inp.name]['internal_buffer']) == 0:
                 pass
-            elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is False or self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None:  # check if array access location
+            elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is False or \
+                    self.inputs[inp.name]['internal_buffer'][
+                        0].try_peek_last() is None:  # check if array access location
                 #  is filled with a bubble
                 all_available = False
                 break
 
         # get all values and put them into the variable map
         if all_available:
-            for inp in self.inputs:
+            for inp in self.graph.inputs:
                 # read inputs into var_map
                 if isinstance(inp, Num):
                     self.var_map[inp.name] = float(inp.name)
-                elif isinstance(inp, Name):
+                elif isinstance(inp, Name) or isinstance(inp, Subscript):
                     # get value from internal_buffer
                     try:
                         self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
@@ -218,10 +227,27 @@ class Kernel(BaseKernelNodeClass):
 
         self.read_success = all_available
 
-        if self.read_success:
-            # pop oldest element from all queues
-            for queu in self.inputs:
-                queu[1].dequeue()
+        # move all forward
+        for name in self.inputs:
+            if len(self.inputs[name]['internal_buffer']) == 0:
+                pass
+            elif len(self.inputs[name]['internal_buffer']) == 1:
+                self.inputs[name]['internal_buffer'][0].dequeue()
+                self.inputs[name]['internal_buffer'][0].enqueue(self.inputs[name]['delay_buffer'].dequeue())
+            else:
+                index = len(self.inputs[name]['internal_buffer']) - 1
+                pre = self.inputs[name]['internal_buffer'][index - 1]
+                next = self.inputs[name]['internal_buffer'][index]
+
+                while index > 0:
+                    next.dequeue()
+                    next.enqueue(pre.dequeue())
+                    next = pre
+                    index -= 1
+                    pre = self.inputs[name]['internal_buffer'][index - 1]
+
+                self.inputs[name]['internal_buffer'][0].dequeue()
+                self.inputs[name]['internal_buffer'][0].enqueue(self.inputs[name]['delay_buffer'].dequeue())
 
         return all_available
 
@@ -252,6 +278,7 @@ class Kernel(BaseKernelNodeClass):
                     outp.enqueue(self.result)
                 except Exception as ex:
                     self.diagnostics(ex)
+
     '''
         interface for error overview reporting (gets called in case of an exception)
 
@@ -261,6 +288,7 @@ class Kernel(BaseKernelNodeClass):
                     - type of phase (saturation/execution)
                     - efficiency (#execution cycles / #total cycles)
     '''
+
     def diagnostics(self, ex) -> None:
         raise NotImplementedError()
 
@@ -270,7 +298,6 @@ class Kernel(BaseKernelNodeClass):
 
 
 if __name__ == "__main__":
-
     dim = [100, 100, 100]
 
     kernel1 = Kernel("ppgk", "res = wgtfac[i,j+1,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", dim)
