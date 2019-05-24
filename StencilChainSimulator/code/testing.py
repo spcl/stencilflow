@@ -11,7 +11,7 @@ class BoundedQueueTest(unittest.TestCase):
         collection = [1.0, 2.0, 3.0, 4.0, 5.0]
         queue.import_data(collection)
         self.assertEqual(queue.size(), len(collection))
-        self.assertEqual(queue.peek(1), collection[1])
+        self.assertEqual(queue.try_peek_last(), collection[0])
         self.assertRaises(RuntimeError, queue.import_data, 6*[1.0])
 
     def test_enq_deq(self):
@@ -44,7 +44,7 @@ class BoundedQueueTest(unittest.TestCase):
         # try enqueue
         self.assertTrue(queue.try_enqueue(1.0))
         self.assertTrue(queue.is_full())
-        self.assertFalse(queue.try_enqueue(), 2.0)
+        self.assertFalse(queue.try_enqueue(1.0), 2.0)
 
     def test_peek(self):
         # init
@@ -96,15 +96,15 @@ class HelperTest(unittest.TestCase):
         self.assertEqual(helper.list_subtract_cwise([1, 2, 3], [1, 2, 3]), [0, 0, 0])
         self.assertEqual(helper.dim_to_abs_val([3, 2, 1], [10, 10, 10]), 321)
         self.assertEqual(helper.convert_3d_to_1d([10, 10, 10], [3, 2, 1]), 321)
-        self.assertListEqual(list(helper.load_array("testing/helper_test.csv")), [7.0, 7.0])
-        self.assertListEqual(list(helper.load_array("testing/helper_test.dat")), [7.0, 7.0])
+        self.assertListEqual(list(helper.load_array({"data": "testing/helper_test.csv", "data_type": "float64"})), [7.0, 7.0])
+        self.assertListEqual(list(helper.load_array({"data": "testing/helper_test.dat", "data_type": "float64"})), [7.0, 7.0])
 
         out_data = np.array([1.0, 2.0, 3.0])
-        file = "test.dat"
-        helper.save_array(out_data, file)
+        file = {"data": "test.dat", "data_type": "float64"}
+        helper.save_array(out_data, file["data"])
         in_data = helper.load_array(file)
         self.assertTrue(helper.arrays_are_equal(out_data, in_data))
-        os.remove(file)
+        os.remove(file["data"])
 
         not_unique = [1.0, 2.0, 1.0]
         self.assertListEqual(sorted(helper.unique(not_unique)), [1.0, 2.0])
