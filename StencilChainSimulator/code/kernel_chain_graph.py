@@ -25,7 +25,7 @@ class Input(BaseKernelNodeClass):
         # feed data into pipeline inputs (all kernels that feed from this input data array)
         if self.data_queue.is_empty():
             for successor in self.outputs:
-                self.outputs[successor].enqueue(None)
+                self.outputs[successor].enqueue(None)  # insert bubble
         else:
             data = self.data_queue.dequeue()
             for successor in self.outputs:
@@ -61,7 +61,7 @@ class Output(BaseKernelNodeClass):
     def __init__(self, name: str, data_type: typeclass, dimensions: List[int], data_queue=None):
         super().__init__(name=name, data_type=data_type, data_queue=BoundedQueue(name="output",
                                                                                  maxsize=functools.reduce(operator.mul, dimensions),
-                                                                                 collection=[]))
+                                                                                 collection=[None]*functools.reduce(operator.mul, dimensions)))
 
     def reset_old_compute_state(self):
         pass  # nothing to do
@@ -326,7 +326,9 @@ class KernelChainGraph:
         for inp in self.inputs:
             new_node = Input(name=inp,
                              data_type=self.inputs[inp]["data_type"],
-                             data_queue=BoundedQueue(name=inp, maxsize=self.total_elements()))
+                             data_queue=BoundedQueue(name=inp,
+                                                     maxsize=self.total_elements(),
+                                                     collection=[None]*self.total_elements()))
             self.input_nodes[inp] = new_node
             self.graph.add_node(new_node)
 
@@ -377,9 +379,12 @@ class KernelChainGraph:
             for inp in node.input_paths:
                 max_delay = max(node.input_paths[inp])
                 for entry in node.input_paths[inp]:
-                    node.delay_buffer[entry[-1]] = BoundedQueue(name=entry[-1], maxsize=1 +helper.convert_3d_to_1d(self.dimensions,helper.list_subtract_cwise(max_delay[:-1], entry[:-1])))
+                    node.delay_buffer[entry[-1]] = BoundedQueue(name=entry[-1],
+                                                                maxsize=1 + helper.convert_3d_to_1d(self.dimensions,helper.list_subtract_cwise(max_delay[:-1], entry[:-1])))
+                    node.delay_buffer[entry[-1]].import_data([None]*node.delay_buffer[entry[-1]].maxsize)
+
             if isinstance(node, Input):  # NodeType.INPUT:
-                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1) # [0]*len(self.dimensions) + [node.name]
+                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1, collection=[None]) # [0]*len(self.dimensions) + [node.name]
 
             for succ in self.graph.successors(node):
 
