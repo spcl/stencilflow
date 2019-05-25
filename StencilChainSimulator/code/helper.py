@@ -135,13 +135,13 @@ def dim_to_abs_val(input: List[int], dimensions: List[int]) -> int:
     return reduce(operator.add, map(operator.mul, input, vec))  # inner product
 
 
-def load_array(source):
+def load_array(source_config):
     """
     Load array from file or list into numpy array.
-    :param source: Path to csv file, binary file, or iterable.
+    :param source_config: External data input file config.
     :return: Data stored in a numpy array.
     """
-    data = source["data"]
+    data = source_config["data"]
     if isinstance(data, str):
         if data.endswith(".csv"):
             return np.genfromtxt(data, float, delimiter=',')
