@@ -204,13 +204,13 @@ class Kernel(BaseKernelNodeClass):
     def index_to_ijk(self, index: List[int]):
         if len(index):
             '''
+            # v1:
             return "[i{},j{},k{}]".format(
                 "" if index[0] == 0 else "+{}".format(index[0]),
                 "" if index[1] == 0 else "+{}".format(index[1]),
                 "" if index[2] == 0 else "+{}".format(index[2])
             )
-            '''
-            '''
+            # v2:
             return "_{}_{}_{}".format(index[0], index[1], index[2])
             '''
             return "_{}".format(helper.convert_3d_to_1d(self.dimensions, index))
