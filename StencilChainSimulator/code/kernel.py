@@ -222,8 +222,13 @@ class Kernel(BaseKernelNodeClass):
         ordered = sorted(selected, key=lambda x:x.index)
         return ordered.index(node) - 1
 
+    def pc_to_ijk(self) -> List[int]:
+        return [self.program_counter % self.dimensions[0],
+                self.program_counter % (self.dimensions[0]*self.dimensions[1]),
+                self.program_counter % (self.dimensions[0]*self.dimensions[1]*self.dimensions[2])]
 
-    def try_read(self):
+
+    def try_read(self) -> bool:
 
         # check if all inputs are available
         all_available = True
@@ -244,11 +249,11 @@ class Kernel(BaseKernelNodeClass):
             for inp in self.graph.inputs:
                 # read inputs into var_map
                 if isinstance(inp, Num):
-                    self.var_map[inp.name] = float(inp.name)
+                    self.var_map[inp.name] = float(inp.name)  # TODO: boundary check?
                 elif isinstance(inp, Name):
                     # get value from internal_buffer
                     try:
-                        self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
+                        self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))  # TODO: boundary check!
                     except Exception as ex:
                         self.diagnostics(ex)
                 elif isinstance(inp, Subscript):
