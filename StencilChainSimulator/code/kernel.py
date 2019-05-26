@@ -1,15 +1,13 @@
 import functools
 from typing import List, Dict
-
 import dace.types
-
 import helper
 from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
 from bounded_queue import BoundedQueue
 from calculator import Calculator
 from compute_graph import ComputeGraph
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
-from kernel_chain_graph import Input
+from input import Input
 import numpy as np
 
 class Kernel(BaseKernelNodeClass):
@@ -240,7 +238,7 @@ class Kernel(BaseKernelNodeClass):
         """
         access_index = helper.list_add_cwise(global_index, relative_index)
         for i in range(len(access_index)):
-            if access_index[i] < 0 or access_index[i] > self.dimensions[i]:
+            if access_index[i] < 0 or access_index[i] >= self.dimensions[i]:
                 if self.boundary_conditions[inp.name]["type"] == "constant":
                     return self.boundary_conditions[inp.name]["value"]
                 else:
