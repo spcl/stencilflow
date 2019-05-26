@@ -9,8 +9,8 @@ from bounded_queue import BoundedQueue
 from calculator import Calculator
 from compute_graph import ComputeGraph
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
+from kernel_chain_graph import Input
 import numpy as np
-
 
 class Kernel(BaseKernelNodeClass):
     """
@@ -227,6 +227,32 @@ class Kernel(BaseKernelNodeClass):
                 self.program_counter % (self.dimensions[0]*self.dimensions[1]),
                 self.program_counter % (self.dimensions[0]*self.dimensions[1]*self.dimensions[2])]
 
+    def get_data(self, inp: Input, global_index: List[int], relative_index: List[int]):
+        """
+        returns data of current stencil access (could be real data or boundary condition)
+        :param global_index: center location of current stencil
+        :param relative_index: offset from center of stencil
+        :return: data
+        """
+
+        """
+            Boundary Condition
+        """
+        access_index = helper.list_add_cwise(global_index, relative_index)
+        for i in range(len(access_index)):
+            if access_index[i] < 0 or access_index[i] > self.dimensions[i]:
+                if self.boundary_conditions[inp.name]["type"] == "constant":
+                    return self.boundary_conditions[inp.name]["value"]
+                else:
+                    raise NotImplementedError("We currently do not support boundary conditions of type {}".format(self.boundary_conditions[inp.name]["type"]))
+        """
+            Data Access
+        """
+        pos = self.buffer_number(inp)
+        if pos == -1:  # delay buffer
+            return self.inputs[inp.name]["delay_buffer"].try_peek_last()
+        elif pos >= 0:
+            return self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
 
     def try_read(self) -> bool:
 
@@ -260,11 +286,9 @@ class Kernel(BaseKernelNodeClass):
                     # get value from internal buffer
                     try:
                         name = inp.name + self.index_to_ijk(inp.index)
-                        pos = self.buffer_number(inp)
-                        if pos == -1:  # delay buffer
-                            self.var_map[name] = self.inputs[inp.name]["delay_buffer"].try_peek_last()
-                        elif pos >= 0:
-                            self.var_map[name] = self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
+                        self.var_map[name] = self.get_data( inp=inp,
+                                                            global_index=self.pc_to_ijk(),
+                                                            relative_index=inp.index)
                     except Exception as ex:
                         self.diagnostics(ex)
 
