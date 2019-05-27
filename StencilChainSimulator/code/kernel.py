@@ -119,8 +119,8 @@ class Kernel(BaseKernelNodeClass):
                 dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             word_index = self.convert_3d_to_1d(dim_index)
 
-            if replace_negative_index:
-                return node.name + "[" + str(abs(word_index)) + "]"
+            if replace_negative_index and word_index < 0:
+                return node.name + "[" + "n" + str(abs(word_index)) + "]"
             else:
                 return node.name + "[" + str(word_index) + "]"
         elif isinstance(node, Ternary):
@@ -282,9 +282,9 @@ class Kernel(BaseKernelNodeClass):
                     pass
                 elif len(self.inputs[inp.name]['internal_buffer']) == 0:
                     pass
-                elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is False or \
-                        self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None or \
-                        self.inputs[inp.name]['delay_buffer'].try_peek_last() is None:
+                elif self.inputs[inp.name]['internal_buffer'][len(self.inputs[inp.name]['internal_buffer'])-1].try_peek_last() is False\
+                        or self.inputs[inp.name]['internal_buffer'][len(self.inputs[inp.name]['internal_buffer'])-1].try_peek_last() is None \
+                        or self.inputs[inp.name]['delay_buffer'].try_peek_last() is None:
                     # check if array access location is filled with a bubble
                     all_available = False
                     break
