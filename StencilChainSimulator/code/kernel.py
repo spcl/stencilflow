@@ -71,6 +71,8 @@ class Kernel(BaseKernelNodeClass):
         self.config: Dict = helper.parse_json("kernel.config")
         self.calculator: Calculator = Calculator()
 
+        self.all_available = False
+
         # analyse input
         self.graph: ComputeGraph = ComputeGraph()
         self.graph.generate_graph(kernel_string)
@@ -268,21 +270,27 @@ class Kernel(BaseKernelNodeClass):
     def try_read(self) -> bool:
 
         # check if all inputs are available
-        all_available = True
-        for inp in self.graph.inputs:
-            if isinstance(inp, Num):
-                pass
-            elif len(self.inputs[inp.name]['internal_buffer']) == 0:
-                pass
-            elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is False or \
-                    self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None or \
-                    self.inputs[inp.name]['delay_buffer'].try_peek_last() is None:
-                # check if array access location is filled with a bubble
-                all_available = False
-                break
+        if self.all_available == False:
+            all_available = True
+            for inp in self.graph.inputs:
+                if isinstance(inp, Num):
+                    pass
+                elif len(self.inputs[inp.name]['internal_buffer']) == 0:
+                    pass
+                elif self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is False or \
+                        self.inputs[inp.name]['internal_buffer'][0].try_peek_last() is None or \
+                        self.inputs[inp.name]['delay_buffer'].try_peek_last() is None:
+                    # check if array access location is filled with a bubble
+                    all_available = False
+                    break
+            if all_available == True:
+                self.all_available = True
+        else:
+            if helper.list_add_cwise(self.get_global_kernel_index(), [1,1,1]) > self.dimensions:
+                self.all_available = False
 
         # get all values and put them into the variable map
-        if all_available:
+        if self.all_available:
             for inp in self.graph.inputs:
                 # read inputs into var_map
                 if isinstance(inp, Num):
@@ -303,7 +311,7 @@ class Kernel(BaseKernelNodeClass):
                     except Exception as ex:
                         self.diagnostics(ex)
 
-        self.read_success = all_available
+        self.read_success = self.all_available
 
         # move all forward
         for name in self.inputs:
@@ -327,7 +335,7 @@ class Kernel(BaseKernelNodeClass):
                 self.inputs[name]['internal_buffer'][0].dequeue()
                 self.inputs[name]['internal_buffer'][0].enqueue(self.inputs[name]['delay_buffer'].dequeue())
 
-        return all_available
+        return self.all_available
 
     def try_execute(self):
 
