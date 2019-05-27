@@ -39,7 +39,7 @@ class BoundedQueue:
             self.current_size = len(data)
 
     def export_data(self):
-        return np.array(self.queue)
+        return np.array(self.queue)[::-1]
 
     def try_peek_last(self):
         # check bound
