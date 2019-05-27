@@ -1,12 +1,12 @@
 {
 	"inputs": {
 		"arrA": {
-			"data": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0],
+			"data": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
 			"data_type": "float64"
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [2, 2, 3],
+	"dimensions": [1, 2, 3],
 	"program": {
 		"res": {
 			"computation_string": "res = (arrA[i,j,k] + arrA[i,j,k+2]) + 3.14",
