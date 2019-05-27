@@ -6,6 +6,16 @@ class Input(BaseKernelNodeClass):
 
     def __init__(self, name: str, data_type: typeclass, data_queue: BoundedQueue = None) -> None:
         super().__init__(name=name, data_queue=data_queue, data_type=data_type)
+        self.init = False
+        self.queues = dict()
+
+    def init_queues(self):
+        self.queues = dict()
+        for successor in self.outputs:
+            self.queues[successor] = BoundedQueue(name=successor,
+                                                  maxsize=self.data_queue.maxsize,
+                                                  collection=self.data_queue.export_data())
+        self.init = True
 
     def reset_old_compute_state(self):
         pass  # nothing to do
@@ -14,13 +24,18 @@ class Input(BaseKernelNodeClass):
         pass  # nothing to do
 
     def try_write(self):
+        # set up all individual data queues
+        if not self.init:
+            self.init_queues()
+
         # feed data into pipeline inputs (all kernels that feed from this input data array)
-        if self.data_queue.is_empty():
-            for successor in self.outputs:
+        for successor in self.outputs:
+            if self.queues[successor].is_empty():
                 self.outputs[successor]["delay_buffer"].enqueue(None)  # insert bubble
-        else:
-            data = self.data_queue.dequeue()
-            for successor in self.outputs:
+            elif self.outputs[successor]["delay_buffer"].is_full():
+                pass
+            else:
+                data = self.queues[successor].dequeue()
                 self.outputs[successor]["delay_buffer"].enqueue(data)
                 self.program_counter += 1
 
