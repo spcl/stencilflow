@@ -393,10 +393,9 @@ class Kernel(BaseKernelNodeClass):
     def try_execute(self):
 
         # check if read has been successful
-        if self.read_success:
+        if self.read_success and self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
             # execute calculation
             try:
-
                 computation = self.generate_relative_access_kernel_string(relative_to_center=True, replace_negative_index=True).replace("[", "_")\
                     .replace("]", "").replace(" ", "")
                 self.result = self.calculator.eval_expr(self.var_map, computation)
@@ -413,6 +412,7 @@ class Kernel(BaseKernelNodeClass):
 
         # check if data (not a bubble) is available
         data = self.out_delay_queue.dequeue()
+        """
         if data is not None:
             # write result to all output queues
             for outp in self.outputs:
@@ -420,6 +420,13 @@ class Kernel(BaseKernelNodeClass):
                     self.outputs[outp]["delay_buffer"].enqueue(data)  # use delay buffer to be consistent with others, db is used to write to output data queue here
                 except Exception as ex:
                     self.diagnostics(ex)
+        """
+        # write result to all output queues
+        for outp in self.outputs:
+            try:
+                self.outputs[outp]["delay_buffer"].enqueue(data)  # use delay buffer to be consistent with others, db is used to write to output data queue here
+            except Exception as ex:
+                self.diagnostics(ex)
 
     '''
         interface for error overview reporting (gets called in case of an exception)
