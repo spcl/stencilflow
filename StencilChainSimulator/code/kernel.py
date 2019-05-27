@@ -98,7 +98,7 @@ class Kernel(BaseKernelNodeClass):
         self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
 
-    def iter_comp_tree(self, node: BaseOperationNodeClass, index_relative_to_center=True) -> str:
+    def iter_comp_tree(self, node: BaseOperationNodeClass, index_relative_to_center=True, replace_negative_index=False) -> str:
 
         pred = list(self.graph.graph.pred[node])
 
@@ -106,10 +106,10 @@ class Kernel(BaseKernelNodeClass):
             lhs = pred[0]
             rhs = pred[1]
             return "(" + self.iter_comp_tree(lhs,
-                                             index_relative_to_center) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(
-                rhs, index_relative_to_center) + ")"
+                                             index_relative_to_center, replace_negative_index) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(
+                rhs, index_relative_to_center, replace_negative_index) + ")"
         elif isinstance(node, Call):
-            return node.name + "(" + self.iter_comp_tree(pred[0], index_relative_to_center) + ")"
+            return node.name + "(" + self.iter_comp_tree(pred[0], index_relative_to_center, replace_negative_index) + ")"
         elif isinstance(node, Name) or isinstance(node, Num):
             return str(node.name)
         elif isinstance(node, Subscript):
@@ -118,23 +118,27 @@ class Kernel(BaseKernelNodeClass):
             else:
                 dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             word_index = self.convert_3d_to_1d(dim_index)
-            return node.name + "[" + str(word_index) + "]"
+
+            if replace_negative_index:
+                return node.name + "[" + str(abs(word_index)) + "]"
+            else:
+                return node.name + "[" + str(word_index) + "]"
         elif isinstance(node, Ternary):
 
             compare = [x for x in pred if type(x) == Compare][0]
             lhs = [x for x in pred if type(x) != Compare][0]
             rhs = [x for x in pred if type(x) != Compare][1]
 
-            return "{} if {} else {}".format(self.iter_comp_tree(lhs, index_relative_to_center),
-                                             self.iter_comp_tree(compare, index_relative_to_center),
-                                             self.iter_comp_tree(rhs, index_relative_to_center))
+            return "{} if {} else {}".format(self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index),
+                                             self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index),
+                                             self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index))
         elif isinstance(node, Compare):
-            return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center), str(node.name),
-                                     self.iter_comp_tree(pred[1], index_relative_to_center))
+            return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center, replace_negative_index), str(node.name),
+                                     self.iter_comp_tree(pred[1], index_relative_to_center, replace_negative_index))
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
-    def generate_relative_access_kernel_string(self, relative_to_center=True) -> str:
+    def generate_relative_access_kernel_string(self, relative_to_center=True, replace_negative_index=False) -> str:
         # format: 'res = vdc[index1] + vout[index2]'
 
         res = []
@@ -143,7 +147,7 @@ class Kernel(BaseKernelNodeClass):
         for n in self.graph.graph.nodes:
             if isinstance(n, Name):
                 res.append(n.name + " = " + self.iter_comp_tree(
-                    list(self.graph.graph.pred[n])[0], relative_to_center))
+                    list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index))
 
         # Treat output node
         output_node = [
@@ -154,7 +158,7 @@ class Kernel(BaseKernelNodeClass):
         output_node = output_node[0]
 
         res.append("res = " + self.iter_comp_tree(
-            list(self.graph.graph.pred[output_node])[0], index_relative_to_center=relative_to_center))
+            list(self.graph.graph.pred[output_node])[0], index_relative_to_center=relative_to_center, replace_negative_index=replace_negative_index))
 
         return "; ".join(res)
 
@@ -214,7 +218,8 @@ class Kernel(BaseKernelNodeClass):
             # v2:
             return "_{}_{}_{}".format(index[0], index[1], index[2])
             '''
-            return "_{}".format(helper.convert_3d_to_1d(self.dimensions, index))
+            ind = helper.convert_3d_to_1d(self.dimensions, index)
+            return "_{}".format(ind) if ind >= 0 else "_n{}".format(abs(ind))
         else:
             raise NotImplementedError("Method index_to_ijk has not been implemented for |indices|!=3, here: |indices|={}".format(len(index)))
 
@@ -344,7 +349,7 @@ class Kernel(BaseKernelNodeClass):
             # execute calculation
             try:
 
-                computation = self.generate_relative_access_kernel_string(relative_to_center=True).replace("[", "_")\
+                computation = self.generate_relative_access_kernel_string(relative_to_center=True, replace_negative_index=True).replace("[", "_")\
                     .replace("]", "").replace(" ", "")
                 self.result = self.calculator.eval_expr(self.var_map, computation)
                 # write result to latency-simulating buffer
