@@ -324,15 +324,15 @@ class Kernel(BaseKernelNodeClass):
                 index = len(self.inputs[name]['internal_buffer']) - 1
                 pre = self.inputs[name]['internal_buffer'][index - 1]
                 next = self.inputs[name]['internal_buffer'][index]
+                next.dequeue()
 
                 while index > 0:
-                    next.dequeue()
                     next.enqueue(pre.dequeue())
                     next = pre
                     index -= 1
                     pre = self.inputs[name]['internal_buffer'][index - 1]
 
-                self.inputs[name]['internal_buffer'][0].dequeue()
+                # self.inputs[name]['internal_buffer'][0].dequeue()
                 self.inputs[name]['internal_buffer'][0].enqueue(self.inputs[name]['delay_buffer'].dequeue())
 
         return self.all_available
