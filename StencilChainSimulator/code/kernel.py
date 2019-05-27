@@ -72,6 +72,7 @@ class Kernel(BaseKernelNodeClass):
         self.calculator: Calculator = Calculator()
 
         self.all_available = False
+        self.not_available = set()
 
         # analyse input
         self.graph: ComputeGraph = ComputeGraph()
@@ -282,6 +283,7 @@ class Kernel(BaseKernelNodeClass):
 
     def testAvailability(self):
         all_available = True
+        self.not_available = set()
 
         for inp in self.graph.inputs:
 
@@ -297,12 +299,36 @@ class Kernel(BaseKernelNodeClass):
                     if index == -1:
                         if self.inputs[inp.name]['delay_buffer'].try_peek_last() is None or self.inputs[inp.name]['delay_buffer'].try_peek_last() is False:
                             all_available = False
+                            self.not_available.add(inp.name)
                     else:
                         if self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is False\
                         or self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is None:
                             all_available = False
+                            self.not_available.add(inp.name)
         return all_available
 
+    def move_forward(self, items):
+        # move all forward
+        for name in items:
+            if len(items[name]['internal_buffer']) == 0:
+                pass
+            elif len(self.inputs[name]['internal_buffer']) == 1:
+                items[name]['internal_buffer'][0].dequeue()
+                items[name]['internal_buffer'][0].enqueue(items[name]['delay_buffer'].dequeue())
+            else:
+                index = len(items[name]['internal_buffer']) - 1
+                pre = items[name]['internal_buffer'][index - 1]
+                next = items[name]['internal_buffer'][index]
+                next.dequeue()
+
+                while index > 0:
+                    next.enqueue(pre.dequeue())
+                    next = pre
+                    index -= 1
+                    pre = items[name]['internal_buffer'][index - 1]
+
+                # self.inputs[name]['internal_buffer'][0].dequeue()
+                items[name]['internal_buffer'][0].enqueue(items[name]['delay_buffer'].dequeue())
 
     def try_read(self) -> bool:
 
@@ -354,27 +380,13 @@ class Kernel(BaseKernelNodeClass):
 
         self.read_success = self.all_available
 
-        # move all forward
-        for name in self.inputs:
-            if len(self.inputs[name]['internal_buffer']) == 0:
-                pass
-            elif len(self.inputs[name]['internal_buffer']) == 1:
-                self.inputs[name]['internal_buffer'][0].dequeue()
-                self.inputs[name]['internal_buffer'][0].enqueue(self.inputs[name]['delay_buffer'].dequeue())
-            else:
-                index = len(self.inputs[name]['internal_buffer']) - 1
-                pre = self.inputs[name]['internal_buffer'][index - 1]
-                next = self.inputs[name]['internal_buffer'][index]
-                next.dequeue()
-
-                while index > 0:
-                    next.enqueue(pre.dequeue())
-                    next = pre
-                    index -= 1
-                    pre = self.inputs[name]['internal_buffer'][index - 1]
-
-                # self.inputs[name]['internal_buffer'][0].dequeue()
-                self.inputs[name]['internal_buffer'][0].enqueue(self.inputs[name]['delay_buffer'].dequeue())
+        if self.all_available:
+            self.move_forward(self.inputs)
+        else:
+            not_avail_dict = dict()
+            for item in self.not_available:
+                not_avail_dict[item] = self.inputs[item]
+            self.move_forward(not_avail_dict)
 
         return self.all_available
 
