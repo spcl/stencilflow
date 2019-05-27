@@ -9,6 +9,7 @@ from compute_graph import ComputeGraph
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
 from input import Input
 import numpy as np
+import operator
 
 class Kernel(BaseKernelNodeClass):
     """
@@ -217,13 +218,25 @@ class Kernel(BaseKernelNodeClass):
 
     def buffer_number(self, node: Subscript):
         selected = [x for x in self.graph.inputs if x.name == node.name]
-        ordered = sorted(selected, key=lambda x:x.index)
+        ordered = sorted(selected, key=lambda x:x.index, reverse=True)
         return ordered.index(node) - 1
 
-    def pc_to_ijk(self) -> List[int]:
-        return [self.program_counter % self.dimensions[0],
-                self.program_counter % (self.dimensions[0]*self.dimensions[1]),
-                self.program_counter % (self.dimensions[0]*self.dimensions[1]*self.dimensions[2])]
+    def get_global_kernel_index(self) -> List[int]:
+        index = self.dimensions
+        number = self.program_counter
+        n = len(index)
+        all_dim = functools.reduce(operator.mul, index, 1) // index[0]
+
+        output = list()
+
+        for i in range(1, n + 1):
+            output.append(number // all_dim)
+            number -= output[-1] * all_dim
+            if i < n:
+                all_dim = all_dim // index[i]
+
+        print("global index is: {}\n".format(output))
+        return output
 
     def get_data(self, inp: Input, global_index: List[int], relative_index: List[int]):
         """
@@ -285,7 +298,7 @@ class Kernel(BaseKernelNodeClass):
                     try:
                         name = inp.name + self.index_to_ijk(inp.index)
                         self.var_map[name] = self.get_data( inp=inp,
-                                                            global_index=self.pc_to_ijk(),
+                                                            global_index=self.get_global_kernel_index(),
                                                             relative_index=inp.index)
                     except Exception as ex:
                         self.diagnostics(ex)
