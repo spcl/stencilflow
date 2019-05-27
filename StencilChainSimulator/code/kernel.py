@@ -245,6 +245,13 @@ class Kernel(BaseKernelNodeClass):
         print("global index is: {}\n".format(output))
         return output
 
+    def is_out_of_bound(self, index):
+
+        for i in range(len(index)):
+            if index[i] < 0 or index[i] >= self.dimensions[i]:
+                return True
+        return False
+
     def get_data(self, inp: Input, global_index: List[int], relative_index: List[int]):
         """
         returns data of current stencil access (could be real data or boundary condition)
@@ -257,12 +264,13 @@ class Kernel(BaseKernelNodeClass):
             Boundary Condition
         """
         access_index = helper.list_add_cwise(global_index, relative_index)
-        for i in range(len(access_index)):
-            if access_index[i] < 0 or access_index[i] >= self.dimensions[i]:
-                if self.boundary_conditions[inp.name]["type"] == "constant":
-                    return self.boundary_conditions[inp.name]["value"]
-                else:
-                    raise NotImplementedError("We currently do not support boundary conditions of type {}".format(self.boundary_conditions[inp.name]["type"]))
+        if self.is_out_of_bound(access_index):
+            if self.boundary_conditions[inp.name]["type"] == "constant":
+                return self.boundary_conditions[inp.name]["value"]
+            else:
+                raise NotImplementedError("We currently do not support boundary conditions of type {}".format(
+                    self.boundary_conditions[inp.name]["type"]))
+
         """
             Data Access
         """
@@ -272,9 +280,36 @@ class Kernel(BaseKernelNodeClass):
         elif pos >= 0:
             return self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
 
+    def testAvailability(self):
+        all_available = True
+
+        for inp in self.graph.inputs:
+
+            if isinstance(inp, Num):
+                pass
+            elif len(self.inputs[inp.name]['internal_buffer']) == 0:
+                pass
+            elif isinstance(inp, Subscript):
+                if self.is_out_of_bound(helper.list_add_cwise(inp.index, self.get_global_kernel_index())):
+                    pass
+                else:
+                    index = self.buffer_number(inp)
+                    if index == -1:
+                        if self.inputs[inp.name]['delay_buffer'].try_peek_last() is None or self.inputs[inp.name]['delay_buffer'].try_peek_last() is False:
+                            all_available = False
+                    else:
+                        if self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is False\
+                        or self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is None:
+                            all_available = False
+        return all_available
+
+
     def try_read(self) -> bool:
 
+        self.all_available = self.testAvailability()
+
         # check if all inputs are available
+        """
         if self.all_available == False:
             all_available = True
             for inp in self.graph.inputs:
@@ -293,6 +328,7 @@ class Kernel(BaseKernelNodeClass):
         else:
             if helper.list_add_cwise(self.get_global_kernel_index(), [1,1,1]) > self.dimensions:
                 self.all_available = False
+        """
 
         # get all values and put them into the variable map
         if self.all_available:
