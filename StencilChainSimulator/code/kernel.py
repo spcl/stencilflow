@@ -232,9 +232,14 @@ class Kernel(BaseKernelNodeClass):
             raise NotImplementedError("Method index_to_ijk has not been implemented for |indices|!=3, here: |indices|={}".format(len(index)))
 
     def buffer_number(self, node: Subscript):
-        selected = [x for x in self.graph.inputs if x.name == node.name]
-        ordered = sorted(selected, key=lambda x:x.index, reverse=True)
-        return ordered.index(node) - 1
+        selected = [x.index for x in self.graph.inputs if x.name == node.name]
+        selected_unique = self.remove_duplicate_accesses(selected)
+        ordered = sorted(selected_unique, reverse=True)
+        result = ordered.index(node.index)
+        return result
+        # selected = [x for x in self.graph.inputs if x.name == node.name]
+        # ordered = sorted(selected, key=lambda x:x.index, reverse=True)
+        # return ordered.index(node) - 1
 
     def get_global_kernel_index(self) -> List[int]:
         index = self.dimensions
@@ -250,7 +255,7 @@ class Kernel(BaseKernelNodeClass):
             if i < n:
                 all_dim = all_dim // index[i]
 
-        print("global index is: {}\n".format(output))
+        print("{}: global index is: {}\n".format(self.name, output))
         return output
 
     def is_out_of_bound(self, index):
@@ -373,16 +378,19 @@ class Kernel(BaseKernelNodeClass):
                 elif isinstance(inp, Name):
                     # get value from internal_buffer
                     try:
-                        self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))  # TODO: boundary check!
+                        # check for duplicate
+                        if not self.var_map.__contains__(inp.name):
+                            self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))  # TODO: boundary check!
                     except Exception as ex:
                         self.diagnostics(ex)
                 elif isinstance(inp, Subscript):
                     # get value from internal buffer
                     try:
                         name = inp.name + self.index_to_ijk(inp.index)
-                        self.var_map[name] = self.get_data( inp=inp,
-                                                            global_index=self.get_global_kernel_index(),
-                                                            relative_index=inp.index)
+                        if not self.var_map.__contains__(name):
+                            self.var_map[name] = self.get_data( inp=inp,
+                                                                global_index=self.get_global_kernel_index(),
+                                                                relative_index=inp.index)
                     except Exception as ex:
                         self.diagnostics(ex)
 
