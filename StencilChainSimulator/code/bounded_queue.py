@@ -13,9 +13,9 @@ class BoundedQueue:
         :param collection: initial data in queue
         """
         # check input
-        assert maxsize > 0
+        #assert maxsize > 0
         # save params
-        self.maxsize: int = maxsize
+        self.maxsize: int = maxsize if maxsize > 0 else 1  # maxsize
         self.name: str = name
         # create queue
         self.queue: collection.dequeue = collections.deque(collection, maxsize)

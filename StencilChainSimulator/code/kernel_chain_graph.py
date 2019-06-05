@@ -296,6 +296,9 @@ class KernelChainGraph:
     where inX are input arrays to the stencil chain and predY are the kernel predecessors/inputs
     '''
 
+    def at_least_one(self, value):
+        return value if value > 0 else 1
+
     def compute_delay_buffer(self) -> None:
 
         # get topological order for top-down walk through of the graph
@@ -309,13 +312,14 @@ class KernelChainGraph:
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
                 max_delay = max(node.input_paths[inp])
+                print(max_delay)
                 for entry in node.input_paths[inp]:
                     node.delay_buffer[entry[-1]] = BoundedQueue(name=entry[-1],
-                                                                maxsize=1 + helper.convert_3d_to_1d(self.dimensions,helper.list_subtract_cwise(max_delay[:-1], entry[:-1])))
+                                                                maxsize=helper.convert_3d_to_1d(self.dimensions,helper.list_subtract_cwise(max_delay[:-1], entry[:-1])))
                     node.delay_buffer[entry[-1]].import_data([None]*node.delay_buffer[entry[-1]].maxsize)
 
             if isinstance(node, Input):  # NodeType.INPUT:
-                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1, collection=[None]) # [0]*len(self.dimensions) + [node.name]
+                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1, collection=[None])  # [0]*len(self.dimensions) + [node.name]
 
             for succ in self.graph.successors(node):
 
@@ -347,7 +351,7 @@ class KernelChainGraph:
                         ]
                         total[-1] += latency  # Last entry
                         total.append(node.name)
-
+                        total[2] = total[2]-1
                         succ.input_paths[entry].append(total)
 
                 else:  # NodeType.OUTPUT: do nothing

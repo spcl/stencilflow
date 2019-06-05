@@ -281,7 +281,8 @@ class Kernel(BaseKernelNodeClass):
         elif pos >= 0:
             return self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
 
-    def testAvailability(self):
+    def test_availability(self):
+
         all_available = True
         self.not_available = set()
 
@@ -332,7 +333,7 @@ class Kernel(BaseKernelNodeClass):
 
     def try_read(self) -> bool:
 
-        self.all_available = self.testAvailability()
+        self.all_available = self.test_availability()
 
         # check if all inputs are available
         """
@@ -355,7 +356,6 @@ class Kernel(BaseKernelNodeClass):
             if helper.list_add_cwise(self.get_global_kernel_index(), [1,1,1]) > self.dimensions:
                 self.all_available = False
         """
-
         # get all values and put them into the variable map
         if self.all_available:
             for inp in self.graph.inputs:
@@ -410,9 +410,9 @@ class Kernel(BaseKernelNodeClass):
 
     def try_write(self):
 
-        # check if data (not a bubble) is available
         data = self.out_delay_queue.dequeue()
         """
+        # check if data (not a bubble) is available
         if data is not None:
             # write result to all output queues
             for outp in self.outputs:
@@ -424,7 +424,7 @@ class Kernel(BaseKernelNodeClass):
         # write result to all output queues
         for outp in self.outputs:
             try:
-                self.outputs[outp]["delay_buffer"].enqueue(data)  # use delay buffer to be consistent with others, db is used to write to output data queue here
+                self.outputs[outp]["delay_buffer"].try_enqueue(data)  # use delay buffer to be consistent with others, db is used to write to output data queue here
             except Exception as ex:
                 self.diagnostics(ex)
 
