@@ -236,7 +236,7 @@ class Kernel(BaseKernelNodeClass):
         selected_unique = self.remove_duplicate_accesses(selected)
         ordered = sorted(selected_unique, reverse=True)
         result = ordered.index(node.index)
-        return result
+        return result - 1
         # selected = [x for x in self.graph.inputs if x.name == node.name]
         # ordered = sorted(selected, key=lambda x:x.index, reverse=True)
         # return ordered.index(node) - 1
@@ -314,11 +314,13 @@ class Kernel(BaseKernelNodeClass):
                         if self.inputs[inp.name]['delay_buffer'].try_peek_last() is None or self.inputs[inp.name]['delay_buffer'].try_peek_last() is False:
                             all_available = False
                             self.not_available.add(inp.name)
-                    else:
+                    elif index >= 0 and index < len(self.inputs[inp.name]['internal_buffer']):
                         if self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is False\
                         or self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is None:
                             all_available = False
                             self.not_available.add(inp.name)
+                    else:
+                        raise Exception("index out of bound: {}".format(index))
         return all_available
 
     def move_forward(self, items):
