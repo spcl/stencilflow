@@ -30,7 +30,7 @@ class Input(BaseKernelNodeClass):
 
         # feed data into pipeline inputs (all kernels that feed from this input data array)
         for successor in self.outputs:
-            if self.queues[successor].is_empty():
+            if self.queues[successor].is_empty() and not self.outputs[successor]["delay_buffer"].is_full():
                 self.outputs[successor]["delay_buffer"].enqueue(None)  # insert bubble
             elif self.outputs[successor]["delay_buffer"].is_full():
                 pass
