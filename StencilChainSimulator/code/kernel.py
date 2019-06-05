@@ -130,7 +130,7 @@ class Kernel(BaseKernelNodeClass):
             lhs = [x for x in pred if type(x) != Compare][0]
             rhs = [x for x in pred if type(x) != Compare][1]
 
-            return "{} if {} else {}".format(self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index),
+            return "(({}) if ({}) else ({}))".format(self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index),
                                              self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index),
                                              self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index))
         elif isinstance(node, Compare):
