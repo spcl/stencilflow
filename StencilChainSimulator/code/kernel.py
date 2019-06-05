@@ -176,10 +176,17 @@ class Kernel(BaseKernelNodeClass):
             return 0  # empty list
         return helper.dim_to_abs_val(index, self.dimensions)
 
+    def remove_duplicate_accesses(self, inp: List) -> List:
+        tuple_set = set(tuple(row) for row in inp)
+        return [[x,y,z] for (x,y,z) in tuple_set]
+
     def setup_internal_buffers(self) -> None:
 
-        # slice the internal buffer into junks of accesses
+        # remove duplicate accesses
+        for item in self.graph.accesses:
+            self.graph.accesses[item] = self.remove_duplicate_accesses(self.graph.accesses[item])
 
+        # slice the internal buffer into junks of accesses
         for buf_name in self.graph.buffer_size:
             self.internal_buffer[buf_name] = list()
             list.sort(self.graph.accesses[buf_name], reverse=True)
@@ -280,6 +287,7 @@ class Kernel(BaseKernelNodeClass):
             return self.inputs[inp.name]["delay_buffer"].try_peek_last()
         elif pos >= 0:
             return self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
+
 
     def test_availability(self):
 
