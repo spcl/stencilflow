@@ -2,7 +2,6 @@ from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
 from dace.types import typeclass
 
-_VERBOSE = True
 
 class Input(BaseKernelNodeClass):
 
@@ -41,8 +40,6 @@ class Input(BaseKernelNodeClass):
                 data = self.queues[successor].dequeue()
                 self.outputs[successor]["delay_buffer"].enqueue(data)
                 self.program_counter = self.dimension_size - max([self.queues[x].size() for x in self.queues])
-                if _VERBOSE:
-                    print("input: {}, PC:{}".format(self.name, self.program_counter))
 
     def init_input_data(self, inputs):
         # TODO: make use of passed data_type = inputs[self.name]["data_type"]
