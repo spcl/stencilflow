@@ -311,11 +311,34 @@ class KernelChainGraph:
 
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
+
+                if node.name == 'kB':
+                    print()
+
+                """
+                if not isinstance(node, Output):
+
+                    test = list()
+                    for entry in node.input_paths[inp]:
+                        a = node.graph.buffer_size[entry[-1]]
+                        b = entry[:-1]
+                        test.append(helper.list_add_cwise(a,b) + [entry[-1]])
+
+                    max_delay = max(test)
+                else:
+                """
                 max_delay = max(node.input_paths[inp])
-                print(max_delay)
+
+                #max_delay = max(node.input_paths[inp])  # get longest path
+
+                max_delay[2] += 1
+                print("source: {}, max_delay: {}".format(inp, max_delay))
                 for entry in node.input_paths[inp]:
-                    node.delay_buffer[entry[-1]] = BoundedQueue(name=entry[-1],
-                                                                maxsize=helper.convert_3d_to_1d(self.dimensions,helper.list_subtract_cwise(max_delay[:-1], entry[:-1])))
+                    #max_size = helper.convert_3d_to_1d(self.dimensions, max_delay[:-1])
+                    max_size = helper.convert_3d_to_1d(self.dimensions, helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
+                    #if not isinstance(node, Output):
+                    #    max_size -= helper.dim_to_abs_val(dimensions=self.dimensions,input=node.graph.buffer_size[entry[-1]])
+                    node.delay_buffer[entry[-1]] = BoundedQueue(name=entry[-1], maxsize=max_size)
                     node.delay_buffer[entry[-1]].import_data([None]*node.delay_buffer[entry[-1]].maxsize)
 
             if isinstance(node, Input):  # NodeType.INPUT:
@@ -327,14 +350,22 @@ class KernelChainGraph:
                     # add emtpy list dictionary entry for enabling list append()
                     if node.name not in succ.input_paths:
                         succ.input_paths[node.name] = []
-                    succ.input_paths[node.name].append(
-                        [0] * len(self.dimensions) + [node.name])
+                    successor = [0] * len(self.dimensions)
+                    #successor[2] += 1
+                    successor = successor + [node.name]
+                    succ.input_paths[node.name].append(successor)
 
                 elif isinstance(node, Kernel):  # add KERNEL
 
                     # add latency, internal_buffer, delay_buffer
                     internal_buffer = self.kernel_nodes[node.name].graph.buffer_size[helper.max_dict_entry_key(
                         self.kernel_nodes[node.name].graph.buffer_size)]
+
+                    internal_buffer = [0,0,0]
+                    for item in node.graph.accesses:
+                        internal_buffer = max(node.graph.accesses[item]) if max(node.graph.accesses[item]) > internal_buffer else internal_buffer
+
+
                     latency = self.kernel_nodes[node.name].graph.max_latency
 
                     for entry in node.input_paths:
@@ -351,7 +382,8 @@ class KernelChainGraph:
                         ]
                         total[-1] += latency  # Last entry
                         total.append(node.name)
-                        total[2] = total[2]-1
+                        #total[2] = total[2]-1
+                        #total[2] = total[2] + 1
                         succ.input_paths[entry].append(total)
 
                 else:  # NodeType.OUTPUT: do nothing
