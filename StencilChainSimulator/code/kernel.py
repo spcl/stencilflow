@@ -92,12 +92,22 @@ class Kernel(BaseKernelNodeClass):
 
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
         self.out_delay_queue: BoundedQueue = BoundedQueue(name="delay_output",
-                                                          maxsize=self.graph.max_latency,
-                                                          collection=[None] * (self.graph.max_latency - 1))
+                                                          maxsize=self.graph.max_latency+1,
+                                                          collection=[None] * (self.graph.max_latency))
 
         # setup internal buffer queues
         self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
+
+        self.dist_to_center: Dict = dict()
+        self.set_up_dist_to_center()
+        self.center_reached = False
+
+    def set_up_dist_to_center(self):
+        for item in self.graph.accesses:
+            furthest = max(self.graph.accesses[item])
+            self.dist_to_center[item] = helper.dim_to_abs_val(furthest, self.dimensions)
+
 
     def iter_comp_tree(self, node: BaseOperationNodeClass, index_relative_to_center=True, replace_negative_index=False) -> str:
 
@@ -272,7 +282,6 @@ class Kernel(BaseKernelNodeClass):
         :param relative_index: offset from center of stencil
         :return: data
         """
-
         """
             Boundary Condition
         """
@@ -283,7 +292,6 @@ class Kernel(BaseKernelNodeClass):
             else:
                 raise NotImplementedError("We currently do not support boundary conditions of type {}".format(
                     self.boundary_conditions[inp.name]["type"]))
-
         """
             Data Access
         """
@@ -292,7 +300,6 @@ class Kernel(BaseKernelNodeClass):
             return self.inputs[inp.name]["delay_buffer"].try_peek_last()
         elif pos >= 0:
             return self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
-
 
     def test_availability(self):
 
@@ -306,7 +313,8 @@ class Kernel(BaseKernelNodeClass):
             elif len(self.inputs[inp.name]['internal_buffer']) == 0:
                 pass
             elif isinstance(inp, Subscript):
-                if self.is_out_of_bound(helper.list_add_cwise(inp.index, self.get_global_kernel_index())):
+                gki = self.get_global_kernel_index()
+                if self.is_out_of_bound(helper.list_add_cwise(inp.index, gki)):
                     pass
                 else:
                     index = self.buffer_number(inp)
@@ -314,18 +322,22 @@ class Kernel(BaseKernelNodeClass):
                         if self.inputs[inp.name]['delay_buffer'].try_peek_last() is None or self.inputs[inp.name]['delay_buffer'].try_peek_last() is False:
                             all_available = False
                             self.not_available.add(inp.name)
-                    elif index >= 0 and index < len(self.inputs[inp.name]['internal_buffer']):
+                    elif 0 <= index < len(self.inputs[inp.name]['internal_buffer']):
                         if self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is False\
                         or self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is None:
                             all_available = False
                             self.not_available.add(inp.name)
                     else:
                         raise Exception("index out of bound: {}".format(index))
+
+
         return all_available
 
     def move_forward(self, items):
         # move all forward
+
         for name in items:
+
             if len(items[name]['internal_buffer']) == 0:
                 pass
             elif len(self.inputs[name]['internal_buffer']) == 1:
@@ -346,11 +358,67 @@ class Kernel(BaseKernelNodeClass):
                 # self.inputs[name]['internal_buffer'][0].dequeue()
                 items[name]['internal_buffer'][0].enqueue(items[name]['delay_buffer'].dequeue())
 
+    def decrement_center_reached(self):
+
+        for item in self.dist_to_center:
+            if self.inputs[item]['delay_buffer'].try_peek_last() is not None:
+                self.dist_to_center[item] -= 1
+
     def try_read(self) -> bool:
 
+        # check if all inputs are available
         self.all_available = self.test_availability()
 
-        # check if all inputs are available
+        _DEBUG = True
+
+        if _DEBUG:
+            if self.name == 'kernelC':
+                print()
+
+            if self.name == 'kernelC' and self.delay_buffer['arrC'].peek(0) is not None:
+                print()
+
+            if self.name == 'kernelC' and self.delay_buffer['kernelB'].peek(0) is not None:
+                print()
+
+
+        _DEBUG = False
+
+        if _DEBUG:
+            if self.name == 'res':
+                print()
+
+            if self.name == 'res' and self.delay_buffer['kA'].peek(0) is not None:
+                print()
+
+            if self.name == 'res' and self.delay_buffer['kB'].peek(0) is not None:
+                print()
+
+
+
+        _DEBUG = False
+
+        if _DEBUG:
+
+            if self.name == 'kB' and self.delay_buffer['kA'].peek(0) is not None:
+                print()
+
+            if self.name == 'kB' and self.all_available:
+                print()
+
+            if self.name == 'kB':
+                print()
+
+            if self.name == 'res':
+                print()
+
+            if self.name == 'res' and self.delay_buffer['kernelA'].peek(0) is not None:
+                print()
+
+            if self.name == 'res' and self.delay_buffer['kernelB'].peek(0) is not None:
+                print()
+
+
         """
         if self.all_available == False:
             all_available = True
@@ -398,20 +466,34 @@ class Kernel(BaseKernelNodeClass):
 
         self.read_success = self.all_available
 
-        if self.all_available:
-            self.move_forward(self.inputs)
+        # test center reached
+        self.decrement_center_reached()
+        self.center_reached = True
+        for item in self.dist_to_center:
+            if self.dist_to_center[item] >= 0:
+                self.center_reached = False
+
+        if self.center_reached:
+            if self.all_available:
+                self.move_forward(self.inputs)
+            else:
+                not_avail_dict = dict()
+                for item in self.not_available:
+                    not_avail_dict[item] = self.inputs[item]
+                self.move_forward(not_avail_dict)
         else:
-            not_avail_dict = dict()
-            for item in self.not_available:
-                not_avail_dict[item] = self.inputs[item]
-            self.move_forward(not_avail_dict)
+            not_reached_dict = dict()
+            for item in self.dist_to_center:
+                if self.dist_to_center[item] >= 0:
+                    not_reached_dict[item] = self.inputs[item]
+            self.move_forward(not_reached_dict)
 
         return self.all_available
 
     def try_execute(self):
 
         # check if read has been successful
-        if self.read_success and self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
+        if self.center_reached and self.read_success and 0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1) :
             # execute calculation
             try:
                 computation = self.generate_relative_access_kernel_string(relative_to_center=True, replace_negative_index=True).replace("[", "_")\
@@ -419,6 +501,9 @@ class Kernel(BaseKernelNodeClass):
                 self.result = self.calculator.eval_expr(self.var_map, computation)
                 # write result to latency-simulating buffer
                 self.out_delay_queue.enqueue(self.result)
+
+                if self.name == 'kB':
+                    print()
                 self.program_counter += 1
             except Exception as ex:
                 self.diagnostics(ex)
@@ -439,6 +524,12 @@ class Kernel(BaseKernelNodeClass):
                 except Exception as ex:
                     self.diagnostics(ex)
         """
+
+        if self.name == 'kernelB' and data is not None:
+            print()
+        elif self.name == 'kernelB':
+            print()
+
         # write result to all output queues
         for outp in self.outputs:
             try:
