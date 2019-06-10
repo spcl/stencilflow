@@ -18,7 +18,7 @@ class BoundedQueue:
         self.maxsize: int = maxsize if maxsize > 0 else 1  # maxsize
         self.name: str = name
         # create queue
-        self.queue: collection.dequeue = collections.deque(collection, maxsize)
+        self.queue: collection.dequeue = collections.deque(collection, self.maxsize)
         # init current size
         self.current_size: int = len(collection)
         # indication of where the buffer is located (slow memory or fast memory)
@@ -35,7 +35,8 @@ class BoundedQueue:
         if self.maxsize < len(data):
             raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})".format(self.maxsize, len(data)))
         else:
-            self.queue: collections.deque = collections.deque(data[::-1], self.maxsize)  # [::-1] reverse array (view) to be consistent with the users view of the data
+            # self.queue: collections.deque = collections.deque(data[::-1], self.maxsize)  # [::-1] reverse array (view) to be consistent with the users view of the data
+            self.queue: collections.deque = collections.deque(data, self.maxsize)
             self.current_size = len(data)
 
     def export_data(self):
