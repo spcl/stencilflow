@@ -149,6 +149,8 @@ class KernelChainGraphTest(unittest.TestCase):
 
     def test(self):
         chain = KernelChainGraph(path='stencils/simple_input_delay_buf.json', plot_graph=False)
+        # Note: Since e.g. the delay buffer sizes get tested using different cases (e.g. through the simulator), we only
+        # add a basic (no exception) case in here for the moment.
 
 from optimizer import Optimizer
 class OptimizerTest(unittest.TestCase):
