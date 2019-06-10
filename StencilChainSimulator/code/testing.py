@@ -148,8 +148,7 @@ from kernel_chain_graph import KernelChainGraph
 class KernelChainGraphTest(unittest.TestCase):
 
     def test(self):
-        pass
-
+        chain = KernelChainGraph(path='stencils/simple_input_delay_buf.json', plot_graph=False)
 
 from optimizer import Optimizer
 class OptimizerTest(unittest.TestCase):
@@ -233,10 +232,6 @@ class SimulatorTest(unittest.TestCase):
                             dimensions=chain.dimensions)
             sim.simulate()
             self.assertTrue(helper.arrays_are_equal(np.array(samples[sample]['res']), sim.get_result()['res'], 0.01))
-
-
-
-        pass # TODO: implement when simulator is ready
 
 
 if __name__ == '__main__':
