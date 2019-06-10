@@ -371,7 +371,7 @@ class Kernel(BaseKernelNodeClass):
         # check if all inputs are available
         self.all_available = self.test_availability()
 
-        _DEBUG = True
+        _DEBUG = False
 
         if _DEBUG:
             if self.name == 'kernelC':
