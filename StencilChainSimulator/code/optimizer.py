@@ -76,7 +76,7 @@ class Optimizer:
         return len(lst) == 0
 
     def ratio(self):
-        return self.fast_memory_use / self.slow_memory_use
+        return self.fast_memory_use / (self.slow_memory_use + 1e-5)
 
 
     def reset(self):
