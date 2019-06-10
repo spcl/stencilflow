@@ -155,7 +155,16 @@ from optimizer import Optimizer
 class OptimizerTest(unittest.TestCase):
 
     def test(self):
-        pass
+        chain = KernelChainGraph(path='stencils/simple_input_delay_buf.json', plot_graph=False)
+        opt = Optimizer(chain.kernel_nodes, chain.dimensions)
+        com_bound = 10000
+        fast_mem_bound = 1000
+        slow_mem_bound = 100000
+        ratio = 0.5
+        opt.minimize_fast_mem(communication_volume_bound=com_bound)
+        opt.minimize_comm_vol(fast_memory_bound=fast_mem_bound, slow_memory_bound=slow_mem_bound)
+        opt.optimize_to_ratio(ratio=ratio)
+
 
 
 from simulator import Simulator
