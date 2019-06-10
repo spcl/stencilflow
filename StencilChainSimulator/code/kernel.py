@@ -289,6 +289,8 @@ class Kernel(BaseKernelNodeClass):
         if self.is_out_of_bound(access_index):
             if self.boundary_conditions[inp.name]["type"] == "constant":
                 return self.boundary_conditions[inp.name]["value"]
+            elif self.boundary_conditions[inp.name]["type"] == "copy":
+                raise NotImplementedError("Copy boundary conditions have not been implemented yet.")
             else:
                 raise NotImplementedError("We currently do not support boundary conditions of type {}".format(
                     self.boundary_conditions[inp.name]["type"]))
