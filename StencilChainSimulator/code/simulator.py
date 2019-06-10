@@ -54,6 +54,11 @@ class Simulator:
         for input in self.input_nodes:
             self.input_nodes[input].init_input_data(self.input_config)
 
+        #for input in self.input_nodes:
+        #   import helper
+        #    for i in range(functools.reduce(operator.mul, self.dimensions, 1)):
+        #        self.input_nodes[input].try_write()
+
     def finalize(self):
         # save data
         for output in self.output_nodes:
