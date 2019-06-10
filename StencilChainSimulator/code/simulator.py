@@ -64,6 +64,13 @@ class Simulator:
         for output in self.output_nodes:
             self.output_nodes[output].write_result_to_file()
 
+    def get_result(self):
+        # return all output data
+        result_dict = dict()
+        for output in self.output_nodes:
+            result_dict[output] = self.output_nodes[output].data_queue.export_data()
+        return result_dict
+
     def all_done(self) -> bool:
         total_elements = functools.reduce(operator.mul, self.dimensions)
 
