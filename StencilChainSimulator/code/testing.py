@@ -162,6 +162,71 @@ from simulator import Simulator
 class SimulatorTest(unittest.TestCase):
 
     def test(self):
+
+        samples = {
+            "sample1":{
+                "file": "stencils/simulator.json",
+                "res": [5.14, 4.14, 5.14, 11.14, 7.14, 8.14]
+            },
+            "sample2": {
+                "file": "stencils/simulator2.json",
+                "res": [3., 4., 3., 4., 5., 4., 3., 4., 3.]
+            },
+            "sample3": {
+                "file": "stencils/simulator3.json",
+                "res": [4., 7., 8., 13., 20., 19., 16., 25., 20.]
+            },
+            "sample4": {
+                "file": "stencils/simulator4.json",
+                "res": [3., 3., 3., 3., 3., 3., 3., 3., 3.]
+            },
+            "sample5": {
+                "file": "stencils/simulator5.json",
+                "res": [7., 9., 7., 9., 11., 9., 7., 9., 7.]
+            },
+            "sample6": {
+                "file": "stencils/simulator6.json",
+                "res": [14., 18., 14., 18., 22., 18., 14., 18., 14.]
+            },
+            "sample7": {
+                "file": "stencils/simulator7.json",
+                "res": [20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25, 16.25]
+            },
+            "sample8": {
+                "file": "stencils/simulator8.json",
+                "res": [4., 8., 12., 16., 20., 24., 28., 32., 36.]
+            },
+            "sample9": {
+                "file": "stencils/simulator9.json",
+                "res": [3., 5., 7., 9., 11., 13.]
+            },
+            "sample10": {
+                "file": "stencils/simulator10.json",
+                "res": [1., 6., 11., 16., 21., 26.]
+            },
+            "sample11": {
+                "file": "stencils/simulator11.json",
+                "res": [4., 2., 3., 10., 5., 6., 16., 8., 9.]
+            },
+            "sample12": {
+                "file": "stencils/simulator12.json",
+                "res": [20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25, 16.25, 20.25, 20.25, 19.25, 20.25, 20.25,
+                        19.25, 16.25, 16.25, 16.25, 20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25, 16.25]
+            }
+        }
+
+        for sample in samples:
+            chain = KernelChainGraph(path=samples[sample]['file'], plot_graph=False)
+            sim = Simulator(input_nodes=chain.input_nodes,
+                            input_config = chain.inputs,
+                            kernel_nodes=chain.kernel_nodes,
+                            output_nodes=chain.output_nodes,
+                            dimensions=chain.dimensions)
+            sim.simulate()
+            self.assertTrue(helper.arrays_are_equal(np.array(samples[sample]['res']), sim.get_result()['res'], 0.01))
+
+
+
         pass # TODO: implement when simulator is ready
 
 
