@@ -3,13 +3,14 @@ import operator
 
 class Simulator:
 
-    def __init__(self, name, input_nodes, input_config, kernel_nodes, output_nodes, dimensions) -> None:
+    def __init__(self, name, input_nodes, input_config, kernel_nodes, output_nodes, dimensions, verbose) -> None:
         self.name = name
         self.dimensions = dimensions
         self.input_nodes = input_nodes
         self.input_config = input_config
         self.kernel_nodes = kernel_nodes
         self.output_nodes = output_nodes
+        self.verbose = verbose
 
     def step_execution(self):
         """
