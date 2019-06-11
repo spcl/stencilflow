@@ -24,7 +24,7 @@ class BaseKernelNodeClass:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name: str, data_queue, data_type: dace.types.typeclass) -> None:
+    def __init__(self, name: str, data_queue, data_type: dace.types.typeclass, verbose: bool = False) -> None:
         self.name: str = name
         self.data_queue: BoundedQueue = data_queue
         self.input_paths: Dict[str, List] = dict()
@@ -35,6 +35,7 @@ class BaseKernelNodeClass:
         if not isinstance(data_type, dace.types.typeclass):
             raise TypeError("Expected dace.types.typeclass, got: " + type(data_type).__name__)
         self.data_type = data_type
+        self.verbose = verbose
 
     def generate_label(self) -> str:  # wrapper for customizations
         return self.name
