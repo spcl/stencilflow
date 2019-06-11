@@ -36,7 +36,6 @@ class BoundedQueue:
         if self.maxsize < len(data):
             raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})".format(self.maxsize, len(data)))
         else:
-            # self.queue: collections.deque = collections.deque(data[::-1], self.maxsize)  # [::-1] reverse array (view) to be consistent with the users view of the data
             self.queue: collections.deque = collections.deque(data, self.maxsize)
             self.current_size = len(data)
 
