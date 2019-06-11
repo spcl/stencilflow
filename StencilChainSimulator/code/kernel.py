@@ -473,12 +473,6 @@ class Kernel(BaseKernelNodeClass):
                 except Exception as ex:
                     self.diagnostics(ex)
         """
-
-        if self.name == 'kernelB' and data is not None:
-            print()
-        elif self.name == 'kernelB':
-            print()
-
         # write result to all output queues
         for outp in self.outputs:
             try:
