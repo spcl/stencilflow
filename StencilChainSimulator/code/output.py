@@ -29,5 +29,5 @@ class Output(BaseKernelNodeClass):
         pass  # nothing to do
 
     def write_result_to_file(self):
-        print("final output: {}".format(self.data_queue.export_data()))
+        # print("final output: {}".format(self.data_queue.export_data()))
         helper.save_array(self.data_queue.export_data(), "{}_{}.dat".format(self.name, "out"))
