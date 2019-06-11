@@ -371,56 +371,6 @@ class Kernel(BaseKernelNodeClass):
         # check if all inputs are available
         self.all_available = self.test_availability()
 
-        _DEBUG = False
-
-        if _DEBUG:
-            if self.name == 'kernelC':
-                print()
-
-            if self.name == 'kernelC' and self.delay_buffer['arrC'].peek(0) is not None:
-                print()
-
-            if self.name == 'kernelC' and self.delay_buffer['kernelB'].peek(0) is not None:
-                print()
-
-
-        _DEBUG = False
-
-        if _DEBUG:
-            if self.name == 'res':
-                print()
-
-            if self.name == 'res' and self.delay_buffer['kA'].peek(0) is not None:
-                print()
-
-            if self.name == 'res' and self.delay_buffer['kB'].peek(0) is not None:
-                print()
-
-
-
-        _DEBUG = False
-
-        if _DEBUG:
-
-            if self.name == 'kB' and self.delay_buffer['kA'].peek(0) is not None:
-                print()
-
-            if self.name == 'kB' and self.all_available:
-                print()
-
-            if self.name == 'kB':
-                print()
-
-            if self.name == 'res':
-                print()
-
-            if self.name == 'res' and self.delay_buffer['kernelA'].peek(0) is not None:
-                print()
-
-            if self.name == 'res' and self.delay_buffer['kernelB'].peek(0) is not None:
-                print()
-
-
         """
         if self.all_available == False:
             all_available = True
