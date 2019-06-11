@@ -6,8 +6,9 @@ from typing import Dict
 
 class Calculator:
 
-    def __init__(self) -> None:
+    def __init__(self, verbose: bool = False) -> None:
         self.calc = self.Calc()
+        self.verbose = verbose
 
     _OP_MAP: Dict[type(ast), type(operator)] = {
         ast.Add: operator.add,

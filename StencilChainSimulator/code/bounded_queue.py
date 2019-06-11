@@ -5,7 +5,7 @@ import numpy as np
 
 class BoundedQueue:
 
-    def __init__(self, name: str, maxsize: int, swap_out: bool = False, collection: List = []) -> None:
+    def __init__(self, name: str, maxsize: int, swap_out: bool = False, collection: List = [], verbose: bool = False) -> None:
         """
         Create new BoundedQueue with given initialization parameters.
         :param name: name of the queue
@@ -23,6 +23,7 @@ class BoundedQueue:
         self.current_size: int = len(collection)
         # indication of where the buffer is located (slow memory or fast memory)
         self.swap_out = swap_out
+        self.verbose = verbose
 
     def __repr__(self):
         return str(self)

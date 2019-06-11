@@ -59,13 +59,14 @@ class Kernel(BaseKernelNodeClass):
     """
 
     def __init__(self, name: str, kernel_string: str, dimensions: List[int], data_type: dace.types.typeclass,
-                 boundary_conditions: Dict[str, str], plot_graph: bool = False) -> None:
+                 boundary_conditions: Dict[str, str], plot_graph: bool = False, verbose: bool = False) -> None:
         super().__init__(name, None, data_type)
 
         # store arguments
         self.kernel_string: str = kernel_string  # raw kernel string input
         self.dimensions: List[int] = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
         self.boundary_conditions = boundary_conditions
+        self.verbose = verbose
 
         # read static parameters from config
         self.config: Dict = helper.parse_json("kernel.config")

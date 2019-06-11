@@ -16,7 +16,7 @@ class Optimizer:
             -
     """
 
-    def __init__(self, kernels: Dict[str, Kernel], dimensions: List[int]):
+    def __init__(self, kernels: Dict[str, Kernel], dimensions: List[int], verbose: bool = False):
         self.dimensions: List[int] = dimensions
         self.kernels = kernels
         self.fast_memory_use: int = 0
@@ -24,6 +24,7 @@ class Optimizer:
         self.metric_data: List[Dict] = list()
         self.add_buffers_to_metric()
         self.reset()
+        self.verbose = verbose
 
     def reinit(self):
         self.fast_memory_use: int = 0

@@ -148,7 +148,7 @@ class Compare(BaseOperationNodeClass):
 
 class ComputeGraph:
 
-    def __init__(self) -> None:
+    def __init__(self, verbose: bool = False) -> None:
 
         # read static parameters from config
         self.config: Dict[str, int] = helper.parse_json("compute_graph.config")
@@ -162,6 +162,7 @@ class ComputeGraph:
         self.buffer_size: Dict[str, List] = None
         self.accesses: Dict[str, List[List]] = dict()  # dictionary containing all field accesses for a specific resource e.g.
         # {"A":{[0,0,0],[0,-1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
+        self.verbose = verbose
 
     @staticmethod
     def create_operation_node(node: ast, number: int) -> BaseOperationNodeClass:
