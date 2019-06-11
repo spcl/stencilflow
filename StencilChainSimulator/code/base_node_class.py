@@ -45,10 +45,11 @@ class BaseOperationNodeClass:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, ast_node: ast, number: int) -> None:
+    def __init__(self, ast_node: ast, number: int, verbose: bool = False) -> None:
         self.number: int = number
         self.name: str = self.generate_name(ast_node)
         self.latency: int = -1
+        self.verbose = verbose
 
     @abstractmethod
     def generate_name(self, ast_node: ast) -> str:  # every subclass must implement this
