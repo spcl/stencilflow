@@ -13,6 +13,7 @@ from kernel_chain_graph import KernelChainGraph
 
 parser = argparse.ArgumentParser()
 parser.add_argument("stencil_file")
+parser.add_argument("--verbose", dest="verbose", action="store_true")
 parser.add_argument("--print-result", dest="print_result", action="store_true")
 parser.add_argument("mode", choices=["emulation", "hardware"])
 args = parser.parse_args()
@@ -23,7 +24,8 @@ name = os.path.basename(args.stencil_file)
 name = re.match("[^\.]+", name).group(0)
 
 # Create SDFG
-chain = KernelChainGraph(args.stencil_file)
+chain = KernelChainGraph(path=args.stencil_file,
+                         verbose=args.verbose)
 sdfg = generate_sdfg(name, chain)
 
 # Configure and compile SDFG

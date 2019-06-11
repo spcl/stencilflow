@@ -15,7 +15,7 @@ from output import Output
 
 class KernelChainGraph:
 
-    def __init__(self, path: str, plot_graph: bool = False) -> None:
+    def __init__(self, path: str, plot_graph: bool = False, verbose = False) -> None:
         self.inputs: Dict[str, List] = dict()
         self.outputs: List[str] = list()
         self.path: str = path
