@@ -1,6 +1,7 @@
 import operator
 import functools
 import helper
+import os
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
 from typing import List
@@ -28,6 +29,9 @@ class Output(BaseKernelNodeClass):
     def try_write(self):
         pass  # nothing to do
 
-    def write_result_to_file(self):
+    def write_result_to_file(self, input_config_name):
         # print("final output: {}".format(self.data_queue.export_data()))
-        helper.save_array(self.data_queue.export_data(), "{}_{}.dat".format(self.name, "out"))
+        output_folder = os.path.join("results", input_config_name)
+        os.makedirs(output_folder, exist_ok=True)
+        helper.save_array(self.data_queue.export_data(), "{}/{}_{}.dat".format(output_folder, self.name, 'simulation'))
+        # print("Results saved to " + output_folder)

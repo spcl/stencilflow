@@ -3,7 +3,8 @@ import operator
 
 class Simulator:
 
-    def __init__(self, input_nodes, input_config, kernel_nodes, output_nodes, dimensions) -> None:
+    def __init__(self, name, input_nodes, input_config, kernel_nodes, output_nodes, dimensions) -> None:
+        self.name = name
         self.dimensions = dimensions
         self.input_nodes = input_nodes
         self.input_config = input_config
@@ -62,7 +63,7 @@ class Simulator:
     def finalize(self):
         # save data
         for output in self.output_nodes:
-            self.output_nodes[output].write_result_to_file()
+            self.output_nodes[output].write_result_to_file(self.name)
 
     def get_result(self):
         # return all output data

@@ -1,6 +1,9 @@
 import argparse
 import operator
 import functools
+import os
+import re
+
 import networkx as nx
 import helper
 from kernel import Kernel
@@ -526,7 +529,8 @@ if __name__ == "__main__":
 
         print("instantiate simulator...")
         from simulator import Simulator
-        sim = Simulator(input_nodes=chain.input_nodes,
+        sim = Simulator(name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
+                        input_nodes=chain.input_nodes,
                         input_config = chain.inputs,
                         kernel_nodes=chain.kernel_nodes,
                         output_nodes=chain.output_nodes,
