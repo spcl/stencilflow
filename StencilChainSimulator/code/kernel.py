@@ -265,7 +265,7 @@ class Kernel(BaseKernelNodeClass):
             if i < n:
                 all_dim = all_dim // index[i]
 
-        print("{}: global index is: {}\n".format(self.name, output))
+        # print("{}: global index is: {}\n".format(self.name, output))
         return output
 
     def is_out_of_bound(self, index):
