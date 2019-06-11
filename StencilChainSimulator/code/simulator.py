@@ -96,12 +96,14 @@ class Simulator:
         while not self.all_done():
             self.step_execution()
             PC += 1
+            '''
             for input in self.input_nodes:
                 print("input:{}, PC: {}".format(input, self.input_nodes[input].program_counter))
             for kernel in self.kernel_nodes:
                 print("kernel:{}, PC: {}".format(kernel, self.kernel_nodes[kernel].program_counter))
             for output in self.output_nodes:
                 print("output:{}, PC: {}".format(output, self.output_nodes[output].program_counter))
+            '''
 
         print("Simulation completed after {} cycles.".format(PC))
 
