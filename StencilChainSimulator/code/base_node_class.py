@@ -99,4 +99,8 @@ class BaseOperationNodeClass:
         return str(self.name)
 
     def generate_label(self) -> str:  # subclass can, if necessary, override the default implementation
+        """
+        Generates the node label.
+        :returns generated label
+        """
         return self.generate_name()
