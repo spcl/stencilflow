@@ -3,13 +3,21 @@ import operator
 import math
 from typing import Dict
 
-
+"""
+    The Calculator (wrapper) class can evaluate a (python) mathematical expression string in conjunction with a variable-to-value 
+    mapping and compute its result.
+"""
 class Calculator:
 
     def __init__(self, verbose: bool = False) -> None:
-        self.calc = self.Calc()
+        # save params
         self.verbose = verbose
+        # create ast calculator object
+        self.calc = self.Calc()
 
+    """
+        Mapping between ast operation object and operator operation object.
+    """
     _OP_MAP: Dict[type(ast), type(operator)] = {
         ast.Add: operator.add,
         ast.Sub: operator.sub,
@@ -18,6 +26,9 @@ class Calculator:
         ast.Invert: operator.neg
     }
 
+    """
+        Mapping between ast comparison object and operator comparison object.
+    """
     _COMP_MAP: Dict[type(ast), type(operator)] = {
         ast.Lt: operator.lt,
         ast.LtE: operator.le,
@@ -26,6 +37,9 @@ class Calculator:
         ast.Eq: operator.eq
     }
 
+    """
+        Mapping between mathematical functions (string) and mathematical objects.
+    """
     _CALL_MAP: Dict[str, type(math)] = {
         "sin": math.sin,
         "cos": math.cos,
@@ -43,48 +57,101 @@ class Calculator:
         """
         return self.calc.evaluate(variable_map, computation_string)
 
+    """
+        Internal Calc class for the actual calculation.
+    """
     class Calc(ast.NodeVisitor):
 
         def __init__(self) -> None:
-            self.var_map: Dict[str, float] = None
+            """
+            Initializes the actual expression evaluator.
+            """
+            # init variable map
+            self.var_map: Dict[str, float] = dict()
 
         def visit_BinOp(self, node: ast) -> float:
+            """
+            Binary operation evaluator.
+            :param node: ast tree node
+            :return: result of binary operation (LHS op RHS)
+            """
             left = self.visit(node.left)
             right = self.visit(node.right)
             return Calculator._OP_MAP[type(node.op)](left, right)
 
         def visit_Num(self, node: ast) -> float:
+            """
+            Numeral evaluator.
+            :param node: ast tree node
+            :return: numeral value
+            """
             return node.n
 
         def visit_Expr(self, node: ast) -> float:
+            """
+            Expression evaluator.
+            :param node: ast tree node
+            :return: value of the expression evaluated with the given variable map
+            """
             return self.visit(node.value)
 
         def visit_IfExp(self, node: ast) -> float:  # added for ternary operations of the (python syntax: a if expr else b)
+            """
+            Ternary operator evaluator.
+            :param node: ast tree node
+            :return: value of if clause if comparison evaluates to true, value of else clause otherwise
+            """
             if self.visit(node.test):  # evaluate comparison
                 return self.visit(node.body)  # use left
             else:
                 return self.visit(node.orelse)  # use right
 
         def visit_Compare(self, node: ast) -> bool:  # added for ternary operations (python syntax: a if expr else b)
+            """
+            Comparison evaluator.
+            :param node: ast tree node
+            :return: whether the comparison evaluates to true of false
+            """
             left = self.visit(node.left)
             right = self.visit(node.comparators[0])
             return Calculator._COMP_MAP[type(node.ops[0])](left, right)
 
         def visit_Name(self, node: ast) -> float:
+            """
+            Variable evaluator.
+            :param node: ast tree node
+            :return: variable value
+            """
             return self.var_map[node.id]
 
         def visit_Call(self, node: ast) -> float:
+            """
+            Function evaluator.
+            :param node: ast tree node
+            :return: value of the evaluated mathematical function
+            """
             return Calculator._CALL_MAP[node.func.id](self.visit(node.args[0]))
 
         @classmethod
-        def evaluate(cls, variable_map: Dict[str, float], expression: str) -> float:
-
+        def evaluate(cls,
+                     variable_map: Dict[str, float],
+                     expression: str) -> float:
+            """
+            Entry point for calculator.
+            :param variable_map: mapping from value names to values
+            :param expression: mathematical expression in string format
+            :return: result of the evaluated string
+            """
+            # remove LHS of the equality sign e.g. 'res=...' --> '...'
             if "=" in expression:
                 expression = expression[expression.find("=")+1:]
-
+            # parse tree
             tree = ast.parse(expression)
+            # create calculator
             calc = cls()
+            # add the variable value mapping
             calc.var_map = variable_map
+            # evaluate expression tree and return result
             return calc.visit(tree.body[0])
 
 
