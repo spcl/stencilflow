@@ -5,15 +5,22 @@ import numpy as np
 
 class BoundedQueue:
 
-    def __init__(self, name: str, maxsize: int, swap_out: bool = False, collection: List = [], verbose: bool = False) -> None:
+    def __init__(self,
+                 name: str,
+                 maxsize: int,
+                 swap_out: bool = False,
+                 collection: List = [],
+                 verbose: bool = False) -> None:
         """
         Create new BoundedQueue with given initialization parameters.
         :param name: name of the queue
         :param maxsize: maximum number of elements the queue can hold at a time
+        :param swap_out: set whether or not the buffer is swapped out (might get overridden by the optimizer)
         :param collection: initial data in queue
+        :param verbose: flag for console output logging
         """
         # save params
-        self.maxsize: int = maxsize if maxsize > 0 else 1  # maxsize
+        self.maxsize: int = maxsize if maxsize > 0 else 1  # maxsize must be at least 1 to correctly forward data
         self.name: str = name
         # create queue
         self.queue: collection.dequeue = collections.deque(collection, self.maxsize)
@@ -21,17 +28,20 @@ class BoundedQueue:
         self.current_size: int = len(collection)
         # indication of where the buffer is located (slow memory or fast memory)
         self.swap_out = swap_out
+        # flag for verbose console output
         self.verbose = verbose
 
     def __repr__(self):
+        # override default implementation to return nice output e.g. if a collection of queue is being printed
         return str(self)
 
     def __str__(self):
+        # return an useful and human readable info string from the queue
         return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
 
     def import_data(self, data):
         """
-        Add data element to queue..
+        Add data elements to queue.
         :param data: initial data in queue
         :return: nothing
         """
@@ -42,11 +52,18 @@ class BoundedQueue:
             self.current_size = len(data)
 
     def export_data(self):
+        """
+        Return the current content of the hole queue.
+        :return: numpy data array
+        """
         return np.array(self.queue)[::-1]
 
     def try_peek_last(self):
-        # check bound
-        if self.current_size > 0:
+        """
+        Return last data element (next element that gets dequeued) without removing it from the queue.
+        :return: last data element on success, False otherwise
+        """
+        if self.current_size > 0:  # check bound
             return self.queue[self.current_size-1]
         else:
             return False
@@ -78,8 +95,7 @@ class BoundedQueue:
         :param item: data element
         :return: None
         """
-        # check bound
-        if self.current_size >= self.maxsize:
+        if self.current_size >= self.maxsize:  # check bound
             raise RuntimeError("buffer {} overflow occurred".format(self.name))
         # add a new item to the left side
         self.queue.appendleft(item)
@@ -91,8 +107,7 @@ class BoundedQueue:
         Remove and return data element from queue, causes an exception if queue is empty.
         :return: data element
         """
-        # check bound
-        if self.current_size > 0:
+        if self.current_size > 0:  # check bound
             # adjust size
             self.current_size -= 1
             # return and remove the rightmost item
