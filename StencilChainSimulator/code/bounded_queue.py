@@ -2,7 +2,10 @@ import collections
 import numpy as np
 from typing import List
 
-
+"""
+    The BoundedQueue class represents or models the buffers within the data flow design of our memory optimization model
+    for the stencil operators on FPGA.
+"""
 class BoundedQueue:
 
     def __init__(self,
