@@ -103,4 +103,4 @@ class BaseOperationNodeClass:
         Generates the node label.
         :returns generated label
         """
-        return self.generate_name()
+        return str(self.name)
