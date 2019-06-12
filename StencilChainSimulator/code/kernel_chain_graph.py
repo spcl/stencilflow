@@ -418,11 +418,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-stencil_file")
     parser.add_argument("-plot", action="store_true")
+    parser.add_argument("-verbose", action="store_true")
     parser.add_argument("-report", action="store_true")
 
     args = parser.parse_args()
 
-    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot)
+    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot, verbose=args.verbose)
 
     if args.report:
 
@@ -534,7 +535,8 @@ if __name__ == "__main__":
                         input_config = chain.inputs,
                         kernel_nodes=chain.kernel_nodes,
                         output_nodes=chain.output_nodes,
-                        dimensions=chain.dimensions)
+                        dimensions=chain.dimensions,
+                        verbose=args.verbose)
         sim.simulate()
 
         print()
