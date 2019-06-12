@@ -12,8 +12,6 @@ class BoundedQueue:
         :param maxsize: maximum number of elements the queue can hold at a time
         :param collection: initial data in queue
         """
-        # check input
-        #assert maxsize > 0
         # save params
         self.maxsize: int = maxsize if maxsize > 0 else 1  # maxsize
         self.name: str = name
@@ -32,7 +30,11 @@ class BoundedQueue:
         return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
 
     def import_data(self, data):
-
+        """
+        Add data element to queue..
+        :param data: initial data in queue
+        :return: nothing
+        """
         if self.maxsize < len(data):
             raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})".format(self.maxsize, len(data)))
         else:
@@ -154,11 +156,13 @@ Notes:
 
 if __name__ == "__main__":
 
-    queue = BoundedQueue("debug", 5, [1, 2, 3, 4, 5])
+    queue = BoundedQueue(name="debug",
+                         maxsize=5,
+                         collection=[1, 2, 3, 4, 5])
 
     try:
         print("Enqueue element into full queue, should throw an exception.")
         queue.enqueue(6)
         print("Peek element at pos=3, value is: " + str(queue.peek(3)))
     except Exception as ex:
-        print("Exception has been thrown.")
+        print("Exception has been thrown.\n{}".format(ex.__traceback__))
