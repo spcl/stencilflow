@@ -5,6 +5,7 @@ from typing import List, Dict
 from bounded_queue import BoundedQueue
 from enum import Enum
 
+
 """
     The BoundaryCondition Enumeration works as an adapter between the input string representation and the programmatically
     more useful enumeration. It defines the strategy used for out-of-bound stencil accesses on the data arrays we iterate
@@ -23,6 +24,7 @@ class BoundaryCondition(Enum):
             return BoundaryCondition.COPY
         else:
             raise Exception("{} is not a valid boundary condition string".format(text))
+
 
 """
     The BaseKernelClass provides all the basic fields and functionality for its subclasses which are the Input, Kernel 
@@ -91,7 +93,8 @@ class BaseOperationNodeClass:
         self.latency: int = -1
 
     @abstractmethod
-    def generate_name(self, ast_node: ast) -> str:  # every subclass must implement this
+    def generate_name(self,
+                      ast_node: ast) -> str:  # every subclass must implement this
         """
         Base class basic implementation of the generate_label method.
         :returns generated label
