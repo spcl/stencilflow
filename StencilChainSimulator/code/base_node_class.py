@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from typing import List, Dict
 from bounded_queue import BoundedQueue
 from enum import Enum
-
+from __future__ import annotations  # support return type of its own class
 
 """
     The BoundaryCondition Enumeration works as an adapter between the input string representation and the programmatically
@@ -17,7 +17,7 @@ class BoundaryCondition(Enum):
     COPY = 2  # copy the last within-bound-value for out-of-bound accesses
 
     @staticmethod
-    def to_bc(text: str):
+    def to_bc(text: str) -> BoundaryCondition:
         if text == "const":
             return BoundaryCondition.CONSTANT
         elif text == "copy":
