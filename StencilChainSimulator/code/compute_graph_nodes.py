@@ -5,11 +5,11 @@ from base_node_class import BaseOperationNodeClass
 from typing import List, Dict
 
 
-"""
-    The Name class is a subclass of the BaseOperationNodeClass and represents the variable name node in the computation
-    tree.
-"""
 class Name(BaseOperationNodeClass):
+    """
+        The Name class is a subclass of the BaseOperationNodeClass and represents the variable name node in the computation
+        tree.
+    """
 
     def __init__(self,
                  ast_node: ast,
@@ -32,10 +32,10 @@ class Name(BaseOperationNodeClass):
         return ast_node.id
 
 
-"""
-    The Name class is a subclass of the BaseOperationNodeClass and represents the numeral node in the computation tree.
-"""
 class Num(BaseOperationNodeClass):
+    """
+        The Name class is a subclass of the BaseOperationNodeClass and represents the numeral node in the computation tree.
+    """
 
     def __init__(self,
                  ast_node: ast,
@@ -58,11 +58,11 @@ class Num(BaseOperationNodeClass):
         return ast_node.n
 
 
-"""
-    The Name class is a subclass of the BaseOperationNodeClass and represents the binary operation node in the 
-    computation tree.
-"""
 class Binop(BaseOperationNodeClass):
+    """
+        The Name class is a subclass of the BaseOperationNodeClass and represents the binary operation node in the
+        computation tree.
+    """
 
     def __init__(self,
                  ast_node: ast,
@@ -114,11 +114,11 @@ class Binop(BaseOperationNodeClass):
         return self._OP_SYM_MAP[self.name]
 
 
-"""
-    The Call class is a subclass of the BaseOperationNodeClass and represents the function calls (e.g. sin/cos,..) node 
-    in the computation tree.
-"""
 class Call(BaseOperationNodeClass):
+    """
+        The Call class is a subclass of the BaseOperationNodeClass and represents the function calls (e.g. sin/cos,..) node
+        in the computation tree.
+    """
 
     def __init__(self,
                  ast_node: ast,
@@ -141,10 +141,10 @@ class Call(BaseOperationNodeClass):
         return ast_node.func.id
 
 
-"""
-    The Output class is a subclass of the BaseOperationNodeClass and represents the output node in the computation tree.
-"""
 class Output(BaseOperationNodeClass):
+    """
+        The Output class is a subclass of the BaseOperationNodeClass and represents the output node in the computation tree.
+    """
 
     def __init__(self,
                  ast_node: ast,
@@ -167,11 +167,11 @@ class Output(BaseOperationNodeClass):
         return ast_node.targets[0].id
 
 
-"""
-    The Subscript class is a subclass of the BaseOperationNodeClass and represents the array field access node in the 
-    computation tree.
-"""
 class Subscript(BaseOperationNodeClass):
+    """
+        The Subscript class is a subclass of the BaseOperationNodeClass and represents the array field access node in the
+        computation tree.
+    """
 
     def __init__(self,
                  ast_node: ast,
@@ -241,11 +241,11 @@ class Subscript(BaseOperationNodeClass):
         return str(self.name) + str(self.index)
 
 
-"""
-    The Ternary operator class is a subclass of the BaseOperationNodeClass and represents ternary operation of the form:
-    expression_true if comparison_expression else expression_false
-"""
 class Ternary(BaseOperationNodeClass):
+    """
+        The Ternary operator class is a subclass of the BaseOperationNodeClass and represents ternary operation of the form:
+        expression_true if comparison_expression else expression_false
+    """
 
     def __init__(self,
                  ast_node: ast,
@@ -268,11 +268,11 @@ class Ternary(BaseOperationNodeClass):
         return "?"
 
 
-"""
-    The Comparison operator class is a subclass of the BaseOperationNodeClass and represents the comparison of two
-"""
 class Compare(BaseOperationNodeClass):
-
+    """
+        The Comparison operator class is a subclass of the BaseOperationNodeClass and represents the comparison of two
+    """
+    
     def __init__(self,
                  ast_node: ast,
                  number: int) -> None:
