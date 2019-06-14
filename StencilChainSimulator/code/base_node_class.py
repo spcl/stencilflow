@@ -6,12 +6,13 @@ from typing import List, Dict
 from bounded_queue import BoundedQueue
 from enum import Enum
 
-"""
-    The BoundaryCondition Enumeration works as an adapter between the input string representation and the programmatically
-    more useful enumeration. It defines the strategy used for out-of-bound stencil accesses on the data arrays we iterate
-    over.
-"""
+
 class BoundaryCondition(Enum):
+    """
+        The BoundaryCondition Enumeration works as an adapter between the input string representation and the programmatically
+        more useful enumeration. It defines the strategy used for out-of-bound stencil accesses on the data arrays we iterate
+        over.
+    """
 
     CONSTANT = 1  # use a fixed (static) value for all out-of-bound accesses
     COPY = 2  # copy the last within-bound-value for out-of-bound accesses
@@ -26,11 +27,11 @@ class BoundaryCondition(Enum):
             raise Exception("{} is not a valid boundary condition string".format(text))
 
 
-"""
-    The BaseKernelClass provides all the basic fields and functionality for its subclasses which are the Input, Kernel 
-    and Output classes. These are nodes of of the KernelChainGraph.
-"""
 class BaseKernelNodeClass:
+    """
+        The BaseKernelClass provides all the basic fields and functionality for its subclasses which are the Input, Kernel
+        and Output classes. These are nodes of of the KernelChainGraph.
+    """
 
     __metaclass__ = ABCMeta
 
@@ -67,12 +68,12 @@ class BaseKernelNodeClass:
         return self.name
 
 
-"""
-    The BaseOperationNodeClass class provides all the basic fields and methods for its subclasses (Num, Subscript,..). 
-    These are the nodes of the ComputeGraph .
-"""
 class BaseOperationNodeClass:
-
+    """
+        The BaseOperationNodeClass class provides all the basic fields and methods for its subclasses (Num, Subscript,..).
+        These are the nodes of the ComputeGraph .
+    """
+    
     __metaclass__ = ABCMeta
 
     def __init__(self,
