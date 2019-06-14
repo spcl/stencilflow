@@ -5,6 +5,13 @@ from typing import List
 """
     The BoundedQueue class represents or models the buffers within the data flow design of our memory optimization model
     for the stencil operators on FPGA.
+    
+    Notes:
+        - implementation:               Uses two stacks as underlying data structure to ensure overall complexity of O(1)
+                                        for appendleft() and pop().
+        - maxsize for bounded queue:    Default behaviour is to remove oldest element of queue, therefore we have to check 
+                                        it and raise an exception.
+        - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
 """
 class BoundedQueue:
 
@@ -163,21 +170,15 @@ class BoundedQueue:
             return self.queue[index]
 
 
-'''
-Notes:
-    - implementation:               Uses two stacks as underlying data structure to ensure overall complexity of O(1)
-                                    for appendleft() and pop().
-    - maxsize for bounded queue:    Default behaviour is to remove oldest element of queue, therefore we have to check 
-                                    it and raise an exception.
-    - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
-'''
-
 if __name__ == "__main__":
-
+    """
+        Simple debugging example
+    """
+    # create dummy queue
     queue = BoundedQueue(name="debug",
                          maxsize=5,
                          collection=[1, 2, 3, 4, 5])
-
+    # do some basic function calls and check if it crashes
     try:
         print("Enqueue element into full queue, should throw an exception.")
         queue.enqueue(6)
