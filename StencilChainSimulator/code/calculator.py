@@ -9,7 +9,7 @@ class Calculator:
         The Calculator (wrapper) class can evaluate a (python) mathematical expression string in conjunction with a variable-to-value
         mapping and compute its result.
     """
-    
+
     def __init__(self, verbose: bool = False) -> None:
         # save params
         self.verbose = verbose

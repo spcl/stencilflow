@@ -374,7 +374,7 @@ class ComputeGraph:
     def latency_tree_walk(self,
                           node: BaseOperationNodeClass) -> None:
         """
-        Compuation tree walk for latency calculation.
+        Computation tree walk for latency calculation.
         :param node: current node
         """
         # check node type
