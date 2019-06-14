@@ -6,16 +6,27 @@ from compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Terna
 from typing import List, Dict, Set
 
 
-"""
-    The ComputeGraph class manages the inner data flow of a single computation respectively a single kernel including its
-    properties e.g. latency, internal buffer sizes and field accesses.
-    
-    Notes:
-        - Creation of a proper graph representation for the computation data flow graph.
-        - Credits for node-visitor: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
-        - More info: https://networkx.github.io/
-"""
 class ComputeGraph:
+    """
+        The ComputeGraph class manages the inner data flow of a single computation respectively a single kernel including its
+        properties e.g. latency, internal buffer sizes and field accesses.
+
+        Notes:
+            - Creation of a proper graph representation for the computation data flow graph.
+            - Credits for node-visitor: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
+            - More info: https://networkx.github.io/
+
+        Note about ast structure:
+            tree.body[i] : i-th expression
+            tree.body[i] = Assign: of type: x = Expr
+            tree.body[i].targets          ->
+            tree.body[i].value = {BinOp, Name, Call}
+            tree.body[i] = Expr:
+            tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
+            tree.body[i].value = Name     -> subtree: .id (name)
+            tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
+            tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
+    """
 
     def __init__(self,
                  verbose: bool = False) -> None:
@@ -32,7 +43,7 @@ class ComputeGraph:
         self.tree: type(ast) = None  # abstract syntax tree (python) data structure
         self.max_latency: int = -1  # (non-valid) initial value for the maximum latency (critical path) of the computational tree
         self.inputs: Set[BaseOperationNodeClass] = set()  # link to all nodes that feed input into this computation
-        self.outputs: Set[BaseOperationNodeClass] = set() # link to all nodes this computation feeds data to
+        self.outputs: Set[BaseOperationNodeClass] = set()  # link to all nodes this computation feeds data to
         self.min_index: Dict[str, List] = dict()  # per input array the last access index of the stencil
         self.max_index: Dict[str, List] = dict()  # per input array the furthest access index of the stencil
         self.buffer_size: Dict[str, List] = dict()  # size (dimensional) from the last to the first access (determines the internal buffer size)
@@ -169,18 +180,6 @@ class ComputeGraph:
                                    "of a DAG).")
         return self.graph
 
-    """
-        Note about ast structure:
-            tree.body[i] : i-th expression
-            tree.body[i] = Assign: of type: x = Expr
-            tree.body[i].targets          ->
-            tree.body[i].value = {BinOp, Name, Call}
-            tree.body[i] = Expr:
-            tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
-            tree.body[i].value = Name     -> subtree: .id (name)
-            tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
-            tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
-    """
     def ast_tree_walk(self,
                       node: ast,
                       number: int) -> BaseOperationNodeClass:
@@ -421,5 +420,5 @@ if __name__ == "__main__":
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()
-    graph.plot_graph("compute_graph_example.png")  # write graph to file
-    # graph.plot_graph()
+    #graph.plot_graph("compute_graph_example.png")  # write graph to file
+    graph.plot_graph()
