@@ -73,7 +73,7 @@ class BaseOperationNodeClass:
         The BaseOperationNodeClass class provides all the basic fields and methods for its subclasses (Num, Subscript,..).
         These are the nodes of the ComputeGraph .
     """
-    
+
     __metaclass__ = ABCMeta
 
     def __init__(self,
