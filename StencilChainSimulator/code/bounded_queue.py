@@ -15,7 +15,7 @@ class BoundedQueue:
                                             it and raise an exception.
             - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
     """
-    
+
     def __init__(self,
                  name: str,
                  maxsize: int,
