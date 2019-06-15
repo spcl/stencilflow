@@ -4,17 +4,22 @@ import os.path
 import functools
 import warnings
 import operator
-from functools import reduce
-from typing import List, Dict
 import dace
 import numpy as np
+from functools import reduce
+from typing import List, Dict
+
+"""
+    This file contains many helper methods that are being re-used in multiple classes and do not specifically belong to 
+    a class.
+"""
 
 
 def deprecated(func):
-    """This is a decorator which can be used to mark functions
-    as deprecated. It will result in a warning being emitted
-    when the function is used."""
-
+    """
+    This is a decorator which can be used to mark functions as deprecated. It will result in a warning being emitted
+    when the function is used.
+    """
     @functools.wraps(func)
     def new_func(*args, **kwargs):
         warnings.simplefilter('always', DeprecationWarning)  # turn off filter
@@ -24,18 +29,22 @@ def deprecated(func):
             stacklevel=2)
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
         return func(*args, **kwargs)
-
     return new_func
 
 
 def str_to_dtype(dtype_str: str) -> dace.types.typeclass:
-    if not isinstance(dtype_str, str):
+    """
+    Conversion from the data type name (string) to its type defined in dace.
+    :param dtype_str: string data type
+    :return: dace data type
+    """
+    if not isinstance(dtype_str, str):  # type check
         raise TypeError("Expected string, got: " + type(dtype_str).__name__)
     try:
-        return getattr(dace.types, dtype_str)
+        return getattr(dace.types, dtype_str)  # match type
     except AttributeError:
         pass
-    raise AttributeError("Unsupported data type: " + dtype_str)
+    raise AttributeError("Unsupported data type: " + dtype_str)  # missmatch
 
 
 def parse_json(config_path: str) -> Dict:
@@ -46,18 +55,15 @@ def parse_json(config_path: str) -> Dict:
     """
     # check file exists
     if not os.path.isfile(config_path):
-        relative = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), config_path)
+        relative = os.path.join(os.path.dirname(os.path.realpath(__file__)), config_path)
         if not os.path.isfile(relative):
             raise Exception("file {} does not exists.".format(config_path))
         config_path = relative
-
     # open file in with-clause, to ensure proper file closing even in the event of an exception
     with open(config_path, "r") as file_handle:
         # try to parse it
         config = json.loads(file_handle.read())  # type: dict
-
-    def walk(d):
+    def walk(d):  # replace string data type in config
         for key, val in d.items():
           if isinstance(val, dict):
               walk(val)
@@ -65,7 +71,6 @@ def parse_json(config_path: str) -> Dict:
               if key == "data_type":
                   d[key] = str_to_dtype(val)
     walk(config)
-
     # return dict
     return config
 
@@ -84,7 +89,8 @@ def max_dict_entry_key(dict1: Dict[str, List[int]]) -> str:
     return max(dict1, key=dict1.get)
 
 
-def list_add_cwise(list1: List, list2: List) -> List:
+def list_add_cwise(list1: List,
+                   list2: List) -> List:
     """
     Merge two lists by component-wise addition.
     :param list1: input list: summand
@@ -102,7 +108,8 @@ def list_add_cwise(list1: List, list2: List) -> List:
     return list(map(lambda x, y: x + y, list1, list2))
 
 
-def list_subtract_cwise(list1: List, list2: List) -> List:
+def list_subtract_cwise(list1: List,
+                        list2: List) -> List:
     """
     Merge two lists by component-wise subtraction.
     :param list1: input list: minuend
@@ -120,7 +127,8 @@ def list_subtract_cwise(list1: List, list2: List) -> List:
     return list(map(lambda x, y: x - y, list1, list2))
 
 
-def dim_to_abs_val(input: List[int], dimensions: List[int]) -> int:
+def dim_to_abs_val(input: List[int],
+                   dimensions: List[int]) -> int:
     """
     Computes scalar number out of independent dimension unit.
     :param input: vector to evaluate
@@ -135,24 +143,25 @@ def dim_to_abs_val(input: List[int], dimensions: List[int]) -> int:
     return reduce(operator.add, map(operator.mul, input, vec))  # inner product
 
 
-def load_array(source_config):
+def load_array(source_config: str):
     """
     Load array from file or list into numpy array.
     :param source_config: External data input file config.
     :return: Data stored in a numpy array.
     """
+    # get path to either source file or direct to the embedded array
     data = source_config["data"]
-    if isinstance(data, str):
+    if isinstance(data, str):  # source file
         if data.endswith(".csv"):
             return np.genfromtxt(data, float, delimiter=',')
         elif data.endswith(".dat"):
             return np.fromfile(data, float)
         else:
             raise ValueError("Invalid file type: " + data)
-    elif isinstance(data, np.ndarray):
+    elif isinstance(data, np.ndarray):  # embedded array: already numpy array
         return data
     else:
-        return np.array(data, dtype=source["data_type"].type)
+        return np.array(data, dtype=source_config["data_type"].type) # embedded array: collection item -> convert to np array
 
 
 def load_input_arrays(program: Dict) -> Dict:
@@ -161,7 +170,8 @@ def load_input_arrays(program: Dict) -> Dict:
     :param program: Program tree as generated by parse_json.
     :return: Dictionary of input names to input data as numpy arrays.
     """
-    input_arrays = {}
+    # add all input arrays to the dict
+    input_arrays = dict()
     for arr_name, source in program["inputs"].items():
         input_arrays[arr_name] = load_array(source)
     return input_arrays
@@ -176,14 +186,13 @@ def save_array(array, path):
     array.tofile(path)
 
 
-def save_output_arrays(outputs: Dict, output_dir=None):
+def save_output_arrays(outputs: Dict, output_dir=str()):
     """
     Saves output arrays to individual files.
     :param outputs: Dictionary of array names to numpy arrays.
     :param output_dir: Folder to store files in.
     """
-    if output_dir is None:
-        output_dir = ""
+    # store all arrays in the output directory path
     for arr_name, arr_data in outputs.items():
         path = os.path.join(output_dir, arr_name + ".dat")
         save_array(arr_data, path)
@@ -200,25 +209,31 @@ def arrays_are_equal(reference, result, tolerance=1e-3):
         reference = load_array(reference)
     if not isinstance(result, np.ndarray):
         result = load_array(result)
-    # Tolerate zeroes by adding epsilon to the divisor
-    relative_diff = (np.abs(reference - result) / (np.maximum.reduce(
-        [reference, result]) + np.finfo(np.float64).eps))
+    # tolerate zeroes by adding epsilon to the divisor
+    relative_diff = (np.abs(reference - result) / (np.maximum.reduce([reference, result]) + np.finfo(np.float64).eps))
     return np.all(relative_diff <= tolerance)
 
 
 def unique(iterable):
-    """ Removes duplicates in the passed iterable. """
+    """
+    Removes duplicates in the passed iterable.
+    :param iterable: iterable with potential duplicates
+    :return iterable without duplicates
+    """
     try:
-        return type(iterable)([
-            i for i in sorted(set(iterable), key=lambda x: iterable.index(x))
-        ])
+        return type(iterable)([i for i in sorted(set(iterable), key=lambda x: iterable.index(x))])
     except TypeError:
         return type(iterable)(collections.OrderedDict(
             zip(map(str, iterable), iterable)).values())
 
 
-
 def convert_3d_to_1d(dimensions: List[int], index: List[int]) -> int:
+    """
+    Convert the size of form [a, b, c] to absolute values according to the global dimensions of the problem.
+    :param dimensions: problem size (e.g. size of the input arrays)
+    :param index: 3d value of the size
+    :return the 1d value of the size
+    """
     # convert [i, j, k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
     # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
     if not index:
@@ -227,6 +242,9 @@ def convert_3d_to_1d(dimensions: List[int], index: List[int]) -> int:
 
 
 if __name__ == "__main__":
+    """
+        Basic helper function test. Comprehensive testing is implemented in 'testing.py'.
+    """
     example_list = [[1, 2, 2], [1, 2, 3], [3, 2, 1], [2, 3, 1]]
     print("properties of list {}:\nmin: {}\nmax: {}\n".format(
         example_list, min(example_list), max(example_list)))
