@@ -72,8 +72,11 @@ def do_estimate():
     critical_path_sum = functools.reduce(lambda x, y: helper.list_add_cwise(x, y), critical_paths, [0] * 3)
     mean: List[int] = list(map(lambda x: x / len(critical_paths), critical_path_sum))
     _MEAN_CRITICAL_PATH_KERNEL: List[int] = mean
+    print("Mean critical path length of the three stencils is: {}".format(mean))
     # print header
+    print("###########################################################")
     print("COSMO dynamical core buffer size estimate report:\n")
+    print("###########################################################")
     # instantiate the dummy-dycore to get full analysis
     chain = KernelChainGraph("input/dycore_upper_half_3.json")
     # assumption: since we implemented ~1/2 of the dycore in the dummy input file, we assume the critical path is 2x longer
