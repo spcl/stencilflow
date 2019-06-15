@@ -272,7 +272,7 @@ class Compare(BaseOperationNodeClass):
     """
         The Comparison operator class is a subclass of the BaseOperationNodeClass and represents the comparison of two
     """
-    
+
     def __init__(self,
                  ast_node: ast,
                  number: int) -> None:
@@ -298,7 +298,7 @@ class Compare(BaseOperationNodeClass):
     }
 
     """
-        Mapping between the operator comparison operator and its string symbol.
+        Mapping between the operator comparison operator and its mathematical string symbol.
     """
     _COMP_SYM: Dict[type(operator), str] = {
         operator.lt: "<",
@@ -316,3 +316,60 @@ class Compare(BaseOperationNodeClass):
         :returns generated name
         """
         return self._COMP_SYM[self.op]
+
+
+class UnaryOp(BaseOperationNodeClass):
+    """
+         The UnaryOp operator class is a subclass of the BaseOperationNodeClass and represents unary operations. In our
+         case we only support negation (mathematical - sign) as unary operation.
+     """
+
+    def __init__(self,
+                 ast_node: ast,
+                 number: int) -> None:
+        """
+        Create new unary operation node with given initialization parameters.
+        :param ast_node: abstract syntax tree node of the computation
+        :param number: tree walk numbering
+        """
+        # set unary operator field
+        self.op: operator = self._UNARYOP_MAP[type(ast_node.op)]
+        # initialize superclass
+        super().__init__(ast_node, number)
+
+    """
+        Mapping between the ast unary operation and the operator operation.
+    """
+    _UNARYOP_MAP: Dict[type(ast), type(operator)] = {
+        ast.USub: operator.sub
+    }
+
+    """
+        Mapping between the operator unary operator and its mathematical string.
+    """
+    _UNARYOP_SYM: Dict[type(operator), str] = {
+        operator.sub: "neg"
+    }
+
+    """
+         Mapping between the mathematical string and its symbol.
+     """
+    _UNARYOP_SYM_NAME = {
+        "neg": "-"
+    }
+
+    def generate_name(self,
+                      ast_node: ast) -> str:
+        """
+        Unary operator implementation of generate_name.
+        :param ast_node: abstract syntax tree node of the computation
+        :returns generated name
+        """
+        return self._UNARYOP_SYM[self.op]
+
+    def generate_op_sym(self) -> str:
+        """
+        Generates the symbol of the mathematical operation out of the operation string.
+        :returns generated symbol
+        """
+        return self._UNARYOP_SYM_NAME[self.name]

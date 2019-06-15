@@ -2,7 +2,7 @@ import ast
 import helper
 import networkx as nx
 from base_node_class import BaseOperationNodeClass
-from compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
+from compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 from typing import List, Dict, Set
 
 
@@ -75,6 +75,8 @@ class ComputeGraph:
             return Ternary(node, number)
         elif isinstance(node, ast.Compare):  # comparison of ternary operation
             return Compare(node, number)
+        elif isinstance(node, ast.UnaryOp):  # negation of value ('-' sign)
+            return UnaryOp(node, number)
         else:
             raise Exception("Unknown AST type {}".format(type(node)))
 
@@ -235,6 +237,11 @@ class ComputeGraph:
             self.graph.add_edge(true_path, new_node)
             self.graph.add_edge(false_path, new_node)
             self.graph.add_edge(test, new_node)
+        elif isinstance(node, ast.UnaryOp):
+            # do tree-walk recursively and get references to child
+            operand = self.ast_tree_walk(node.operand, ComputeGraph.child_right_number(number))
+            # add edges form parent to child
+            self.graph.add_edge(operand, new_node)
         return new_node
 
     @staticmethod
@@ -279,7 +286,7 @@ class ComputeGraph:
                 nums.append(node)
             elif isinstance(node, Name) or isinstance(node, Subscript):  # variables
                 names.append(node)
-            elif isinstance(node, Binop) or isinstance(node, Call):  # operations
+            elif isinstance(node, Binop) or isinstance(node, Call) or isinstance(node, UnaryOp):  # operations
                 ops.append(node)
             elif isinstance(node, Output):  # outputs
                 outs.append(node)
@@ -378,7 +385,7 @@ class ComputeGraph:
         :param node: current node
         """
         # check node type
-        if isinstance(node, Name) or isinstance(node, Num):  # variable or numeral: no additional latency
+        if isinstance(node, Name) or isinstance(node, Num) or isinstance(node, Subscript):  # variable or numeral: no additional latency
             # copy parent latency to children
             for child in self.graph.pred[node]:
                 child.latency = node.latency
@@ -409,6 +416,15 @@ class ComputeGraph:
             for child in self.graph.pred[node]:
                 child.latency = max(child.latency, node.latency + op_latency)
                 self.latency_tree_walk(child)
+        elif isinstance(node, UnaryOp):  # unary operator
+            # get op latency from config
+            op_latency = self.config["op_latency"][node.name]
+            # add latency to children
+            for child in self.graph.pred[node]:
+                child.latency = max(child.latency, node.latency + op_latency)
+                self.latency_tree_walk(child)
+        else:
+            raise NotImplementedError("Node type {} has not been implemented yet.".format(type(node)))
         self.try_set_max_latency(node.latency)
 
 
@@ -416,9 +432,9 @@ if __name__ == "__main__":
     """
         simple debugging example
     """
-    computation = "res = a if (a+1 > b-c) else b; b = d + e"
+    computation = "res = -a if (a+1 > b-c) else b; b = d + e"
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()
-    #graph.plot_graph("compute_graph_example.png")  # write graph to file
+    # graph.plot_graph("compute_graph_example.png")  # write graph to file
     graph.plot_graph()
