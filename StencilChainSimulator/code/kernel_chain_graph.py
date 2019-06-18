@@ -10,6 +10,7 @@ from bounded_queue import BoundedQueue
 from typing import List, Dict
 from input import Input
 from output import Output
+from dace.types import typeclass
 
 
 class KernelChainGraph:
@@ -23,10 +24,10 @@ class KernelChainGraph:
                  plot_graph: bool = False,
                  verbose = False) -> None:
         """
-
-        :param path:
-        :param plot_graph:
-        :param verbose:
+        Create new KernelChainGraph with given initialization parameters.
+        :param path: path to the input file
+        :param plot_graph: flag indication whether or not to produce the graphical graph representation
+        :param verbose: flag for console output logging
         """
         # set parameters
         self.path: str = path
@@ -261,10 +262,11 @@ class KernelChainGraph:
         # create all kernel objects and add them to the graph
         self.kernel_nodes = dict()
         for kernel in self.program:
+
             new_node = Kernel(name=kernel,
                               kernel_string=str(self.program[kernel]['computation_string']),
                               dimensions=self.dimensions,
-                              data_type=helper.str_to_dtype(str(self.program[kernel]['data_type'])),
+                              data_type=typeclass(self.program[kernel]['data_type']),
                               boundary_conditions=self.program[kernel]['boundary_condition'])
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
@@ -272,7 +274,7 @@ class KernelChainGraph:
         self.input_nodes = dict()
         for inp in self.inputs:
             new_node = Input(name=inp,
-                             data_type=helper.str_to_dtype(self.inputs[inp]["data_type"]),
+                             data_type=typeclass(self.inputs[inp]["data_type"]),
                              data_queue=BoundedQueue(name=inp,
                                                      maxsize=self.total_elements(),
                                                      collection=[None]*self.total_elements()))
@@ -282,7 +284,7 @@ class KernelChainGraph:
         self.output_nodes = dict()
         for out in self.outputs:
             new_node = Output(name=out,
-                              data_type=helper.str_to_dtype(str(self.program[out]["data_type"])),
+                              data_type=typeclass(self.program[out]["data_type"]),
                               dimensions=self.dimensions,
                               data_queue=BoundedQueue(name="dummy", maxsize=0))
             self.output_nodes[out] = new_node
