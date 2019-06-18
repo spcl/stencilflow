@@ -194,7 +194,7 @@ class Kernel(BaseKernelNodeClass):
 
     def remove_duplicate_accesses(self, inp: List) -> List:
         tuple_set = set(tuple(row) for row in inp)
-        return [[x,y,z] for (x,y,z) in tuple_set]
+        return [list(t) for t in tuple_set]
 
     def setup_internal_buffers(self) -> None:
 
