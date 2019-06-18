@@ -1,238 +1,288 @@
 import functools
+import operator
 from typing import List, Dict
+
 import dace.types
+
 import helper
 from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
 from bounded_queue import BoundedQueue
 from calculator import Calculator
 from compute_graph import ComputeGraph
-from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare
+from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 from input import Input
-import numpy as np
-import operator
+
 
 class Kernel(BaseKernelNodeClass):
     """
-        interface for FPGA-like execution (get called from the scheduler)
-
-            - read:
-                    - saturation phase: read unconditionally
-                    - execution phase: read all inputs iff they are available
-            - execute:
-                    - saturation phase: do nothing
-                    - execution phase: if input read, execute stencil using the input
-            - write:
-                    - saturation phase: do nothing
-                    - execution phase: write result from execution to output buffers
-                        --> if output buffer overflows: assumptions about size were wrong!
-
-            - return:
-                    - True  iff successful
-                    - False otherwise
-
-            - boundary condition:
-                    - We know that the stencil boundary conditions in the COSMO model are functions of the local
-                      neighbourhood (e.g. gradient, average, replicate value form n to n+1 (border replication),...)
-                    - Idea: We implement the border replication strategy for all scenarios statically (this is enough
-                      accuracy, since the latency would be most likely the same (the strategies mentioned above can be
-                      implemented in parallel in hardware), and the amount of buffer space does not change as well.
-                      Therefore this is a valid assumption and reduction of the problem complexity.
-
-            - note:
-                    - re-emptying of queue after reaching bound
-                    - scenario:
-                      suppose:  for i=1..N
-                                    for j=1..M
-                                        for k=1..P
-                                            out[i,j,k] = in[i-1,j,k] + in[i,j,k] + in[i+1,j,k]
-                                        end
-                                    end
-                                end
-                      the internal buffer is of size: 2*P*N
-                       j
-                      /
-                      --> i     in the case above we have to buffer 2 complete layers in i-j-direction till we can start
-                      |         doing meaning full pipeline operations
-                      k
-
-                      if we reach the bound i == N, TODO: special handling?
+        The Kernel class is a subclass of the BaseKernelNodeClass and represents the actual kernel node in the
+        KernelChainGraph. This class is able to read from predecessors, process it according to the stencil expression
+        and write the result to the successor channels. In addition it analyses the buffer sizes and latencies of the
+        computation according  to the defined latencies.
     """
 
-    def __init__(self, name: str, kernel_string: str, dimensions: List[int], data_type: dace.types.typeclass,
-                 boundary_conditions: Dict[str, str], plot_graph: bool = False, verbose: bool = False) -> None:
-        super().__init__(name, None, data_type)
+    def __init__(self,
+                 name: str,
+                 kernel_string: str,
+                 dimensions: List[int],
+                 data_type: dace.types.typeclass,
+                 boundary_conditions: Dict[str, Dict[str, str]],
+                 plot_graph: bool = False,
+                 verbose: bool = False) -> None:
+        """
 
+        :param name: name of the kernel
+        :param kernel_string: mathematical expression representing the stencil computation
+        :param dimensions: global dimensions / problem size (i.e. size of the input array
+        :param data_type: data type of the result produced by this kernel
+        :param boundary_conditions: dictionary of the boundary condition for each input channel/field
+        :param plot_graph: flag indicating whether the underlying graph is being drawn
+        :param verbose: flag for console output logging
+        """
+        # initialize the superclass
+        super().__init__(name, BoundedQueue(name="dummy", maxsize=0), data_type)
         # store arguments
         self.kernel_string: str = kernel_string  # raw kernel string input
-        self.dimensions: List[int] = dimensions  # type: [int, int, int] # input array dimensions [dimX, dimY, dimZ]
-        self.boundary_conditions = boundary_conditions
+        self.dimensions: List[int] = dimensions  # input array dimensions [dimX, dimY, dimZ]
+        self.boundary_conditions: Dict[str, Dict[str, str]] = boundary_conditions  # boundary_conditions[field_name]
         self.verbose = verbose
-
         # read static parameters from config
         self.config: Dict = helper.parse_json("kernel.config")
         self.calculator: Calculator = Calculator()
-
+        # set simulator initial parameters
         self.all_available = False
         self.not_available = set()
-
-        # analyse input
+        # analyze input
         self.graph: ComputeGraph = ComputeGraph()
-        self.graph.generate_graph(kernel_string)
-        self.graph.calculate_latency()
-        self.graph.determine_inputs_outputs()
+        self.graph.generate_graph(kernel_string)  # generate the ast computation graph from the mathematicl expression
+        self.graph.calculate_latency()  # calculate the latency in the compuation tree to find the critical path
+        self.graph.determine_inputs_outputs()  # sort out input nodes (field accesses and constant values) and output nodes
         self.graph.setup_internal_buffers()
+        # set plot path (if plot is set to True)
         if plot_graph:
             self.graph.plot_graph(name + ".png")
-
         # init sim specific params
-        self.var_map: Dict[str, float] = None  # var_map[var_name] = var_value
-        self.read_success: bool = False
-        self.exec_success: bool = False
-        self.result: float = None
+        self.var_map: Dict[
+            str, float] = dict()  # mapping between variable names and its (current) value: var_map[var_name] = var_value
+        self.read_success: bool = False  # flag indicating if read has been successful from all input nodes (=> ready to execute)
+        self.exec_success: bool = False  # flag indicating if the execution has been successful
+        self.result: float = float('nan')  # execution result of current iteration (see program counter)
         self.outputs: Dict[str, BoundedQueue] = dict()
-
         # output delay queue: for simulation of calculation latency, fill it up with bubbles
         self.out_delay_queue: BoundedQueue = BoundedQueue(name="delay_output",
-                                                          maxsize=self.graph.max_latency+1,
-                                                          collection=[None] * (self.graph.max_latency))
-
+                                                          maxsize=self.graph.max_latency + 1,
+                                                          collection=[None] * self.graph.max_latency)
         # setup internal buffer queues
         self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
-
+        # this method takes care of the (falsely) executed kernel in case of not having a field access at [0,0,0] present
+        # and the implication that there might be only fields out of bound s.t. there is a result produced, but there
+        # should not be a result yet (see paper example ref# TODO)
         self.dist_to_center: Dict = dict()
         self.set_up_dist_to_center()
         self.center_reached = False
 
     def set_up_dist_to_center(self):
+        """
+        Computes for all fields/channels the distance from the furthest field access to the center of the stencil ([0,0,0,]).
+        """
         for item in self.graph.accesses:
             furthest = max(self.graph.accesses[item])
             self.dist_to_center[item] = helper.dim_to_abs_val(furthest, self.dimensions)
 
-
-    def iter_comp_tree(self, node: BaseOperationNodeClass, index_relative_to_center=True, replace_negative_index=False) -> str:
-
+    def iter_comp_tree(self,
+                       node: BaseOperationNodeClass,
+                       index_relative_to_center=True,
+                       replace_negative_index=False) -> str:
+        """
+        Iterate through the computation tree in order to generate the kernel string (according to some properties
+        e.g. relative to center or replace negative index.
+        :param node: current node in the tree
+        :param index_relative_to_center: indication wheter the zero index should be at the center of the stencil or the furthest element
+        :param replace_negative_index: replace the negativ sign '-' by n in order to create variable names that are not
+        being split up by the python expression parser (Calculator)
+        :return: computation string of the subgraph
+        """
+        # get predecessor list
         pred = list(self.graph.graph.pred[node])
-
-        if isinstance(node, Binop):
-            lhs = pred[0]
-            rhs = pred[1]
-            return "(" + self.iter_comp_tree(lhs,
-                                             index_relative_to_center, replace_negative_index) + " " + node.generate_op_sym() + " " + self.iter_comp_tree(
-                rhs, index_relative_to_center, replace_negative_index) + ")"
-        elif isinstance(node, Call):
-            return node.name + "(" + self.iter_comp_tree(pred[0], index_relative_to_center, replace_negative_index) + ")"
+        # differentiate cases for each node type
+        if isinstance(node, Binop):  # binary operation
+            # extract expression elements
+            lhs = pred[0]  # left hand side
+            rhs = pred[1]  # right hand side
+            # recursively compute the child string
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index)
+            # return formatted string
+            return "({} {} {})".format(lhs_str, node.generate_op_sym(), rhs_str)
+        elif isinstance(node, Call):  # function call
+            # extract expression element
+            expr = pred[0]
+            # recursively compute the child string
+            expr_str = self.iter_comp_tree(expr, index_relative_to_center, replace_negative_index)
+            # return formatted string
+            return "{}({})".format(node.name, expr_str)
         elif isinstance(node, Name) or isinstance(node, Num):
-            return str(node.name)
+            # return formatted string
+            return str(node.name)  # variable name
         elif isinstance(node, Subscript):
+            # compute correct indexing according to the flag
             if index_relative_to_center:
                 dim_index = node.index
             else:
                 dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
+            # break down index from 3D (i.e. [X,Y,Z]) to 1D
             word_index = self.convert_3d_to_1d(dim_index)
-
+            # replace negative sign if the flag is set
             if replace_negative_index and word_index < 0:
                 return node.name + "[" + "n" + str(abs(word_index)) + "]"
             else:
                 return node.name + "[" + str(word_index) + "]"
-        elif isinstance(node, Ternary):
-
-            compare = [x for x in pred if type(x) == Compare][0]
-            lhs = [x for x in pred if type(x) != Compare][0]
-            rhs = [x for x in pred if type(x) != Compare][1]
-
-            return "(({}) if ({}) else ({}))".format(self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index),
-                                             self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index),
-                                             self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index))
-        elif isinstance(node, Compare):
-            return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center, replace_negative_index), str(node.name),
-                                     self.iter_comp_tree(pred[1], index_relative_to_center, replace_negative_index))
-        elif isinstance(node, UnaryOp):
+        elif isinstance(node, Ternary):  # ternary operator of the form true_expr if comp else false_expr
+            # extract expression elements
+            compare = [x for x in pred if type(x) == Compare][0]  # comparison
+            lhs = [x for x in pred if type(x) != Compare][0]  # left hand side
+            rhs = [x for x in pred if type(x) != Compare][1]  # right hand side
+            # recursively compute the child string
+            compare_str = self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index)
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index)
+            # return formatted string
+            return "(({}) if ({}) else ({}))".format(lhs_str, compare_str, rhs_str)
+        elif isinstance(node, Compare):  # comparison
+            # extract expression element
+            lhs = pred[0]
+            rhs = pred[1]
+            # recursively compute the child string
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index)
+            # return formatted string
+            return "{} {} {}".format(lhs_str, str(node.name), rhs_str)
+        elif isinstance(node, UnaryOp):  # unary operations e.g. negation
+            # extract expression element
             expr = pred[0]
-            return "({}{})".format(node.generate_op_sym(), self.iter_comp_tree(node=expr,
-                                                                               index_relative_to_center=index_relative_to_center,
-                                                                               replace_negative_index=replace_negative_index))
+            # recursively compute the child string
+            expr_str = self.iter_comp_tree(node=expr, index_relative_to_center=index_relative_to_center, replace_negative_index=replace_negative_index)
+            # return formatted string
+            return "({}{})".format(node.generate_op_sym(), expr_str)
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
-    def generate_relative_access_kernel_string(self, relative_to_center=True, replace_negative_index=False) -> str:
+    def generate_relative_access_kernel_string(self,
+                                               relative_to_center=True,
+                                               replace_negative_index=False) -> str:
+        """
+        Generates the relative (either to the center or to the furthest field access) access kernel string which
+        is necessary for the code generator HLS tool.
+        :param relative_to_center: if true, the center is at zero, otherwise the furthest access is at zero
+        :param replace_negative_index: if true, all negative access signs e.g. arrA_-20 gets replaced by n e.g.
+        arrA_n20 in order to be correctly recognised as a single variable name.
+        :return: the generated relative access kernel string
+        """
         # format: 'res = vdc[index1] + vout[index2]'
-
         res = []
-
-        # Treat named nodes
+        # treat named nodes
         for n in self.graph.graph.nodes:
             if isinstance(n, Name):
                 res.append(n.name + " = " + self.iter_comp_tree(
                     list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index))
-
-        # Treat output node
+        # treat output node(s)
         output_node = [
             n for n in self.graph.graph.nodes if isinstance(n, Output)
         ]
         if len(output_node) != 1:
             raise Exception("Expected a single output node")
         output_node = output_node[0]
-
+        # concatenate the expressions
         res.append("res = " + self.iter_comp_tree(
-            list(self.graph.graph.pred[output_node])[0], index_relative_to_center=relative_to_center, replace_negative_index=replace_negative_index))
-
+            list(self.graph.graph.pred[output_node])[0], index_relative_to_center=relative_to_center,
+            replace_negative_index=replace_negative_index))
         return "; ".join(res)
 
     def reset_old_compute_state(self) -> None:
+        """
+        Reset the internal kernel simulator state in order to be prepared for the next iteration.
+        """
         self.var_map = dict()
         self.read_success = False
         self.exec_success = False
         self.result = None
 
-    def convert_3d_to_1d(self, index: List[int]) -> int:
-        # convert [i, j, k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
-        # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
+    def convert_3d_to_1d(self,
+                         index: List[int]) -> int:
+        """
+        Convert [i,j,k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
+        :param index: index array to be converted to 1D
+        :return: scalar value of the computation i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
+        """
+        # do computation: index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k if the array is not empty
         if not index:
             return 0  # empty list
         return helper.dim_to_abs_val(index, self.dimensions)
 
-    def remove_duplicate_accesses(self, inp: List) -> List:
+    def remove_duplicate_accesses(self,
+                                  inp: List) -> List:
+        """
+        Remove duplicate accesses of the given input array.
+        :param inp: List with duplicates.
+        :return: List without duplicates.
+        """
         tuple_set = set(tuple(row) for row in inp)
-        return [[x,y,z] for (x,y,z) in tuple_set]
+        return [[x, y, z] for (x, y, z) in tuple_set]
 
     def setup_internal_buffers(self) -> None:
-
+        """
+        Create and split the internal buffers according to the pipline model (see paper example ref# TODO)
+        :return:
+        """
         # remove duplicate accesses
         for item in self.graph.accesses:
             self.graph.accesses[item] = self.remove_duplicate_accesses(self.graph.accesses[item])
-
         # slice the internal buffer into junks of accesses
         for buf_name in self.graph.buffer_size:
-            self.internal_buffer[buf_name] = list()
+            # create empty list and sort the accesses according to their relative position
+            self.internal_buffer[buf_name]: List[BoundedQueue] = list()
             list.sort(self.graph.accesses[buf_name], reverse=True)
-
-            if len(self.graph.accesses[buf_name]) == 0:
+            # split according to the cases
+            if len(self.graph.accesses[buf_name]) == 0:  # empty list
                 pass
-            elif len(self.graph.accesses[buf_name]) == 1:
+            elif len(self.graph.accesses[buf_name]) == 1:  # single entry list
                 # this line would add an additional internal buffer for fields that only have a single access
-                # TODO: check if this is always 1, also for non-[0,0,0] indices
                 self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=1, collection=[None]))
-            else:
+            else:  # many entry list
+                # iterate through all of them and split them into correct sizes
                 itr = self.graph.accesses[buf_name].__iter__()
                 pre = itr.__next__()
                 for item in itr:
                     curr = item
-
+                    # calculate size of buffer
                     diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
-                    if diff == 0: # two accesses on same field
+                    if diff == 0:  # two accesses on same field
                         pass
                     else:
-                        self.internal_buffer[buf_name].append(BoundedQueue(name=buf_name, maxsize=diff, collection=[None]*diff))
-
+                        self.internal_buffer[buf_name].append(
+                            BoundedQueue(name=buf_name, maxsize=diff, collection=[None] * diff))
                     pre = curr
 
-    def buffer_position(self, access: BaseKernelNodeClass) -> int:
+    def buffer_position(self,
+                        access: BaseKernelNodeClass) -> int:
+        """
+        Computes the offset position within the buffer list
+        :param access: the access index we want to know the buffer position
+        :return: the offset from the access
+        """
         return self.convert_3d_to_1d(self.graph.min_index[access.name]) - self.convert_3d_to_1d(access.index)
 
-    def index_to_ijk(self, index: List[int]):
-        if len(index):
-            '''
+    def index_to_ijk(self,
+                     index: List[int]):
+        """
+        Creates a string of the access (for variable name generation).
+        :param index: access
+        :return: created string
+        """
+        # current implementation only supports 3 dimension (default)
+        if len(index) == 3:
+            """
             # v1:
             return "[i{},j{},k{}]".format(
                 "" if index[0] == 0 else "+{}".format(index[0]),
@@ -241,57 +291,82 @@ class Kernel(BaseKernelNodeClass):
             )
             # v2:
             return "_{}_{}_{}".format(index[0], index[1], index[2])
-            '''
+            """
+            # compute absolute index
             ind = helper.convert_3d_to_1d(self.dimensions, index)
+            # return formatted string
             return "_{}".format(ind) if ind >= 0 else "_n{}".format(abs(ind))
         else:
-            raise NotImplementedError("Method index_to_ijk has not been implemented for |indices|!=3, here: |indices|={}".format(len(index)))
+            raise NotImplementedError(
+                "Method index_to_ijk has not been implemented for |indices|!=3, here: |indices|={}".format(len(index)))
 
-    def buffer_number(self, node: Subscript):
+    def buffer_number(self,
+                      node: Subscript):
+        """
+        Computes the index within the internal buffer array for accessing the input node.
+        :param node: input node
+        :return: index (-1: delay buffer, >= 0: internal buffer index)
+        """
+        # select all matching inputs
         selected = [x.index for x in self.graph.inputs if x.name == node.name]
+        # remove duplicates
         selected_unique = self.remove_duplicate_accesses(selected)
+        # sort them to have them ordered by the access
         ordered = sorted(selected_unique, reverse=True)
+        # get the position within the sorted list
         result = ordered.index(node.index)
         return result - 1
-        # selected = [x for x in self.graph.inputs if x.name == node.name]
-        # ordered = sorted(selected, key=lambda x:x.index, reverse=True)
-        # return ordered.index(node) - 1
 
     def get_global_kernel_index(self) -> List[int]:
+        """
+        Return the current position (simulator, program counter) within the comutation as a list of the form
+        [i,j,k].
+        :return: current global kernel position as [i,j,k]
+        """
+        # get dimensions and PC
         index = self.dimensions
         number = self.program_counter
+        # convert the absolute value (PC) to its corresponding position in the given 3D space.
         n = len(index)
-        all_dim = functools.reduce(operator.mul, index, 1) // index[0]
-
+        all_dim = functools.reduce(operator.mul, index, 1) // index[0]  # integer arithmetic
         output = list()
-
         for i in range(1, n + 1):
             output.append(number // all_dim)
             number -= output[-1] * all_dim
             if i < n:
                 all_dim = all_dim // index[i]
-
-        # print("{}: global index is: {}\n".format(self.name, output))
         return output
 
-    def is_out_of_bound(self, index):
-
+    def is_out_of_bound(self,
+                        index: List[int]) -> bool:
+        """
+        Checks whether the current access is within bounds or not.
+        :param index: access index
+        :return: true: within bounds, false: otherwise
+        """
+        # check all dimensions boundary
         for i in range(len(index)):
             if index[i] < 0 or index[i] >= self.dimensions[i]:
                 return True
         return False
 
-    def get_data(self, inp: Input, global_index: List[int], relative_index: List[int]):
+    def get_data(self,
+                 inp: Subscript,
+                 global_index: List[int],
+                 relative_index: List[int]):
         """
-        returns data of current stencil access (could be real data or boundary condition)
+        Returns data of current stencil access (could be real data or boundary condition)
+        :param inp: array field access
         :param global_index: center location of current stencil
         :param relative_index: offset from center of stencil
         :return: data
         """
+        # get the access index
+        access_index = helper.list_add_cwise(global_index, relative_index)
         """
             Boundary Condition
         """
-        access_index = helper.list_add_cwise(global_index, relative_index)
+        # check if it is within bounds
         if self.is_out_of_bound(access_index):
             if self.boundary_conditions[inp.name]["type"] == "constant":
                 return self.boundary_conditions[inp.name]["value"]
@@ -303,134 +378,129 @@ class Kernel(BaseKernelNodeClass):
         """
             Data Access
         """
+        # get index position within the buffers
         pos = self.buffer_number(inp)
         if pos == -1:  # delay buffer
             return self.inputs[inp.name]["delay_buffer"].try_peek_last()
-        elif pos >= 0:
+        elif pos >= 0:  # internal buffer
             return self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
 
     def test_availability(self):
-
+        """
+        Check if all accesses are available (=> ready for execution). In addition to that, the method delivers all
+        accesses that are not available yet.
+        :return: true: all available, false: otherwise
+        """
+        # set initial value and init set
         all_available = True
         self.not_available = set()
-
+        # iterate through all inputs
         for inp in self.graph.inputs:
-
-            if isinstance(inp, Num):
+            # case split for types
+            if isinstance(inp, Num):  # numerals are always available
                 pass
-            elif len(self.inputs[inp.name]['internal_buffer']) == 0:
+            elif len(self.inputs[inp.name]['internal_buffer']) == 0:  # no internal buffer
                 pass
-            elif isinstance(inp, Subscript):
+            elif isinstance(inp, Subscript):  # normal subscript access
+                # get current internal state position in [i,j,k] format
                 gki = self.get_global_kernel_index()
+                # check bound, out of bound is handled by the boundary condition automatically (always available for constant)
                 if self.is_out_of_bound(helper.list_add_cwise(inp.index, gki)):
                     pass
-                else:
+                else:  # within bounds
+                    # get position and check if the value (not None) is available
                     index = self.buffer_number(inp)
-                    if index == -1:
+                    if index == -1:  # delay buffer
                         if self.inputs[inp.name]['delay_buffer'].try_peek_last() is None or self.inputs[inp.name]['delay_buffer'].try_peek_last() is False:
                             all_available = False
                             self.not_available.add(inp.name)
-                    elif 0 <= index < len(self.inputs[inp.name]['internal_buffer']):
-                        if self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is False\
-                        or self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is None:
+                    elif 0 <= index < len(self.inputs[inp.name]['internal_buffer']):  # internal buffer
+                        if self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is False \
+                                or self.inputs[inp.name]['internal_buffer'][index].try_peek_last() is None:
                             all_available = False
                             self.not_available.add(inp.name)
                     else:
                         raise Exception("index out of bound: {}".format(index))
 
-
         return all_available
 
-    def move_forward(self, items):
+    def move_forward(self,
+                     items: Dict[str, Dict]) -> None:
+        """
+        Move all items within the internal and delay buffer one element forward.
+        :param items:
+        :return:
+        """
         # move all forward
-
         for name in items:
-
-            if len(items[name]['internal_buffer']) == 0:
+            if len(items[name]['internal_buffer']) == 0:  # no internal buffer
                 pass
-            elif len(self.inputs[name]['internal_buffer']) == 1:
+            elif len(self.inputs[name]['internal_buffer']) == 1:  # single internal buffer
                 items[name]['internal_buffer'][0].dequeue()
                 items[name]['internal_buffer'][0].enqueue(items[name]['delay_buffer'].dequeue())
-            else:
+            else:  # many internal buffers
+                # iterate over them and move all one forward
                 index = len(items[name]['internal_buffer']) - 1
                 pre = items[name]['internal_buffer'][index - 1]
                 next = items[name]['internal_buffer'][index]
                 next.dequeue()
-
                 while index > 0:
                     next.enqueue(pre.dequeue())
                     next = pre
                     index -= 1
                     pre = items[name]['internal_buffer'][index - 1]
-
-                # self.inputs[name]['internal_buffer'][0].dequeue()
                 items[name]['internal_buffer'][0].enqueue(items[name]['delay_buffer'].dequeue())
 
     def decrement_center_reached(self):
-
+        """
+        Decrement counter for reaching the center. As soon as this counter reaches zero, the computed output values
+        are valid and should be forwarded to the successors channels.
+        """
+        # decrement all
         for item in self.dist_to_center:
             if self.inputs[item]['delay_buffer'].try_peek_last() is not None:
                 self.dist_to_center[item] -= 1
 
     def try_read(self) -> bool:
-
+        """
+        This is the implementation of the kernel reading functionality of the simulator. It tries to read from all
+        input channels and indicates if this has been done with success.
+        """
         # check if all inputs are available
         self.all_available = self.test_availability()
-
-        """
-        if self.all_available == False:
-            all_available = True
-            for inp in self.graph.inputs:
-                if isinstance(inp, Num):
-                    pass
-                elif len(self.inputs[inp.name]['internal_buffer']) == 0:
-                    pass
-                elif self.inputs[inp.name]['internal_buffer'][len(self.inputs[inp.name]['internal_buffer'])-1].try_peek_last() is False\
-                        or self.inputs[inp.name]['internal_buffer'][len(self.inputs[inp.name]['internal_buffer'])-1].try_peek_last() is None \
-                        or self.inputs[inp.name]['delay_buffer'].try_peek_last() is None:
-                    # check if array access location is filled with a bubble
-                    all_available = False
-                    break
-            if all_available == True:
-                self.all_available = True
-        else:
-            if helper.list_add_cwise(self.get_global_kernel_index(), [1,1,1]) > self.dimensions:
-                self.all_available = False
-        """
         # get all values and put them into the variable map
         if self.all_available:
             for inp in self.graph.inputs:
                 # read inputs into var_map
-                if isinstance(inp, Num):
-                    self.var_map[inp.name] = float(inp.name)  # TODO: boundary check?
-                elif isinstance(inp, Name):
+                if isinstance(inp, Num):  # case numerals
+                    self.var_map[inp.name] = float(inp.name)
+                elif isinstance(inp, Name):  # case variable names
                     # get value from internal_buffer
                     try:
                         # check for duplicate
                         if not self.var_map.__contains__(inp.name):
-                            self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))  # TODO: boundary check!
-                    except Exception as ex:
+                            self.var_map[inp.name] = self.internal_buffer[inp.name].peek(self.buffer_position(inp))
+                    except Exception as ex:  # do proper diagnosis
                         self.diagnostics(ex)
-                elif isinstance(inp, Subscript):
+                elif isinstance(inp, Subscript):  # case array accesses
                     # get value from internal buffer
                     try:
                         name = inp.name + self.index_to_ijk(inp.index)
                         if not self.var_map.__contains__(name):
-                            self.var_map[name] = self.get_data( inp=inp,
-                                                                global_index=self.get_global_kernel_index(),
-                                                                relative_index=inp.index)
-                    except Exception as ex:
+                            self.var_map[name] = self.get_data(inp=inp,
+                                                               global_index=self.get_global_kernel_index(),
+                                                               relative_index=inp.index)
+                    except Exception as ex:  # do proper diagnosis
                         self.diagnostics(ex)
-
+        # set kernel flag indicating the the read has been successful
         self.read_success = self.all_available
-
         # test center reached
         self.decrement_center_reached()
         self.center_reached = True
         for item in self.dist_to_center:
             if self.dist_to_center[item] >= 0:
                 self.center_reached = False
-
+        # either move all inputs forward or those that are not available yet
         if self.center_reached:
             if self.all_available:
                 self.move_forward(self.inputs)
@@ -445,100 +515,79 @@ class Kernel(BaseKernelNodeClass):
                 if self.dist_to_center[item] >= 0:
                     not_reached_dict[item] = self.inputs[item]
             self.move_forward(not_reached_dict)
-
         return self.all_available
 
     def try_execute(self):
-
-        # check if read has been successful
-        if self.center_reached and self.read_success and 0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1) :
+        """
+        This is the implementation of the kernel execution functionality of the simulator. It executes the stencil computation
+        for the current variable mapping that was set up by the try_read() function.
+        """
+        # check if read has been succeeded
+        if self.center_reached and self.read_success and 0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
             # execute calculation
             try:
-                computation = self.generate_relative_access_kernel_string(relative_to_center=True, replace_negative_index=True).replace("[", "_")\
-                    .replace("]", "").replace(" ", "")
+                # get computation string
+                computation = self.generate_relative_access_kernel_string(relative_to_center=True,
+                                                                          replace_negative_index=True)\
+                    .replace("[", "_").replace("]", "").replace(" ", "")
+                # compute result
                 self.result = self.calculator.eval_expr(self.var_map, computation)
                 # write result to latency-simulating buffer
                 self.out_delay_queue.enqueue(self.result)
+                # increment the program counter
                 self.program_counter += 1
-            except Exception as ex:
+            except Exception as ex:  # do proper diagnosis upon an exception
                 self.diagnostics(ex)
         else:
             # write bubble to latency-simulating buffer
             self.out_delay_queue.enqueue(None)
 
     def try_write(self):
-
+        """
+        This is the implementation of the kernel write functionality of the simulator. It writes the output element to its
+        successor channels.
+        """
+        # read last element of the delay queue
         data = self.out_delay_queue.dequeue()
-        """
-        # check if data (not a bubble) is available
-        if data is not None:
-            # write result to all output queues
-            for outp in self.outputs:
-                try:
-                    self.outputs[outp]["delay_buffer"].enqueue(data)  # use delay buffer to be consistent with others, db is used to write to output data queue here
-                except Exception as ex:
-                    self.diagnostics(ex)
-        """
         # write result to all output queues
         for outp in self.outputs:
             try:
-                self.outputs[outp]["delay_buffer"].try_enqueue(data)  # use delay buffer to be consistent with others, db is used to write to output data queue here
-            except Exception as ex:
+                self.outputs[outp]["delay_buffer"].try_enqueue(data)  # use delay buffer to be consistent with others,
+                # delay buffer is used to write to the output data queue here
+            except Exception as ex:  # do proper diagnosis upon an exception
                 self.diagnostics(ex)
 
-    '''
-        interface for error overview reporting (gets called in case of an exception)
+    def diagnostics(self,
+                    ex: Exception) -> None:
+        """
+        Interface for error overview reporting (gets called in case of an exception)
 
         - goal:
                 - get an overview over the whole stencil chain state in case of an error
                     - maximal and current size of all buffers
                     - type of phase (saturation/execution)
                     - efficiency (#execution cycles / #total cycles)
-    '''
-
-    def diagnostics(self, ex) -> None:
-        raise ex
-
-    '''
-        simple test kernel for debugging
-    '''
+        :param ex: the exception that arose
+        """
+        raise ex  # further rise the exception
 
 
 if __name__ == "__main__":
+    """
+        simple test kernel for debugging
+    """
+    # global dimensions
     dim = [100, 100, 100]
-
-    kernel1 = Kernel("ppgk", "res = wgtfac[i,j+1,k] * ppuv[i,j,k] + (1.0 - wgtfac[i,j,k]) * ppuv[i,j,k-1];", dim)
-    print("dimensions are: {}".format(dim))
-    print("Critical path latency: " + str(kernel1.graph.max_latency))
-    print()
-
-    kernel2 = Kernel("dummy", "res = (sin(a[i,j,k])-b[i,j,k]) * (a[i,j,k-1]+b[i,j-1,k-1])", [100, 100, 100])
-    print("dimensions are: {}".format(dim))
-    print("Kernel string conversion:")
-    print(kernel2.kernel_string)
-    print(kernel2.generate_relative_access_kernel_string())
-    print()
-
-    kernel3 = Kernel("dummy", "res = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k] + a[i,j,k]", dim)
+    # instantiate kernel
+    kernel = Kernel(name="dummy",
+                    kernel_string="res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k] + (-a[i,j,k])",
+                    dimensions=dim,
+                    boundary_conditions={"a": {
+                        "type": "constant",
+                        "value": 0.0}},
+                    data_type=dace.types.float64)
     print("Kernel string conversion:")
     print("dimensions are: {}".format(dim))
-    print(kernel3.kernel_string)
-    print(kernel3.generate_relative_access_kernel_string())
-    print()
-
-    kernel4 = Kernel("dummy", "res = SUBST + a[i,j,k];SUBST = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k]", dim)
-    print("Kernel string conversion:")
-    print("dimensions are: {}".format(dim))
-    print(kernel4.kernel_string)
-    print(kernel4.generate_relative_access_kernel_string())
-    print()
-
-    kernel5 = Kernel("dummy", "res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k] + a[i,j,k]", dim)
-    print("Kernel string conversion:")
-    print("dimensions are: {}".format(dim))
-    print(kernel5.kernel_string)
-    print(kernel5.generate_relative_access_kernel_string(relative_to_center=False))
-    print()
-
-    kernel6 = Kernel("dummy", "res = a if (a > b) else b", dim)
+    print(kernel.kernel_string)
+    print(kernel.generate_relative_access_kernel_string(relative_to_center=False))
     print()
