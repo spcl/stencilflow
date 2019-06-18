@@ -147,6 +147,11 @@ class Kernel(BaseKernelNodeClass):
         elif isinstance(node, Compare):
             return "{} {} {}".format(self.iter_comp_tree(pred[0], index_relative_to_center, replace_negative_index), str(node.name),
                                      self.iter_comp_tree(pred[1], index_relative_to_center, replace_negative_index))
+        elif isinstance(node, UnaryOp):
+            expr = pred[0]
+            return "({}{})".format(node.generate_op_sym(), self.iter_comp_tree(node=expr,
+                                                                               index_relative_to_center=index_relative_to_center,
+                                                                               replace_negative_index=replace_negative_index))
         else:
             raise NotImplementedError("iter_comp_tree is not implemented for node type {}".format(type(node)))
 
