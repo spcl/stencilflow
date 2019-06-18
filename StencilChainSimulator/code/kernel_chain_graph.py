@@ -335,7 +335,7 @@ class KernelChainGraph:
                 #max_delay = max(node.input_paths[inp])  # get longest path
 
                 max_delay[2] += 1
-                print("source: {}, max_delay: {}".format(inp, max_delay))
+                # print("source: {}, max_delay: {}".format(inp, max_delay))
                 for entry in node.input_paths[inp]:
                     #max_size = helper.convert_3d_to_1d(self.dimensions, max_delay[:-1])
                     max_size = helper.convert_3d_to_1d(self.dimensions, helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
