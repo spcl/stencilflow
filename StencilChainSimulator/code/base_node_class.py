@@ -1,4 +1,4 @@
-from __future__ import annotations  # support return type of its own class
+# from __future__ import annotations  # support return type of its own class
 import ast
 import dace.types
 from abc import ABCMeta, abstractmethod
@@ -18,7 +18,7 @@ class BoundaryCondition(Enum):
     COPY = 2  # copy the last within-bound-value for out-of-bound accesses
 
     @staticmethod
-    def to_bc(text: str) -> BoundaryCondition:
+    def to_bc(text: str):  # -> BoundaryCondition:
         if text == "const":
             return BoundaryCondition.CONSTANT
         elif text == "copy":
@@ -55,7 +55,7 @@ class BaseKernelNodeClass:
         self.verbose = verbose
         # define basic node structures
         self.input_paths: Dict[str, List] = dict()  # contains all paths to the source arrays
-        self.inputs: Dict[str, BoundedQueue] = dict()  # contains all predecessors
+        self.inputs: Dict[str, Dict] = dict()  # contains all predecessors
         self.outputs: Dict[str, BoundedQueue] = dict()  # contains all successors
         self.delay_buffer: Dict[str, BoundedQueue] = dict()  # contains the delay buffers for all inputs
         self.program_counter = 0  # progress program counter for simulation
