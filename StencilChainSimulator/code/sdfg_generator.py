@@ -341,8 +341,8 @@ def generate_sdfg(name, chain):
         nested_sdfg.add_edge(shift_state, update_state, InterstateEdge())
         nested_sdfg.add_edge(update_state, compute_state, InterstateEdge())
 
-        for in_name, (field_name, size) in zip(memory_accesses,
-                                               buffer_sizes.items()):
+        for in_name, (field_name, size), init_size in zip(
+                memory_accesses, buffer_sizes.items(), init_sizes):
 
             stream_name = make_stream_name(in_name, node.name)
 
@@ -443,15 +443,23 @@ def generate_sdfg(name, chain):
                     memlet=Memlet.simple(
                         shift_write.data, "i_shift", num_accesses=1))
 
+            # Begin reading according to this field's own buffer size, which is
+            # translated to an index by subtracting it from the maximum buffer
+            # size
+            begin_reading = (init_size_max - init_size)
+            end_reading = (functools.reduce(operator.mul, chain.dimensions, 1)
+                           + init_size_max - init_size)
+
             update_read = update_state.add_read(stream_name_inner)
             update_write = update_state.add_write(buffer_name_inner_write)
             update_tasklet = update_state.add_tasklet(
                 "read_wavefront", {"wavefront_in"}, {"buffer_out"},
-                "if (!{}) {{\n"
+                "if ({it} >= {begin} && {it} < {end}) {{\n"
                 "buffer_out = read_channel_intel(wavefront_in);\n"
                 "}} else {{\n"
                 "buffer_out = -1000;\n"
-                "}}\n".format(pipeline.drain_condition()),
+                "}}\n".format(it=pipeline.iterator_str(), begin=begin_reading,
+                end=end_reading),
                 language=Language.CPP)
             update_state.add_memlet_path(
                 update_read,

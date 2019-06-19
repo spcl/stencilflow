@@ -30,7 +30,7 @@ sdfg = generate_sdfg(name, chain)
 
 # Configure and compile SDFG
 dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
-dace.config.Config.set("compiler", "use_cache", value=True)
+# dace.config.Config.set("compiler", "use_cache", value=True)
 dace.config.Config.set("optimizer", "interface", value="")
 if args.mode == "emulation":
     dace.config.Config.set("compiler", "intel_fpga", "mode", value="emulator")
