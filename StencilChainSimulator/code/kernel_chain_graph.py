@@ -30,7 +30,8 @@ class KernelChainGraph:
         :param verbose: flag for console output logging
         """
         # set parameters
-        self.path: str = path
+        self.path: str = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), path)  # get valid
+        # absolute path
         self.verbose: bool = verbose
         # init internal fields
         self.inputs: Dict[str, Dict[str, str]] = dict()  # input data
