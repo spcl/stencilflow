@@ -11,7 +11,7 @@ class BoundedQueueTest(unittest.TestCase):
         collection = [1.0, 2.0, 3.0, 4.0, 5.0]
         queue.import_data(collection)
         self.assertEqual(queue.size(), len(collection))
-        self.assertEqual(queue.try_peek_last(), collection[0])
+        self.assertEqual(queue.try_peek_last(), collection[len(collection)-1])
         self.assertRaises(RuntimeError, queue.import_data, 6*[1.0])
 
     def test_enq_deq(self):
@@ -231,7 +231,10 @@ class SimulatorTest(unittest.TestCase):
                             input_config = chain.inputs,
                             kernel_nodes=chain.kernel_nodes,
                             output_nodes=chain.output_nodes,
-                            dimensions=chain.dimensions)
+                            dimensions=chain.dimensions,
+                            input_config_name="test",
+                            write_output=False,
+                            verbose=False)
             sim.simulate()
             self.assertTrue(helper.arrays_are_equal(np.array(samples[sample]['res']), sim.get_result()['res'], 0.01))
 
