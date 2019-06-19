@@ -2,14 +2,60 @@ import functools
 import operator
 
 class Simulator:
+    """
+        interface for FPGA-like execution (gets called from the scheduler)
 
-    def __init__(self, name, input_nodes, input_config, kernel_nodes, output_nodes, dimensions, verbose) -> None:
-        self.name = name
+        - read:
+                - saturation phase: read unconditionally
+                - execution phase: read all inputs iff they are available
+        - execute:
+                - saturation phase: do nothing
+                - execution phase: if input read, execute stencil using the input
+        - write:
+                - saturation phase: do nothing
+                - execution phase: write result from execution to output buffers
+                    --> if output buffer overflows: assumptions about size were wrong!
+
+        - return:
+                - True  iff successful
+                - False otherwise
+
+        - boundary condition:
+                - We know that the stencil boundary conditions in the COSMO model are functions of the local
+                  neighbourhood (e.g. gradient, average, replicate value form n to n+1 (border replication),...)
+                - Idea: We implement the border replication strategy for all scenarios statically (this is enough
+                  accuracy, since the latency would be most likely the same (the strategies mentioned above can be
+                  implemented in parallel in hardware), and the amount of buffer space does not change as well.
+                  Therefore this is a valid assumption and reduction of the problem complexity.
+
+        - note:
+                - re-emptying of queue after reaching bound
+                - scenario:
+                  suppose:  for i=1..N
+                                for j=1..M
+                                    for k=1..P
+                                        out[i,j,k] = in[i-1,j,k] + in[i,j,k] + in[i+1,j,k]
+                                    end
+                                end
+                            end
+                  the internal buffer is of size: 2*P*N
+                   j
+                  /
+                  --> i     in the case above we have to buffer 2 complete layers in i-j-direction till we can start
+                  |         doing meaning full pipeline operations
+                  k
+
+                  if we reach the bound i == N, TODO: special handling?
+    """
+
+    def __init__(self, input_config_name, input_nodes, input_config, kernel_nodes, output_nodes, dimensions, write_output, verbose) -> None:
+        self.input_config_name = input_config_name
         self.dimensions = dimensions
         self.input_nodes = input_nodes
         self.input_config = input_config
         self.kernel_nodes = kernel_nodes
         self.output_nodes = output_nodes
+        self.write_output = write_output
         self.verbose = verbose
 
     def step_execution(self):
@@ -62,9 +108,10 @@ class Simulator:
         #        self.input_nodes[input].try_write()
 
     def finalize(self):
-        # save data
-        for output in self.output_nodes:
-            self.output_nodes[output].write_result_to_file(self.name)
+        if self.write_output:
+            # save data
+            for output in self.output_nodes:
+                self.output_nodes[output].write_result_to_file(self.input_config_name)
 
     def get_result(self):
         # return all output data
