@@ -166,8 +166,8 @@ class KernelChainGraph:
                             # add edge
                             self.graph.add_edge(src, dest, channel=None)
                     else:
-                        raise NotImplementedError("Unknown source/destination type pair: src: {}, dest: {}".format(
-                            type(src), type(dest)))
+                        # pass all other source/destination pairs
+                        pass
 
     def add_channels(self) -> None:
         """
@@ -235,8 +235,8 @@ class KernelChainGraph:
                             # add to edge
                             self.graph[src][dest]['channel'] = channel
                     else:
-                        raise NotImplementedError("Unknown source/destination type pair: src: {}, dest: {}".format(
-                            type(src), type(dest)))
+                        # pass all other source/destination pairs
+                        pass
 
     def import_input(self) -> None:
         """
@@ -266,7 +266,7 @@ class KernelChainGraph:
             new_node = Kernel(name=kernel,
                               kernel_string=str(self.program[kernel]['computation_string']),
                               dimensions=self.dimensions,
-                              data_type=typeclass(self.program[kernel]['data_type']),
+                              data_type=self.program[kernel]['data_type'],
                               boundary_conditions=self.program[kernel]['boundary_condition'])
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
@@ -274,7 +274,7 @@ class KernelChainGraph:
         self.input_nodes = dict()
         for inp in self.inputs:
             new_node = Input(name=inp,
-                             data_type=typeclass(self.inputs[inp]["data_type"]),
+                             data_type=self.inputs[inp]["data_type"],
                              data_queue=BoundedQueue(name=inp,
                                                      maxsize=self.total_elements(),
                                                      collection=[None]*self.total_elements()))
@@ -284,7 +284,7 @@ class KernelChainGraph:
         self.output_nodes = dict()
         for out in self.outputs:
             new_node = Output(name=out,
-                              data_type=typeclass(self.program[out]["data_type"]),
+                              data_type=self.program[out]["data_type"],
                               dimensions=self.dimensions,
                               data_queue=BoundedQueue(name="dummy", maxsize=0))
             self.output_nodes[out] = new_node
