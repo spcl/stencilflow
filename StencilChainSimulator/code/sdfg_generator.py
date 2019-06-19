@@ -14,19 +14,25 @@ from dace.memlet import Memlet
 from dace.sdfg import SDFG
 from dace.types import ScheduleType, StorageType, Language, typeclass
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
+import dace.codegen.targets.fpga
 
 ITERATORS = ["i", "j", "k"]
 
 
-def make_iterators(chain):
-    if len(chain.dimensions) > 3:
+def make_iterators(dimensions, halo_sizes=None):
+    def add_halo(i):
+        if i == len(dimensions) - 1 and halo_sizes is not None:
+            return " + " + str(-halo_sizes[0] + halo_sizes[1])
+        else:
+            return ""
+    if len(dimensions) > 3:
         return collections.OrderedDict(
-            [("i" + str(i), "0:" + str(d))
-             for i, d in enumerate(chain.dimensions)])
+            [("i" + str(i), "0:" + str(d) + add_halo(i))
+             for i, d in enumerate(dimensions)])
     else:
         return collections.OrderedDict(
-            [(ITERATORS[i], "0:" + str(d))
-             for i, d in enumerate(chain.dimensions)])
+            [(ITERATORS[i], "0:" + str(d) + add_halo(i))
+             for i, d in enumerate(dimensions)])
 
 
 def make_stream_name(src_name, dst_name):
@@ -73,7 +79,7 @@ def generate_sdfg(name, chain):
             transient=True)
         access_node = state.add_read(node.name)
 
-        iterators = make_iterators(chain)
+        iterators = make_iterators(chain.dimensions)
 
         # Copy data to the FPGA
         copy_host = pre_state.add_read(node.name + "_host")
@@ -134,7 +140,7 @@ def generate_sdfg(name, chain):
             transient=True)
         write_node = state.add_write(node.name)
 
-        iterators = make_iterators(chain)
+        iterators = make_iterators(chain.dimensions)
 
         # Copy data to the FPGA
         copy_fpga = post_state.add_read(node.name)
@@ -183,8 +189,6 @@ def generate_sdfg(name, chain):
 
     def add_kernel(node):
 
-        iterators = make_iterators(chain)
-
         # Extract fields to read from memory and fields to buffer
         memory_accesses = []
         buffer_sizes = collections.OrderedDict()
@@ -205,8 +209,32 @@ def generate_sdfg(name, chain):
                                       [i - min_access for i in abs_indices],
                                       -min_access)
 
-        entry, exit = state.add_map(
-            node.name, iterators, schedule=ScheduleType.FPGA_Device)
+        # Create a initialization phase corresponding to the highest distance
+        # to the center
+        init_sizes = [
+            buffer_sizes[key] - 1 - val[2]
+            for key, val in buffer_accesses.items()
+        ]
+        init_size_max = np.max(init_sizes)
+
+        iterators = make_iterators(chain.dimensions)
+
+        # Manually add pipeline entry and exit nodes
+        pipeline_range = dace.properties.SubsetProperty.from_string(', '.join(
+            iterators.values()))
+        pipeline = dace.codegen.targets.fpga.Pipeline(
+            "read_" + node.name,
+            list(iterators.keys()),
+            pipeline_range,
+            ScheduleType.FPGA_Device,
+            False,
+            init_size=init_size_max,
+            init_overlap=False,
+            drain_size=init_size_max,
+            drain_overlap=True)
+        entry = dace.codegen.targets.fpga.PipelineEntry(pipeline)
+        exit = dace.codegen.targets.fpga.PipelineExit(pipeline)
+        state.add_nodes_from([entry, exit])
 
         # Sort to get deterministic output
         outputs = sorted(e[1].name for e in chain.graph.out_edges(node))
@@ -229,6 +257,10 @@ def generate_sdfg(name, chain):
 
         # TODO: data type per field
         dtype = node.data_type
+
+        #######################################################################
+        # Implement boundary conditions
+        #######################################################################
 
         boundary_code = ""
         # Loop over each field
@@ -259,6 +291,20 @@ def generate_sdfg(name, chain):
                             " || ".join(cond), boundary_val, field,
                             offset_buffer))
 
+        #######################################################################
+        # Only write if we're in bounds
+        #######################################################################
+
+        write_code = ("if (!{}) {{\n".format("".join(
+            pipeline.init_condition())) + ("\n".join([
+                "write_channel_intel({}_inner_out, res);".format(output)
+                for output in outputs
+            ])) + "\n}")
+
+        #######################################################################
+        # Tasklet code generation
+        #######################################################################
+
         code = boundary_code + "\n" + "\n".join([
             dtype.ctype + " " + expr.strip() + ";"
             for expr in node.generate_relative_access_kernel_string(
@@ -272,10 +318,11 @@ def generate_sdfg(name, chain):
             if int(index) > 0:
                 raise ValueError("Received positive index " + full_str + ".")
             code = code.replace(full_str, "{}_{}".format(field, buffer_index))
-        code += "\n".join([""] + [
-            "write_channel_intel({}_inner_out, res);".format(output)
-            for output in outputs
-        ])
+        code += "\n" + write_code
+
+        #######################################################################
+        # Create DaCe compute state
+        #######################################################################
 
         # Compute state, which reads from input channels, performs the compute,
         # and writes to the output channel(s)
@@ -306,7 +353,7 @@ def generate_sdfg(name, chain):
                 entry,
                 nested_sdfg_tasklet,
                 dst_conn=in_name + "_in",
-                memlet=Memlet.simple(stream_name, "0", num_accesses=1))
+                memlet=Memlet.simple(stream_name, "0", num_accesses=-1))
 
             # Create inner memory pipe
             stream_name_inner = field_name + "_in"
@@ -398,15 +445,27 @@ def generate_sdfg(name, chain):
 
             update_read = update_state.add_read(stream_name_inner)
             update_write = update_state.add_write(buffer_name_inner_write)
+            update_tasklet = update_state.add_tasklet(
+                "read_wavefront", {"wavefront_in"}, {"buffer_out"},
+                "if (!{}) {{\n"
+                "buffer_out = read_channel_intel(wavefront_in);\n"
+                "}} else {{\n"
+                "buffer_out = -1000;\n"
+                "}}\n".format(pipeline.drain_condition()),
+                language=Language.CPP)
             update_state.add_memlet_path(
                 update_read,
+                update_tasklet,
+                memlet=Memlet.simple(update_read.data, "0", num_accesses=-1),
+                dst_conn="wavefront_in")
+            update_state.add_memlet_path(
+                update_tasklet,
                 update_write,
                 memlet=Memlet.simple(
-                    update_read.data,
-                    "0",
-                    other_subset_str="{} - 1".format(size)
-                    if size > 1 else "0",
-                    num_accesses=1))
+                    update_write.data,
+                    "{} - 1".format(size) if size > 1 else "0",
+                    num_accesses=1),
+                src_conn="buffer_out")
 
             # Make compute state
             compute_read = compute_state.add_read(buffer_name_inner_read)

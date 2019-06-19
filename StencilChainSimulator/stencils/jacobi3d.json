@@ -1,7 +1,7 @@
 {
 	"inputs": {
 		"a": {
-			"data": "stencils/inC.dat",
+			"data": "data/zeros_16x16x16_fp64.dat",
 			"data_type": "float64"
 		}
 	},
@@ -13,7 +13,7 @@
 			"boundary_condition": {
 				"a": {
 					"type": "constant",
-					"value": 0.0
+					"value": 1.0
 				}
 			},
 			"data_type": "float64"
