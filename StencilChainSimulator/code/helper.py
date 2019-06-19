@@ -10,7 +10,7 @@ from functools import reduce
 from typing import List, Dict
 
 """
-    This file contains many helper methods that are being re-used in multiple classes and do not specifically belong to 
+    This file contains many helper methods that are being re-used in multiple classes and do not specifically belong to
     a class.
 """
 
@@ -55,21 +55,24 @@ def parse_json(config_path: str) -> Dict:
     """
     # check file exists
     if not os.path.isfile(config_path):
-        relative = os.path.join(os.path.dirname(os.path.realpath(__file__)), config_path)
+        relative = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), config_path)
         if not os.path.isfile(relative):
-            raise Exception("file {} does not exists.".format(config_path))
+            raise RuntimeError("file {} does not exists.".format(config_path))
         config_path = relative
     # open file in with-clause, to ensure proper file closing even in the event of an exception
     with open(config_path, "r") as file_handle:
         # try to parse it
         config = json.loads(file_handle.read())  # type: dict
+    # Save the path to the config
+    config["path"] = os.path.dirname(os.path.abspath(config_path))
     def walk(d):  # replace string data type in config
         for key, val in d.items():
-          if isinstance(val, dict):
-              walk(val)
-          else:
-              if key == "data_type":
-                  d[key] = str_to_dtype(val)
+            if isinstance(val, dict):
+                walk(val)
+            else:
+                if key == "data_type":
+                    d[key] = str_to_dtype(val)
     walk(config)
     # return dict
     return config
@@ -143,21 +146,28 @@ def dim_to_abs_val(input: List[int],
     return reduce(operator.add, map(operator.mul, input, vec))  # inner product
 
 
-def load_array(source_config: str):
+def load_array(source_config: Dict, search_path=None):
     """
     Load array from file or list into numpy array.
     :param source_config: External data input file config.
+    :param search_path: Path to search as relative paths.
     :return: Data stored in a numpy array.
     """
     # get path to either source file or direct to the embedded array
     data = source_config["data"]
     if isinstance(data, str):  # source file
-        if data.endswith(".csv"):
-            return np.genfromtxt(data, float, delimiter=',')
-        elif data.endswith(".dat"):
-            return np.fromfile(data, float)
+        path = data
+        if not os.path.isfile(path):
+            if search_path is not None:
+                path = os.path.join(search_path, path)
+            if not os.path.isfile(path):
+                raise RuntimeError("File {} does not exists.".format(data))
+        if path.endswith(".csv"):
+            return np.genfromtxt(path, float, delimiter=',')
+        elif path.endswith(".dat"):
+            return np.fromfile(path, float)
         else:
-            raise ValueError("Invalid file type: " + data)
+            raise ValueError("Invalid file type: " + path)
     elif isinstance(data, np.ndarray):  # embedded array: already numpy array
         return data
     else:
@@ -173,7 +183,7 @@ def load_input_arrays(program: Dict) -> Dict:
     # add all input arrays to the dict
     input_arrays = dict()
     for arr_name, source in program["inputs"].items():
-        input_arrays[arr_name] = load_array(source)
+        input_arrays[arr_name] = load_array(source, program["path"])
     return input_arrays
 
 
