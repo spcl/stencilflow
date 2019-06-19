@@ -45,7 +45,9 @@ input_arrays = helper.load_input_arrays(program_description)
 # Initialize output arrays
 print("Initializing output arrays...")
 output_arrays = {
-    arr_name: np.empty(program_description["dimensions"], dtype=float)
+    arr_name: np.zeros(
+        program_description["dimensions"],
+        dtype=program_description["program"][arr_name]["data_type"].type)
     for arr_name in program_description["outputs"]
 }
 
@@ -54,7 +56,9 @@ build_folder = os.path.join(".dacecache", name, "build")
 if args.mode == "emulation":
     print("Compiling emulation kernel...")
     sp.run(
-        ["make", "intelfpga_compile_" + name + "_emulator"], cwd=build_folder)
+        ["make", "intelfpga_compile_" + name + "_emulator"],
+        cwd=build_folder,
+        check=True)
 elif args.mode == "hardware":
     if not os.path.exists(os.path.join(build_folder, name + "_hardware.aocx")):
         raise FileNotFoundError("Hardware kernel has not been built.")
@@ -78,4 +82,3 @@ output_folder = os.path.join("results", name)
 os.makedirs(output_folder, exist_ok=True)
 helper.save_output_arrays(output_arrays, output_folder)
 print("Results saved to " + output_folder)
-
