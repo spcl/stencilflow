@@ -123,7 +123,7 @@ class ComputeGraphTest(unittest.TestCase):
         graph.calculate_latency()
         with open('compute_graph.config') as json_file:
             op_latency = json.load(json_file)
-        self.assertEqual(op_latency["op_latency"]["cos"] + 1, graph.max_latency)
+        self.assertEqual(op_latency["op_latency"]["cos"] + op_latency["op_latency"]["add"] + 1, graph.max_latency)
         filename = "compute_graph_unittest.png"
         graph.plot_graph(filename)  # write graph to file
         os.remove(filename)
