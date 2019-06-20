@@ -41,7 +41,7 @@ class Input(BaseKernelNodeClass):
 
     def reset_old_compute_state(self):
         """
-        Reset comute-specific internal state (only for Kernel node).
+        Reset compute-specific internal state (only for Kernel node).
         """
         pass  # nothing to do
 
