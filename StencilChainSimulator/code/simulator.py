@@ -181,7 +181,7 @@ class Simulator:
             print("input:{}, PC: {}".format(input, self.input_nodes[input].program_counter))
         # call debug diagnostics output of all kernels
         for kernel in self.kernel_nodes:
-            self.kernel_nodes[kernel].diagnostics()
+            self.kernel_nodes[kernel].diagnostics(exception)
         # print info about all outputs
         for output in self.output_nodes:
             print("output:{}, PC: {}".format(output, self.output_nodes[output].program_counter))
