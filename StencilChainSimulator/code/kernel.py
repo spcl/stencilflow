@@ -552,7 +552,7 @@ class Kernel(BaseKernelNodeClass):
         # write result to all output queues
         for outp in self.outputs:
             try:
-                self.outputs[outp]["delay_buffer"].try_enqueue(data)  # use delay buffer to be consistent with others,
+                self.outputs[outp]["delay_buffer"].enqueue(data)  # use delay buffer to be consistent with others,
                 # delay buffer is used to write to the output data queue here
             except Exception as ex:  # do proper diagnosis upon an exception
                 self.diagnostics(ex)
@@ -569,7 +569,35 @@ class Kernel(BaseKernelNodeClass):
                     - efficiency (#execution cycles / #total cycles)
         :param ex: the exception that arose
         """
-        raise ex  # further rise the exception
+        print("#####################################")
+        print("Diagnosis output of kernel {}".format(self.name))
+        print("Program Counter: {}".format(self.program_counter))
+        print("All inputs available? {}".format(self.all_available))
+        print("Center reached? {}".format(self.center_reached))
+        # inputs
+        for input in self.inputs:
+            buffer = self.inputs[input]
+            print("Buffer info from input {}".format(input))
+            # delay buffer
+            print("Delay buffer max size: {}, current size: {}".format(buffer['delay_buffer'].maxsize,
+                                                                       buffer['delay_buffer'].size()))
+            print("Delay buffer data: {}".format(buffer['delay_buffer'].queue))
+            # internal buffer
+            data = list(map(lambda x: x.queue, buffer['internal_buffer']))
+            print("Internal buffer data: {}".format(data))
+        # latency sim buffer
+        print("Latency simulation buffer data: {}".format(self.out_delay_queue.queue))
+        # output
+        for output in self.outputs:
+            buffer = self.outputs[output]
+            print("Buffer info from output {}".format(output))
+            # delay buffer
+            print("Delay buffer max size: {}, current size: {}".format(buffer['delay_buffer'].maxsize,
+                                                                       buffer['delay_buffer'].size()))
+            print("Delay buffer data: {}".format(buffer['delay_buffer'].queue))
+            # internal buffer
+            data = list(map(lambda x: x.queue, buffer['internal_buffer']))
+            print("Internal buffer data: {}".format(data))
 
 
 if __name__ == "__main__":
