@@ -1,5 +1,6 @@
 import functools
 import operator
+from logging import LogLevel
 from typing import List, Dict
 
 
@@ -30,7 +31,7 @@ class Simulator:
                  output_nodes: Dict,
                  dimensions: List,
                  write_output: bool,
-                 verbose: bool) -> None:
+                 log_level: int) -> None:
         """
         Create new Simulator class with given initialization parameters.
         :param input_config_name: name of the input file
@@ -40,7 +41,7 @@ class Simulator:
         :param output_nodes: dict of all output nodes
         :param dimensions: global problem size dimensions
         :param write_output: flag for defining whether or not to write the result to a file
-        :param verbose: flag for console output logging
+        :param log_level: flag for console output logging
         """
         # save params
         self.input_config_name: str = input_config_name
@@ -50,7 +51,7 @@ class Simulator:
         self.kernel_nodes: Dict = kernel_nodes
         self.output_nodes: Dict = output_nodes
         self.write_output: bool = write_output
-        self.verbose: bool = verbose
+        self.log_level: int = log_level
 
     def step_execution(self):
         """
@@ -105,7 +106,6 @@ class Simulator:
             try:
                 self.kernel_nodes[kernel].update_performance_metric()
             except Exception as ex:
-                raise ex
                 self.diagnostics(ex)
 
     def initialize(self):
@@ -113,9 +113,10 @@ class Simulator:
         Initialize the input nodes with data given in the config file.
         """
         # loop over all input nodes
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Initialize simulator input arrays.")
         for input in self.input_nodes:
             # import data
-
             self.input_nodes[input].init_input_data(self.input_config)
 
     def finalize(self):
@@ -123,6 +124,8 @@ class Simulator:
         Do the necessary post-processsing after the simulator completed the step execution.
         """
         # check if write flag set
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Finalize simulation.")
         if self.write_output:
             # save data to files
             for output in self.output_nodes:
@@ -165,7 +168,7 @@ class Simulator:
 
     def simulate(self):
         """
-
+        Run the main simulation loop
         """
         # init
         self.initialize()
@@ -176,7 +179,7 @@ class Simulator:
             self.step_execution()
             # increment program counter
             PC += 1
-            if self.verbose:  # output program counter of each node
+            if self.log_level >= LogLevel.FULL.value:  # output program counter of each node
                 for input in self.input_nodes:
                     print("input:{}, PC: {}".format(input, self.input_nodes[input].program_counter))
                 for kernel in self.kernel_nodes:
@@ -189,6 +192,8 @@ class Simulator:
         self.finalize()
 
     def report(self):
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Create simulator report.")
         self.diagnostics(None)
 
     def diagnostics(self, exception):
