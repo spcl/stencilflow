@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class LogLevel(Enum):
     NO_LOG = 0,
     BASIC = 1,
