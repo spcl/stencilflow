@@ -81,6 +81,57 @@ class Kernel(BaseKernelNodeClass):
         self.dist_to_center: Dict = dict()
         self.set_up_dist_to_center()
         self.center_reached = False
+        # add performance metric fields
+        self.max_del_buf_usage = dict()
+        # for mean
+        self.buf_usage_sum = dict()
+        self.buf_usage_num = dict()
+        self.init_metric = False
+        self.PC_exec_start = helper.convert_3d_to_1d(self.dimensions, self.dimensions)  # upper bound
+        self.PC_exec_end = 0  # lower bound
+
+    def print_kernel_performance(self):
+        """
+        Print performance metric data.
+        """
+        print("#############################")
+        for input in set(self.inputs).union(set(self.outputs)):
+            print("#############################")
+            print("input buffer name: {}".format(input))
+            print("max buffer usage: {}".format(self.max_del_buf_usage[input]))
+            print("average buffer usage: {}".format(self.buf_usage_sum[input]/self.buf_usage_num[input]))
+        print("total execution time (from first exec to last): {}".format(self.PC_exec_end-self.PC_exec_start))
+
+    def update_performance_metric(self):
+        """
+        Update buffer size values for performance evalution purpose.
+        """
+        # check if dict has been initialized
+        if not self.init_metric:
+            # init all keys
+            for input in self.inputs:
+                self.max_del_buf_usage[input] = 0
+                self.buf_usage_num[input] = 0
+                self.buf_usage_sum[input] = 0
+            for output in self.outputs:
+                self.max_del_buf_usage[output] = 0
+                self.buf_usage_num[output] = 0
+                self.buf_usage_sum[output] = 0
+        # update maximum delay buf usage
+        # inputs
+        for input in self.inputs:
+            buffer = self.inputs[input]
+            self.max_del_buf_usage[input] = max(self.max_del_buf_usage[input],
+                                                len([x for x in buffer['delay_buffer'].queue if x is not None]))
+            self.buf_usage_num[input] += 1
+            self.buf_usage_sum[input] += len([x for x in buffer['delay_buffer'].queue if x is not None])
+        # outputs
+        for output in self.outputs:
+            buffer = self.outputs[output]
+            self.max_del_buf_usage[output] = max(self.max_del_buf_usage[output],
+                                                 len([x for x in buffer['delay_buffer'].queue if x is not None]))
+            self.buf_usage_num[output] += 1
+            self.buf_usage_sum[output] += len([x for x in buffer['delay_buffer'].queue if x is not None])
 
     def set_up_dist_to_center(self):
         """
@@ -534,6 +585,9 @@ class Kernel(BaseKernelNodeClass):
                 self.result = self.calculator.eval_expr(self.var_map, computation)
                 # write result to latency-simulating buffer
                 self.out_delay_queue.enqueue(self.result)
+                # update performance metric
+                self.PC_exec_start = min(self.PC_exec_start, self.program_counter)
+                self.PC_exec_end = max(self.PC_exec_end, self.program_counter)
                 # increment the program counter
                 self.program_counter += 1
             except Exception as ex:  # do proper diagnosis upon an exception
