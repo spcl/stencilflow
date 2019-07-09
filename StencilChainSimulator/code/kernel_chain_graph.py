@@ -22,7 +22,7 @@ class KernelChainGraph:
     def __init__(self,
                  path: str,
                  plot_graph: bool = False,
-                 verbose = False) -> None:
+                 verbose=False) -> None:
         """
         Create new KernelChainGraph with given initialization parameters.
         :param path: path to the input file
@@ -58,6 +58,10 @@ class KernelChainGraph:
             # plot all compute graphs
             for compute_kernel in self.kernel_nodes:
                 self.kernel_nodes[compute_kernel].graph.plot_graph()
+        # print sin/cos/tan latency warning
+        for kernel in self.program:
+            if "sin" in self.program[kernel]['computation_string'] or "cos" in self.program[kernel]['computation_string'] or "tan" in self.program[kernel]['computation_string']:
+                print("Warning: Computation contains sinusoidal functions with experimental latency values.")
 
     def plot_graph(self,
                    save_path: str = None) -> None:
@@ -530,12 +534,13 @@ if __name__ == "__main__":
 
         print("instantiate simulator...")
         from simulator import Simulator
-        sim = Simulator(name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
+        sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
                         input_nodes=chain.input_nodes,
-                        input_config = chain.inputs,
+                        input_config=chain.inputs,
                         kernel_nodes=chain.kernel_nodes,
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions,
+                        write_output=False,
                         verbose=args.verbose)
         sim.simulate()
 
