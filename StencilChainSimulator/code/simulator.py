@@ -98,6 +98,15 @@ class Simulator:
                 self.kernel_nodes[kernel].try_write()
             except Exception as ex:
                 self.diagnostics(ex)
+        """
+            update performance metrics
+        """
+        for kernel in self.kernel_nodes:
+            try:
+                self.kernel_nodes[kernel].update_performance_metric()
+            except Exception as ex:
+                raise ex
+                self.diagnostics(ex)
 
     def initialize(self):
         """
@@ -118,6 +127,10 @@ class Simulator:
             # save data to files
             for output in self.output_nodes:
                 self.output_nodes[output].write_result_to_file(self.input_config_name)
+        # output kernel performance metric
+        for kernel in self.kernel_nodes:
+            self.kernel_nodes[kernel].print_kernel_performance()
+
 
     def get_result(self):
         """
