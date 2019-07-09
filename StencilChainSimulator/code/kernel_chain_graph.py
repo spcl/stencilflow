@@ -9,6 +9,7 @@ from kernel import Kernel
 from bounded_queue import BoundedQueue
 from typing import List, Dict
 from input import Input
+from logging import LogLevel
 from output import Output
 from dace.types import typeclass
 
@@ -22,17 +23,17 @@ class KernelChainGraph:
     def __init__(self,
                  path: str,
                  plot_graph: bool = False,
-                 verbose=False) -> None:
+                 log_level: int = 0) -> None:
         """
         Create new KernelChainGraph with given initialization parameters.
         :param path: path to the input file
         :param plot_graph: flag indication whether or not to produce the graphical graph representation
-        :param verbose: flag for console output logging
+        :param log_level: flag for console output logging
         """
         # set parameters
         self.path: str = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), path)  # get valid
         # absolute path
-        self.verbose: bool = verbose
+        self.log_level: int = log_level
         # init internal fields
         self.inputs: Dict[str, Dict[str, str]] = dict()  # input data
         self.outputs: List[str] = list()  # name of the output fields
@@ -45,17 +46,33 @@ class KernelChainGraph:
         self.output_nodes: Dict[str, Kernel] = dict()  # Output nodes of the graph
         self.kernel_nodes: Dict[str, Kernel] = dict()  # Kernel nodes of the graph
         # trigger all internal calculations
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Read input config files.")
         self.import_input()  # read input config file
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Create all kernels.")
         self.create_kernels()  # create all kernels
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Compute kernel latencies.")
         self.compute_kernel_latency()  # compute their latencies
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Connect kernels.")
         self.connect_kernels()  # connect them in the graph
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Compute delay buffer sizes.")
         self.compute_delay_buffer()  # compute the delay buffer sizes
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Add channels to the graph edges.")
         self.add_channels()  # add all channels (internal buffer and delay buffer) to the edges of the graph
         # plot kernel graphs if flag set to true
         if plot_graph:
+            if self.log_level >= LogLevel.BASIC.value:
+                print("Plot kernel chain graph.")
             # plot kernel chain graph
             self.plot_graph()
             # plot all compute graphs
+            if self.log_level >= LogLevel.BASIC.value:
+                print("Plot computation graph of each kernel.")
             for compute_kernel in self.kernel_nodes:
                 self.kernel_nodes[compute_kernel].graph.plot_graph()
         # print sin/cos/tan latency warning
@@ -524,12 +541,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-stencil_file")
     parser.add_argument("-plot", action="store_true")
-    parser.add_argument("-verbose", action="store_true")
+    parser.add_argument("-log-level")
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
     args = parser.parse_args()
     # instantiate the KernelChainGraph
-    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot, verbose=args.verbose)
+    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot, log_level=int(args.log_level))
     # simulate the design if argument -simulate is true
     if args.simulate:
         from simulator import Simulator
@@ -540,7 +557,7 @@ if __name__ == "__main__":
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions,
                         write_output=False,
-                        verbose=args.verbose)
+                        log_level=int(args.log_level))
         sim.simulate()
 
     # output a report if argument -report is true
