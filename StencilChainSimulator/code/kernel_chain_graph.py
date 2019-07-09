@@ -405,83 +405,63 @@ class KernelChainGraph:
         # return final result
         return c[:-1]
 
-
     def compute_critical_path(self) -> int:
         """
         Computes the max latency critical path through the graph in scalar format.
         """
         return helper.dim_to_abs_val(self.compute_critical_path_dim(), self.dimensions)
 
+    def report(self, name):
+        print("Report of {}\n".format(name))
 
-if __name__ == "__main__":
-
-    """
-        simple test stencil program for debugging
-        
-        usage: python3 kernel_chain_graph.py -stencil_file simple_input_delay_buf.json -plot -report
-    """
-    # instantiate the argument parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-stencil_file")
-    parser.add_argument("-plot", action="store_true")
-    parser.add_argument("-verbose", action="store_true")
-    parser.add_argument("-report", action="store_true")
-    args = parser.parse_args()
-    # instantiate the KernelChainGraph
-    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot, verbose=args.verbose)
-    # output a report if argument -report is true
-    if args.report:
-
-        print("Report of {}\n".format(args.stencil_file))
-
-        print("dimensions of data array: {}\n".format(chain.dimensions))
+        print("dimensions of data array: {}\n".format(self.dimensions))
 
         print("channel info:")
-        for u, v, channel in chain.graph.edges(data='channel'):
+        for u, v, channel in self.graph.edges(data='channel'):
             if channel is not None:
                 print("internal buffers:\n {}".format(channel["internal_buffer"]))
                 print("delay buffers:\n {}".format(channel["delay_buffer"]))
         print()
 
         print("field access info:")
-        for node in chain.kernel_nodes:
-            print("node name: {}, field accesses: {}".format(node, chain.kernel_nodes[node].graph.accesses))
+        for node in self.kernel_nodes:
+            print("node name: {}, field accesses: {}".format(node, self.kernel_nodes[node].graph.accesses))
         print()
 
         print("internal buffer size info:")
-        for node in chain.kernel_nodes:
+        for node in self.kernel_nodes:
             print("node name: {}, internal buffer size: {}".format(node,
-                                                                   chain.kernel_nodes[node].graph.buffer_size))
+                                                                   self.kernel_nodes[node].graph.buffer_size))
         print()
 
         print("internal buffer chunks info:")
-        for node in chain.kernel_nodes:
+        for node in self.kernel_nodes:
             print("node name: {}, internal buffer chunks: {}".format(node,
-                                                                   chain.kernel_nodes[node].internal_buffer))
+                                                                   self.kernel_nodes[node].internal_buffer))
         print()
 
         print("delay buffer size info:")
-        for node in chain.kernel_nodes:
-            print("node name: {}, delay buffer size: {}".format(node, chain.kernel_nodes[node].delay_buffer))
+        for node in self.kernel_nodes:
+            print("node name: {}, delay buffer size: {}".format(node, self.kernel_nodes[node].delay_buffer))
         print()
 
         print("path length info:")
-        for node in chain.kernel_nodes:
-            print("node name: {}, path lengths: {}".format(node, chain.kernel_nodes[node].input_paths))
+        for node in self.kernel_nodes:
+            print("node name: {}, path lengths: {}".format(node, self.kernel_nodes[node].input_paths))
         print()
 
         print("latency info:")
-        for node in chain.kernel_nodes:
-            print("node name: {}, node latency: {}".format(node, chain.kernel_nodes[node].graph.max_latency))
+        for node in self.kernel_nodes:
+            print("node name: {}, node latency: {}".format(node, self.kernel_nodes[node].graph.max_latency))
         print()
 
         print("critical path info:")
-        print("critical path length is {}\n".format(chain.compute_critical_path()))
+        print("critical path length is {}\n".format(self.compute_critical_path()))
 
         print("total buffer info:")
         total = 0
-        for node in chain.kernel_nodes:
-            for u, v, channel in chain.graph.edges(data='channel'):
+        for node in self.kernel_nodes:
+            for u, v, channel in self.graph.edges(data='channel'):
                 if channel is not None:
                     total_delay = 0
                     for item in channel["internal_buffer"]:
@@ -492,18 +472,18 @@ if __name__ == "__main__":
         print("total buffer size: {}\n".format(total))
 
         print("input kernel string info:")
-        for node in chain.kernel_nodes:
-            print("input kernel string of {} is: {}".format(node, chain.kernel_nodes[node].kernel_string))
+        for node in self.kernel_nodes:
+            print("input kernel string of {} is: {}".format(node, self.kernel_nodes[node].kernel_string))
         print()
 
         print("relative access kernel string info:")
-        for node in chain.kernel_nodes:
-            print("relative access kernel string of {} is: {}".format(node, chain.kernel_nodes[node].
+        for node in self.kernel_nodes:
+            print("relative access kernel string of {} is: {}".format(node, self.kernel_nodes[node].
                                                                       generate_relative_access_kernel_string()))
 
         print("instantiate optimizer...")
         from optimizer import Optimizer
-        opt = Optimizer(chain.kernel_nodes, chain.dimensions)
+        opt = Optimizer(self.kernel_nodes, self.dimensions)
         bound = 12001
         opt.minimize_fast_mem(communication_volume_bound=bound)
         print("optimize fast memory usage with comm volume bound= {}".format(bound))
@@ -511,8 +491,8 @@ if __name__ == "__main__":
 
         print("total buffer info:")
         total = 0
-        for node in chain.kernel_nodes:
-            for u, v, channel in chain.graph.edges(data='channel'):
+        for node in self.kernel_nodes:
+            for u, v, channel in self.graph.edges(data='channel'):
                 if channel is not None:
                     total_fast = 0
                     total_slow = 0
@@ -532,7 +512,26 @@ if __name__ == "__main__":
                         total_fast += entry.maxsize
         print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(total_slow, total_fast))
 
-        print("instantiate simulator...")
+
+if __name__ == "__main__":
+
+    """
+        simple test stencil program for debugging
+        
+        usage: python3 kernel_chain_graph.py -stencil_file stencils/simulator12.json -plot -simulate -report
+    """
+    # instantiate the argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-stencil_file")
+    parser.add_argument("-plot", action="store_true")
+    parser.add_argument("-verbose", action="store_true")
+    parser.add_argument("-report", action="store_true")
+    parser.add_argument("-simulate", action="store_true")
+    args = parser.parse_args()
+    # instantiate the KernelChainGraph
+    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot, verbose=args.verbose)
+    # simulate the design if argument -simulate is true
+    if args.simulate:
         from simulator import Simulator
         sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
                         input_nodes=chain.input_nodes,
@@ -544,4 +543,8 @@ if __name__ == "__main__":
                         verbose=args.verbose)
         sim.simulate()
 
-        print()
+    # output a report if argument -report is true
+    if args.report:
+        chain.report(args.stencil_file)
+        if args.simulate:
+            sim.report()

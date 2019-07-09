@@ -188,6 +188,9 @@ class Simulator:
         # finalize the simulation
         self.finalize()
 
+    def report(self):
+        self.diagnostics(None)
+
     def diagnostics(self, exception):
         # print info about all inputs
         for input in self.input_nodes:
