@@ -31,8 +31,8 @@ class KernelChainGraph:
         :param log_level: flag for console output logging
         """
         # set parameters
-        self.path: str = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), path)  # get valid
         # absolute path
+        self.path: str = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), path)  # get valid
         self.log_level: int = log_level
         # init internal fields
         self.inputs: Dict[str, Dict[str, str]] = dict()  # input data
@@ -45,6 +45,7 @@ class KernelChainGraph:
         self.input_nodes: Dict[str, Kernel] = dict()  # Input nodes of the graph
         self.output_nodes: Dict[str, Kernel] = dict()  # Output nodes of the graph
         self.kernel_nodes: Dict[str, Kernel] = dict()  # Kernel nodes of the graph
+        self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
         # trigger all internal calculations
         if self.log_level >= LogLevel.BASIC.value:
             print("Read input config files.")
@@ -79,6 +80,9 @@ class KernelChainGraph:
         for kernel in self.program:
             if "sin" in self.program[kernel]['computation_string'] or "cos" in self.program[kernel]['computation_string'] or "tan" in self.program[kernel]['computation_string']:
                 print("Warning: Computation contains sinusoidal functions with experimental latency values.")
+        # print report for moderate and high verbosity levels
+        if self.log_level >= LogLevel.MODERATE.value:
+            self.report(self.name)
 
     def plot_graph(self,
                    save_path: str = None) -> None:
