@@ -86,6 +86,8 @@ class Optimizer:
         if self.slow_memory_use > slow_memory_bound:
             raise Exception("Optimization failed, slow memory bound: {}, slow memory necessary to hold fast memory "
                             "constraint: {}".format(slow_memory_bound, self.slow_memory_use))
+        if self.log_level >= LogLevel.MODERATE.value:
+            self.report()
 
     def minimize_fast_mem(self,
                           communication_volume_bound: int) -> None:
@@ -107,6 +109,8 @@ class Optimizer:
             self.update_neighbours(opt)
             self.metric_data.remove(opt)
             opt = self.max_metric()
+        if self.log_level >= LogLevel.MODERATE.value:
+            self.report()
 
     def optimize_to_ratio(self,
                           ratio: float) -> None:
@@ -127,6 +131,8 @@ class Optimizer:
             self.update_neighbours(opt)
             self.metric_data.remove(opt)
             opt = self.max_metric()
+        if self.log_level >= LogLevel.MODERATE.value:
+            self.report()
 
     @staticmethod
     def empty_list(lst: List) -> bool:
@@ -259,6 +265,34 @@ class Optimizer:
         :return:
         """
         return reduce(operator.mul, self.dimensions) * _SIZEOF_DATATYPE
+
+    def report(self):
+        print("Optimization report:")
+        # sum up data values
+        total_fast, total_slow, total_comm = 0, 0, 0
+        for kernel in self.kernels:
+            # loop over all delay buffers
+            for buf in self.kernels[kernel].delay_buffer:
+                # get delay buffer
+                if self.kernels[kernel].delay_buffer[buf].swap_out:
+                    print("Delay buffer: {} {}: swapped out to slow memory".format(kernel, buf))
+                    total_slow += self.kernels[kernel].delay_buffer[buf].maxsize * _SIZEOF_DATATYPE
+                else:
+                    print("Delay buffer: {} {}: kept in fast memory".format(kernel, buf))
+                    total_fast += self.kernels[kernel].delay_buffer[buf].maxsize * _SIZEOF_DATATYPE
+                # get internal buffers
+                for entry in self.kernels[kernel].internal_buffer[buf]:
+                    if entry.swap_out:
+                        print("Internal buffer: {} {} index {}: swapped out to slow memory".format(kernel, buf, self.kernels[kernel].internal_buffer[buf].index(entry)))
+                        total_slow += entry.maxsize * _SIZEOF_DATATYPE
+                    else:
+                        print("Internal buffer: {} {} index {}: kept in fast memory".format(kernel, buf, self.kernels[kernel].internal_buffer[buf].index(entry)))
+                        total_fast += entry.maxsize * _SIZEOF_DATATYPE
+        for item in self.metric_data:
+            total_comm += self.metric_data["comm_vol"]
+        print("Total fast memory usage: {} bytes".format(total_fast))
+        print("Total slow memory usage: {} bytes".format(total_slow))
+        print("Total communication volume usage: {} bytes".format(total_comm))
 
 
 if __name__ == "__main__":
