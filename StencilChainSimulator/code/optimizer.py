@@ -2,6 +2,7 @@ import operator
 from kernel import Kernel
 from functools import reduce
 from typing import List, Dict
+from log_level import LogLevel
 
 _SIZEOF_DATATYPE = 4  # float32
 _EPS = 1e-10  # machine precision (i.e. used for division by (almost) zero)
@@ -31,6 +32,8 @@ class Optimizer:
         :param dimensions: global dimensions / problem size (i.e. size of the input array
         :param verbose: flag for console output logging
         """
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Initialize Optimizer.")
         # save params
         self.kernels = kernels
         self.dimensions: List[int] = dimensions
@@ -40,7 +43,11 @@ class Optimizer:
         self.slow_memory_use: int = 0
         self.metric_data: List[Dict] = list()
         # run init methods
+        if self.log_level >= LogLevel.MODERATE.value:
+            print("Add all buffers to the metric.")
         self.add_buffers_to_metric()
+        if self.log_level >= LogLevel.MODERATE.value:
+            print("Reset old state.")
         self.reset()
 
     def reinit(self):
@@ -64,6 +71,8 @@ class Optimizer:
         :param fast_memory_bound: maximum available fast on-chip memory
         :param slow_memory_bound: maximum available slow dram memory
         """
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Run optimizer in mode: Minimize Communication Volume with fast memory bound: {} and slow memory bound: {}.".format(fast_memory_bound, slow_memory_bound))
         self.reinit()
         # optimize for minimal communication volume use / maximal fast memory use
         opt = self.max_metric()
@@ -85,6 +94,8 @@ class Optimizer:
         slow memory.
         :param communication_volume_bound: maximum available data volume between fast and slow memory
         """
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Run optimizer in mode: Minimize Fast Memory Usage with comm volume bound: {}".format(communication_volume_bound))
         self.reinit()
         # optimize for minimal fast memory use / maximum communication volume use
         opt = self.max_metric()
@@ -97,7 +108,6 @@ class Optimizer:
             self.metric_data.remove(opt)
             opt = self.max_metric()
 
-
     def optimize_to_ratio(self,
                           ratio: float) -> None:
         """
@@ -105,6 +115,8 @@ class Optimizer:
         available communication volume.
         :param ratio: ratio = #fast_mem / #comm_vol
         """
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Run optimizer in mode: Optimize to Ratio with ratio: {}".format(ratio))
         self.reinit()
         # optimize for the ratio of #fast_memory/communication_volume
         opt = self.max_metric()
@@ -148,7 +160,6 @@ class Optimizer:
                 self.fast_memory_use += item["queue"].maxsize
         # reset slow memory usage
         self.slow_memory_use = 0
-
 
     def max_metric(self) -> Dict:
         """
@@ -211,7 +222,6 @@ class Optimizer:
         else:  # case (slow, slow)
             buffer["comm_vol"] = _EPS
 
-
     def add_buffers_to_metric(self):
         """
         Create buffer data structure for optimization (contain buffers, type of buffer as well as predecessor/successor.
@@ -233,11 +243,11 @@ class Optimizer:
                 prev = del_buf
                 for entry in self.kernels[kernel].internal_buffer[buf]:
                     curr = {
-                    "queue": entry,
-                    "comm_vol": 2*self.single_comm_volume(),
-                    "type": "internal",
-                    "prev": prev,
-                    "next": None}
+                        "queue": entry,
+                        "comm_vol": 2*self.single_comm_volume(),
+                        "type": "internal",
+                        "prev": prev,
+                        "next": None}
                     prev["next"] = curr
                     self.fast_memory_use += curr["queue"].maxsize * _SIZEOF_DATATYPE
                     self.metric_data.append(curr)
