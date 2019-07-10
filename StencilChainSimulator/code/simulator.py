@@ -196,7 +196,13 @@ class Simulator:
         if self.log_level >= LogLevel.BASIC.value:
             print("Finalize simulation.")
         self.finalize()
-
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Create simulator report.")
+            self.report()
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Write result report.")
+            for out in self.output_nodes:
+                print("name: {}, data: {}".format(out, self.output_nodes[out].data_queue.export_data()))
     def report(self):
         if self.log_level >= LogLevel.BASIC.value:
             print("Create simulator report.")
