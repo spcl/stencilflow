@@ -30,6 +30,8 @@ class KernelChainGraph:
         :param plot_graph: flag indication whether or not to produce the graphical graph representation
         :param log_level: flag for console output logging
         """
+        if self.log_level >= LogLevel.BASIC.value:
+            print("Initialize KernelChainGraph.")
         # set parameters
         # absolute path
         self.path: str = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), path)  # get valid
