@@ -9,7 +9,6 @@ from kernel import Kernel
 from bounded_queue import BoundedQueue
 from typing import List, Dict
 from input import Input
-from log_level import LogLevel
 from output import Output
 from log_level import LogLevel
 from dace.types import typeclass
@@ -50,6 +49,7 @@ class KernelChainGraph:
         self.kernel_nodes: Dict[str, Kernel] = dict()  # Kernel nodes of the graph
         self.config = helper.parse_json("stencil_chain.config")
         self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
+        self.kernel_dimensions = -1  # 2: 2D, 3: 3D
         # trigger all internal calculations
         if self.log_level >= LogLevel.BASIC.value:
             print("Read input config files.")
@@ -273,10 +273,20 @@ class KernelChainGraph:
         Read all sections of the program input file.
         """
         inp = helper.parse_json(self.path)
-        self.program = inp["program"]
-        self.inputs = inp["inputs"]
-        self.outputs = inp["outputs"]
-        self.dimensions = inp["dimensions"]
+        # get dimensions
+        self.kernel_dimensions = len(inp["dimensions"])
+        if self.kernel_dimensions == 2:  # 2D
+            self.program = inp["program"]
+            for entry in self.program:
+                self.program[entry]["computation_string"] = self.program[entry]["computation_string"].replace("[", "[i,")  # add extra index
+            self.inputs = inp["inputs"]
+            self.outputs = inp["outputs"]
+            self.dimensions = [1] + inp["dimensions"]  # add extra dimension
+        else:  # 3D
+            self.program = inp["program"]
+            self.inputs = inp["inputs"]
+            self.outputs = inp["outputs"]
+            self.dimensions = inp["dimensions"]
 
     def total_elements(self) -> int:
         """
@@ -512,7 +522,7 @@ class KernelChainGraph:
         bound = 12001
         opt.minimize_fast_mem(communication_volume_bound=bound)
         print("optimize fast memory usage with comm volume bound= {}".format(bound))
-        print("single stream comm vol is: {}".format(opt.single_comm_volume()))
+        print("single stream comm vol for float32 is: {}".format(opt.single_comm_volume(4)))
 
         print("total buffer info:")
         total = 0
