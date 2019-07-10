@@ -581,8 +581,8 @@ class Kernel(BaseKernelNodeClass):
                 computation = self.generate_relative_access_kernel_string(relative_to_center=True,
                                                                           replace_negative_index=True)\
                     .replace("[", "_").replace("]", "").replace(" ", "")
-                # compute result
-                self.result = self.calculator.eval_expr(self.var_map, computation)
+                # compute result and
+                self.result = self.data_type(self.calculator.eval_expr(self.var_map, computation))
                 # write result to latency-simulating buffer
                 self.out_delay_queue.enqueue(self.result)
                 # update performance metric
