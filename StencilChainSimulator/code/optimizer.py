@@ -1,12 +1,11 @@
 import operator
+import helper
 from kernel import Kernel
 from functools import reduce
 from typing import List, Dict
 from log_level import LogLevel
 
 _SIZEOF_DATATYPE = 4  # float32
-_EPS = 1e-10  # machine precision (i.e. used for division by (almost) zero)
-
 
 class Optimizer:
     """
@@ -42,6 +41,8 @@ class Optimizer:
         self.fast_memory_use: int = 0
         self.slow_memory_use: int = 0
         self.metric_data: List[Dict] = list()
+        self.config = helper.parse_json("stencil_chain.config")
+        self.eps = self.config["eps"]  # machine precision (i.e. used for division by (almost) zero)
         # run init methods
         if self.log_level >= LogLevel.MODERATE.value:
             print("Add all buffers to the metric.")
@@ -150,7 +151,7 @@ class Optimizer:
         total_com = 0
         for item in self.metric_data:
             total_com += item["comm_vol"]
-        return self.fast_memory_use / (total_com + _EPS)
+        return self.fast_memory_use / (total_com + self.eps)
 
     def reset(self) -> None:
         """
@@ -226,7 +227,7 @@ class Optimizer:
         elif (pre_fast and not succ_fast) or (not pre_fast and succ_fast):  # case (fast, slow) or (slow, fast)
             buffer["comm_vol"] = 1*self.single_comm_volume()
         else:  # case (slow, slow)
-            buffer["comm_vol"] = _EPS
+            buffer["comm_vol"] = self.eps
 
     def add_buffers_to_metric(self):
         """
