@@ -11,6 +11,7 @@ from typing import List, Dict
 from input import Input
 from log_level import LogLevel
 from output import Output
+from log_level import LogLevel
 from dace.types import typeclass
 
 
@@ -30,7 +31,7 @@ class KernelChainGraph:
         :param plot_graph: flag indication whether or not to produce the graphical graph representation
         :param log_level: flag for console output logging
         """
-        if self.log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC.value:
             print("Initialize KernelChainGraph.")
         # set parameters
         # absolute path
@@ -47,6 +48,7 @@ class KernelChainGraph:
         self.input_nodes: Dict[str, Kernel] = dict()  # Input nodes of the graph
         self.output_nodes: Dict[str, Kernel] = dict()  # Output nodes of the graph
         self.kernel_nodes: Dict[str, Kernel] = dict()  # Kernel nodes of the graph
+        self.config = helper.parse_json("stencil_chain.config")
         self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
         # trigger all internal calculations
         if self.log_level >= LogLevel.BASIC.value:
