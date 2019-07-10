@@ -203,6 +203,8 @@ class Simulator:
         self.diagnostics(None)
 
     def diagnostics(self, exception):
+        if exception is not None:
+            print("Error: Exception {} has been risen. Run diagnostics.".format(exception.__traceback__))
         if self.log_level >= LogLevel.BASIC.value:
             print("Run diagnostics of {}.".format(self.input_config_name))
         # print info about all inputs
