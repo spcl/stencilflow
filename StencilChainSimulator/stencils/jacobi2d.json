@@ -1,15 +1,15 @@
 {
 	"inputs": {
 		"a": {
-			"data": "data/zeros_16x16_fp32.dat",
-			"data_type": "float32"
+			"data": "stencils/data/zeros_16x16_fp64.dat",
+			"data_type": "float64"
 		}
 	},
 	"outputs": ["b"],
-	"dimensions": [1, 16, 16],
+	"dimensions": [16, 16],
 	"program": {
 		"b": {
-			"computation_string": "res = 0.25 * (a[i,j-1,k] + a[i,j+1,k] + a[i,j,k-1] + a[i,j,k+1])",
+			"computation_string": "res = 0.25 * (a[j-1,k] + a[j+1,k] + a[j,k-1] + a[j,k+1])",
 			"boundary_condition": {
 				"a": {
 					"type": "constant",
