@@ -1,7 +1,7 @@
 {
 	"inputs": {
 		"a": {
-			"data": "data/zeros_16x16x16_fp64.dat",
+			"data": "stencils/data/zeros_16x16x16_fp64.dat",
 			"data_type": "float64"
 		}
 	},
