@@ -5,7 +5,6 @@ from functools import reduce
 from typing import List, Dict
 from log_level import LogLevel
 
-_SIZEOF_DATATYPE = 4  # float32
 
 class Optimizer:
     """
@@ -78,8 +77,8 @@ class Optimizer:
         # optimize for minimal communication volume use / maximal fast memory use
         opt = self.max_metric()
         while not self.empty_list(self.metric_data) and self.fast_memory_use > fast_memory_bound:
-            self.fast_memory_use -= opt["queue"].maxsize * _SIZEOF_DATATYPE
-            self.slow_memory_use += opt["queue"].maxsize * _SIZEOF_DATATYPE
+            self.fast_memory_use -= opt["queue"].maxsize * opt["datatype_size"]
+            self.slow_memory_use += opt["queue"].maxsize * opt["datatype_size"]
             opt["queue"].swap_out = True
             self.update_neighbours(opt)
             self.metric_data.remove(opt)
@@ -104,8 +103,8 @@ class Optimizer:
         opt = self.max_metric()
         while not self.empty_list(self.metric_data) and opt["comm_vol"] < communication_volume_bound:
             communication_volume_bound -= opt["comm_vol"]
-            self.fast_memory_use -= opt["queue"].maxsize * _SIZEOF_DATATYPE
-            self.slow_memory_use += opt["queue"].maxsize * _SIZEOF_DATATYPE
+            self.fast_memory_use -= opt["queue"].maxsize * opt["datatype_size"]
+            self.slow_memory_use += opt["queue"].maxsize * opt["datatype_size"]
             opt["queue"].swap_out = True
             self.update_neighbours(opt)
             self.metric_data.remove(opt)
@@ -126,8 +125,8 @@ class Optimizer:
         # optimize for the ratio of #fast_memory/communication_volume
         opt = self.max_metric()
         while not self.empty_list(self.metric_data) and self.ratio() > ratio:
-            self.fast_memory_use -= opt["queue"].maxsize * _SIZEOF_DATATYPE
-            self.slow_memory_use += opt["queue"].maxsize * _SIZEOF_DATATYPE
+            self.fast_memory_use -= opt["queue"].maxsize * opt["datatype_size"]
+            self.slow_memory_use += opt["queue"].maxsize * opt["datatype_size"]
             opt["queue"].swap_out = True
             self.update_neighbours(opt)
             self.metric_data.remove(opt)
@@ -223,9 +222,9 @@ class Optimizer:
             succ_fast = True
         # set comm vol accordingly
         if pre_fast and succ_fast:  # case (fast, fast)
-            buffer["comm_vol"] = 2*self.single_comm_volume()
+            buffer["comm_vol"] = 2*self.single_comm_volume(buffer["datatype_size"])
         elif (pre_fast and not succ_fast) or (not pre_fast and succ_fast):  # case (fast, slow) or (slow, fast)
-            buffer["comm_vol"] = 1*self.single_comm_volume()
+            buffer["comm_vol"] = 1*self.single_comm_volume(buffer["datatype_size"])
         else:  # case (slow, slow)
             buffer["comm_vol"] = self.eps
 
@@ -240,32 +239,36 @@ class Optimizer:
                 # get delay buffer first
                 del_buf = {
                     "queue": self.kernels[kernel].delay_buffer[buf],
-                    "comm_vol": 2*self.single_comm_volume(),
+                    "comm_vol": 2*self.single_comm_volume(self.kernels[kernel].data_type.bytes),
                     "type": "delay",
+                    "datatype_size": self.kernels[kernel].data_type.bytes,
                     "prev": None,
                     "next": None}
-                self.fast_memory_use += del_buf["queue"].maxsize * _SIZEOF_DATATYPE
+                self.fast_memory_use += del_buf["queue"].maxsize * del_buf["datatype_size"]
                 self.metric_data.append(del_buf)
                 # get internal buffers next
                 prev = del_buf
                 for entry in self.kernels[kernel].internal_buffer[buf]:
                     curr = {
                         "queue": entry,
-                        "comm_vol": 2*self.single_comm_volume(),
+                        "comm_vol": 2*self.single_comm_volume(self.kernels[kernel].data_type.bytes),
                         "type": "internal",
+                        "datatype_size": self.kernels[kernel].data_type.bytes,
                         "prev": prev,
                         "next": None}
                     prev["next"] = curr
-                    self.fast_memory_use += curr["queue"].maxsize * _SIZEOF_DATATYPE
+                    self.fast_memory_use += curr["queue"].maxsize * curr["datatype_size"]
                     self.metric_data.append(curr)
                     prev = curr
 
-    def single_comm_volume(self):
+    def single_comm_volume(self,
+                           datatype_size: int):
         """
         # Returns the number of bytes necessary to copy a whole array from or to the fpga.
+        :param datatype_size: size in bytes of the kernel data type e.g. 4 for float32
         :return:
         """
-        return reduce(operator.mul, self.dimensions) * _SIZEOF_DATATYPE
+        return reduce(operator.mul, self.dimensions) * datatype_size
 
     def report(self):
         print("Optimization report:")
@@ -277,18 +280,18 @@ class Optimizer:
                 # get delay buffer
                 if self.kernels[kernel].delay_buffer[buf].swap_out:
                     print("Delay buffer: {} {}: swapped out to slow memory".format(kernel, buf))
-                    total_slow += self.kernels[kernel].delay_buffer[buf].maxsize * _SIZEOF_DATATYPE
+                    total_slow += self.kernels[kernel].delay_buffer[buf].maxsize * self.kernels[kernel].data_type.bytes
                 else:
                     print("Delay buffer: {} {}: kept in fast memory".format(kernel, buf))
-                    total_fast += self.kernels[kernel].delay_buffer[buf].maxsize * _SIZEOF_DATATYPE
+                    total_fast += self.kernels[kernel].delay_buffer[buf].maxsize * self.kernels[kernel].data_type.bytes
                 # get internal buffers
                 for entry in self.kernels[kernel].internal_buffer[buf]:
                     if entry.swap_out:
                         print("Internal buffer: {} {} index {}: swapped out to slow memory".format(kernel, buf, self.kernels[kernel].internal_buffer[buf].index(entry)))
-                        total_slow += entry.maxsize * _SIZEOF_DATATYPE
+                        total_slow += entry.maxsize * self.kernels[kernel].data_type.bytes
                     else:
                         print("Internal buffer: {} {} index {}: kept in fast memory".format(kernel, buf, self.kernels[kernel].internal_buffer[buf].index(entry)))
-                        total_fast += entry.maxsize * _SIZEOF_DATATYPE
+                        total_fast += entry.maxsize * self.kernels[kernel].data_type.bytes
         for item in self.metric_data:
             total_comm += self.metric_data["comm_vol"]
         print("Total fast memory usage: {} bytes".format(total_fast))
