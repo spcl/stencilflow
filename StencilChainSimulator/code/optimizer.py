@@ -23,19 +23,19 @@ class Optimizer:
     def __init__(self,
                  kernels: Dict[str, Kernel],
                  dimensions: List[int],
-                 verbose: bool = False):
+                 log_level: int = 0):
         """
         Create new BoundedQueue with given initialization parameters.
         :param kernels: all kernels
         :param dimensions: global dimensions / problem size (i.e. size of the input array
         :param verbose: flag for console output logging
         """
-        if self.log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC.value:
             print("Initialize Optimizer.")
         # save params
         self.kernels = kernels
         self.dimensions: List[int] = dimensions
-        self.verbose = verbose
+        self.log_level = log_level
         # init local fields
         self.fast_memory_use: int = 0
         self.slow_memory_use: int = 0
