@@ -9,7 +9,7 @@ from kernel import Kernel
 from bounded_queue import BoundedQueue
 from typing import List, Dict
 from input import Input
-from logging import LogLevel
+from log_level import LogLevel
 from output import Output
 from dace.types import typeclass
 
