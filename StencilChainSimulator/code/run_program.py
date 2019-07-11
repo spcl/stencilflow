@@ -31,6 +31,7 @@ chain = KernelChainGraph(path=args.stencil_file,
                          log_level=int(args.log_level))
 
 # do simulation
+print("Run simulation and store result to disk.")
 sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
                 input_nodes=chain.input_nodes,
                 input_config=chain.inputs,
@@ -40,7 +41,6 @@ sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stenc
                 write_output=True,
                 log_level=int(args.log_level))
 sim.simulate()
-
 
 sdfg = generate_sdfg(name, chain)
 
@@ -98,3 +98,17 @@ output_folder = os.path.join("results", name)
 os.makedirs(output_folder, exist_ok=True)
 helper.save_output_arrays(output_arrays, output_folder)
 print("Results saved to " + output_folder)
+
+# Compare simulation result to fpga result
+print("Comparing the results.")
+all_match = True
+for outp in output_arrays:
+    if not helper.arrays_are_equal( output_folder + output_arrays[outp] + ".dat",
+                                    output_folder + output_arrays[outp] + "_simulation" + ".dat"):
+        all_match = False
+
+if all_match:
+    print("Output matched!")
+else:
+    print("Output did not match!")
+
