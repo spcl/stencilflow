@@ -104,10 +104,15 @@ print("Results saved to " + output_folder)
 print("Comparing the results.")
 all_match = True
 for outp in output_arrays:
-    if not helper.arrays_are_equal(output_arrays[outp], simulation_result[outp]):
+    print("fpga:")
+    print(np.ravel(output_arrays[outp]))
+    print("simulation")
+    print(np.ravel(simulation_result[outp]))
+    if not helper.arrays_are_equal(np.ravel(output_arrays[outp]), np.ravel(simulation_result[outp])):
         all_match = False
 
 if all_match:
     print("Output matched!")
 else:
     print("Output did not match!")
+
