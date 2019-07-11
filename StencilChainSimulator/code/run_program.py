@@ -17,8 +17,6 @@ parser.add_argument("--print-result", dest="print_result", action="store_true")
 parser.add_argument("mode", choices=["emulation", "hardware"])
 parser.add_argument("-plot", action="store_true")
 parser.add_argument("-log-level")
-parser.add_argument("-report", action="store_true")
-parser.add_argument("-simulate", action="store_true")
 args = parser.parse_args()
 
 # Load program file
