@@ -31,16 +31,17 @@ chain = KernelChainGraph(path=args.stencil_file,
                          log_level=int(args.log_level))
 
 # do simulation
-print("Run simulation and store result to disk.")
+print("Run simulation.")
 sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
                 input_nodes=chain.input_nodes,
                 input_config=chain.inputs,
                 kernel_nodes=chain.kernel_nodes,
                 output_nodes=chain.output_nodes,
                 dimensions=chain.dimensions,
-                write_output=True,
+                write_output=False,
                 log_level=int(args.log_level))
 sim.simulate()
+simulation_result = sim.get_result()
 
 sdfg = generate_sdfg(name, chain)
 
@@ -103,9 +104,7 @@ print("Results saved to " + output_folder)
 print("Comparing the results.")
 all_match = True
 for outp in output_arrays:
-    print("{}{}{}".format(output_folder, output_arrays[outp], ".dat"))
-    if not helper.arrays_are_equal(np.fromfile(output_folder + output_arrays[outp] + ".dat", float),
-                                   np.fromfile(output_folder + output_arrays[outp] + "_simulation" + ".dat", float)):
+    if not helper.arrays_are_equal(output_arrays[outp], simulation_result[outp]):
         all_match = False
 
 if all_match:
