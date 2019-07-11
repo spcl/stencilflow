@@ -103,8 +103,8 @@ print("Results saved to " + output_folder)
 print("Comparing the results.")
 all_match = True
 for outp in output_arrays:
-    if not helper.arrays_are_equal(np.fromfile(output_folder + output_arrays[outp] + ".dat"),
-                                   np.fromfile(output_folder + output_arrays[outp] + "_simulation" + ".dat")):
+    if not helper.arrays_are_equal(np.fromfile(output_folder + output_arrays[outp] + ".dat", float),
+                                   np.fromfile(output_folder + output_arrays[outp] + "_simulation" + ".dat", float)):
         all_match = False
 
 if all_match:
