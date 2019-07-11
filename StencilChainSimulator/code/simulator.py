@@ -129,8 +129,9 @@ class Simulator:
             for output in self.output_nodes:
                 self.output_nodes[output].write_result_to_file(self.input_config_name)
         # output kernel performance metric
-        for kernel in self.kernel_nodes:
-            self.kernel_nodes[kernel].print_kernel_performance()
+        if self.log_level >= LogLevel.BASIC.value:
+            for kernel in self.kernel_nodes:
+                self.kernel_nodes[kernel].print_kernel_performance()
 
     def get_result(self):
         """
