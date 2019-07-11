@@ -10,6 +10,7 @@ import shutil
 import subprocess as sp
 from sdfg_generator import generate_sdfg
 from kernel_chain_graph import KernelChainGraph
+from simulator import Simulator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("stencil_file")
@@ -28,6 +29,18 @@ name = re.match("[^\.]+", name).group(0)
 chain = KernelChainGraph(path=args.stencil_file,
                          plot_graph=args.plot,
                          log_level=int(args.log_level))
+
+# do simulation
+sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
+                input_nodes=chain.input_nodes,
+                input_config=chain.inputs,
+                kernel_nodes=chain.kernel_nodes,
+                output_nodes=chain.output_nodes,
+                dimensions=chain.dimensions,
+                write_output=True,
+                log_level=int(args.log_level))
+sim.simulate()
+
 
 sdfg = generate_sdfg(name, chain)
 
