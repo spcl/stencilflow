@@ -553,7 +553,7 @@ if __name__ == "__main__":
     """
         simple test stencil program for debugging
         
-        usage: python3 kernel_chain_graph.py -stencil_file stencils/simulator12.json -plot -simulate -report
+        usage: python3 kernel_chain_graph.py -stencil_file stencils/simulator12.json -plot -simulate -report -log-level 2
     """
     # instantiate the argument parser
     parser = argparse.ArgumentParser()
@@ -564,7 +564,9 @@ if __name__ == "__main__":
     parser.add_argument("-simulate", action="store_true")
     args = parser.parse_args()
     # instantiate the KernelChainGraph
-    chain = KernelChainGraph(path=args.stencil_file, plot_graph=args.plot, log_level=int(args.log_level))
+    chain = KernelChainGraph(path=args.stencil_file,
+                             plot_graph=args.plot,
+                             log_level=int(args.log_level))
     # simulate the design if argument -simulate is true
     if args.simulate:
         from simulator import Simulator
