@@ -1,8 +1,8 @@
 {
 	"inputs": {
 		"arrA": {
-			"data": "stencils/data/zeros_16x16x16_fp32.dat",
-			"data_type": "float32"
+			"data": "stencils/data/zeros_16x16x16_fp64.dat",
+			"data_type": "float64"
 		}
 	},
 	"outputs": ["res"],
