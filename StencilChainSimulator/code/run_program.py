@@ -15,7 +15,7 @@ from simulator import Simulator
 parser = argparse.ArgumentParser()
 parser.add_argument("stencil_file")
 parser.add_argument("mode", choices=["emulation", "hardware"])
-parser.add_argument("-log-level", choices=["0", "1", "2", "3"])
+parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
 parser.add_argument("-plot", action="store_true")
 parser.add_argument("--print-result", dest="print_result", action="store_true")
 args = parser.parse_args()
