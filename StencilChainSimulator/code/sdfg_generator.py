@@ -295,11 +295,12 @@ def generate_sdfg(name, chain):
         # Only write if we're in bounds
         #######################################################################
 
-        write_code = ("if (!{}) {{\n".format("".join(
-            pipeline.init_condition())) + ("\n".join([
-                "write_channel_intel({}_inner_out, res);".format(output)
-                for output in outputs
-            ])) + "\n}")
+        write_code = (
+            ("if (!{}) {{\n".format("".join(pipeline.init_condition()))
+             if init_size_max > 0 else "") + ("\n".join([
+                 "write_channel_intel({}_inner_out, res);".format(output)
+                 for output in outputs
+             ])) + ("\n}" if init_size_max > 0 else "\n"))
 
         #######################################################################
         # Tasklet code generation
