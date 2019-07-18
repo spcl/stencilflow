@@ -144,7 +144,8 @@ class Kernel(BaseKernelNodeClass):
     def iter_comp_tree(self,
                        node: BaseOperationNodeClass,
                        index_relative_to_center=True,
-                       replace_negative_index=False) -> str:
+                       replace_negative_index=False,
+                       python_syntax=False) -> str:
         """
         Iterate through the computation tree in order to generate the kernel string (according to some properties
         e.g. relative to center or replace negative index.
@@ -162,15 +163,15 @@ class Kernel(BaseKernelNodeClass):
             lhs = pred[0]  # left hand side
             rhs = pred[1]  # right hand side
             # recursively compute the child string
-            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index)
-            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index)
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax)
             # return formatted string
             return "({} {} {})".format(lhs_str, node.generate_op_sym(), rhs_str)
         elif isinstance(node, Call):  # function call
             # extract expression element
             expr = pred[0]
             # recursively compute the child string
-            expr_str = self.iter_comp_tree(expr, index_relative_to_center, replace_negative_index)
+            expr_str = self.iter_comp_tree(expr, index_relative_to_center, replace_negative_index, python_syntax)
             # return formatted string
             return "{}({})".format(node.name, expr_str)
         elif isinstance(node, Name) or isinstance(node, Num):
@@ -195,25 +196,28 @@ class Kernel(BaseKernelNodeClass):
             lhs = [x for x in pred if type(x) != Compare][0]  # left hand side
             rhs = [x for x in pred if type(x) != Compare][1]  # right hand side
             # recursively compute the child string
-            compare_str = self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index)
-            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index)
-            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index)
+            compare_str = self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index, python_syntax)
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax)
             # return formatted string
-            return "(({}) ? ({}) : ({}))".format(lhs_str, compare_str, rhs_str)
+            if python_syntax:
+                return "(({}) if ({}) else ({}))".format(lhs_str, compare_str, rhs_str)
+            else:  # C++ ternary operator syntax
+                return "(({}) ? ({}) : ({}))".format(compare_str, lhs_str, rhs_str)
         elif isinstance(node, Compare):  # comparison
             # extract expression element
             lhs = pred[0]
             rhs = pred[1]
             # recursively compute the child string
-            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index)
-            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index)
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax)
             # return formatted string
             return "{} {} {}".format(lhs_str, str(node.name), rhs_str)
         elif isinstance(node, UnaryOp):  # unary operations e.g. negation
             # extract expression element
             expr = pred[0]
             # recursively compute the child string
-            expr_str = self.iter_comp_tree(node=expr, index_relative_to_center=index_relative_to_center, replace_negative_index=replace_negative_index)
+            expr_str = self.iter_comp_tree(node=expr, index_relative_to_center=index_relative_to_center, replace_negative_index=replace_negative_index, python_syntax=python_syntax)
             # return formatted string
             return "({}{})".format(node.generate_op_sym(), expr_str)
         else:
@@ -221,7 +225,8 @@ class Kernel(BaseKernelNodeClass):
 
     def generate_relative_access_kernel_string(self,
                                                relative_to_center=True,
-                                               replace_negative_index=False) -> str:
+                                               replace_negative_index=False,
+                                               python_syntax=False) -> str:
         """
         Generates the relative (either to the center or to the furthest field access) access kernel string which
         is necessary for the code generator HLS tool.
@@ -236,7 +241,7 @@ class Kernel(BaseKernelNodeClass):
         for n in self.graph.graph.nodes:
             if isinstance(n, Name):
                 res.append(n.name + " = " + self.iter_comp_tree(
-                    list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index))
+                    list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index, python_syntax))
         # treat output node(s)
         output_node = [
             n for n in self.graph.graph.nodes if isinstance(n, Output)
@@ -245,9 +250,10 @@ class Kernel(BaseKernelNodeClass):
             raise Exception("Expected a single output node")
         output_node = output_node[0]
         # concatenate the expressions
-        res.append("res = " + self.iter_comp_tree(
-            list(self.graph.graph.pred[output_node])[0], index_relative_to_center=relative_to_center,
-            replace_negative_index=replace_negative_index))
+        res.append("res = " + self.iter_comp_tree(node=list(self.graph.graph.pred[output_node])[0],
+                                                  index_relative_to_center=relative_to_center,
+                                                  replace_negative_index=replace_negative_index,
+                                                  python_syntax=python_syntax))
         return "; ".join(res)
 
     def reset_old_compute_state(self) -> None:
@@ -579,7 +585,8 @@ class Kernel(BaseKernelNodeClass):
             try:
                 # get computation string
                 computation = self.generate_relative_access_kernel_string(relative_to_center=True,
-                                                                          replace_negative_index=True)\
+                                                                          replace_negative_index=True,
+                                                                          python_syntax=True)\
                     .replace("[", "_").replace("]", "").replace(" ", "")
                 # compute result and
                 self.result = self.data_type(self.calculator.eval_expr(self.var_map, computation))
