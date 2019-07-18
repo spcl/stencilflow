@@ -199,7 +199,7 @@ class Kernel(BaseKernelNodeClass):
             lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index)
             rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index)
             # return formatted string
-            return "(({}) if ({}) else ({}))".format(lhs_str, compare_str, rhs_str)
+            return "(({}) ? ({}) : ({}))".format(lhs_str, compare_str, rhs_str)
         elif isinstance(node, Compare):  # comparison
             # extract expression element
             lhs = pred[0]
