@@ -2,6 +2,8 @@
 import argparse
 import numpy as np
 
+# example call:
+# python3 binary_input_generator.py data/random_0_10_16x16_fp32 16*16 const csv float32 -rand_lo 0.0 -rand_hi 10.0
 parser = argparse.ArgumentParser()
 parser.add_argument("filename")
 parser.add_argument("N")
