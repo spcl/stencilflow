@@ -18,6 +18,7 @@ parser.add_argument("mode", choices=["emulation", "hardware"])
 parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
 parser.add_argument("-plot", action="store_true")
 parser.add_argument("-simulation", action="store_true")
+parser.add_argument("-skip_execution", action="store_true")
 parser.add_argument("--print-result", dest="print_result", action="store_true")
 args = parser.parse_args()
 
@@ -81,6 +82,9 @@ if args.mode == "emulation":
 elif args.mode == "hardware":
     if not os.path.exists(os.path.join(build_folder, name + "_hardware.aocx")):
         raise FileNotFoundError("Hardware kernel has not been built.")
+
+if args.skip_execution:
+    exit()
 
 # Run program
 dace_args = {
