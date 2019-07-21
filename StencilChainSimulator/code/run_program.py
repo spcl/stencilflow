@@ -17,6 +17,7 @@ parser.add_argument("stencil_file")
 parser.add_argument("mode", choices=["emulation", "hardware"])
 parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
 parser.add_argument("-plot", action="store_true")
+parser.add_argument("-simulation", action="store_true")
 parser.add_argument("--print-result", dest="print_result", action="store_true")
 args = parser.parse_args()
 
@@ -31,17 +32,18 @@ chain = KernelChainGraph(path=args.stencil_file,
                          log_level=int(args.log_level))
 
 # do simulation
-print("Run simulation.")
-sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
-                input_nodes=chain.input_nodes,
-                input_config=chain.inputs,
-                kernel_nodes=chain.kernel_nodes,
-                output_nodes=chain.output_nodes,
-                dimensions=chain.dimensions,
-                write_output=False,
-                log_level=int(args.log_level))
-sim.simulate()
-simulation_result = sim.get_result()
+if args.simulation:
+    print("Run simulation.")
+    sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
+                    input_nodes=chain.input_nodes,
+                    input_config=chain.inputs,
+                    kernel_nodes=chain.kernel_nodes,
+                    output_nodes=chain.output_nodes,
+                    dimensions=chain.dimensions,
+                    write_output=False,
+                    log_level=int(args.log_level))
+    sim.simulate()
+    simulation_result = sim.get_result()
 
 sdfg = generate_sdfg(name, chain)
 
@@ -101,18 +103,19 @@ helper.save_output_arrays(output_arrays, output_folder)
 print("Results saved to " + output_folder)
 
 # Compare simulation result to fpga result
-print("Comparing the results.")
-all_match = True
-for outp in output_arrays:
-    print("fpga:")
-    print(np.ravel(output_arrays[outp]))
-    print("simulation")
-    print(np.ravel(simulation_result[outp]))
-    if not helper.arrays_are_equal(np.ravel(output_arrays[outp]), np.ravel(simulation_result[outp])):
-        all_match = False
+if args.simulation:
+    print("Comparing the results.")
+    all_match = True
+    for outp in output_arrays:
+        print("fpga:")
+        print(np.ravel(output_arrays[outp]))
+        print("simulation")
+        print(np.ravel(simulation_result[outp]))
+        if not helper.arrays_are_equal(np.ravel(output_arrays[outp]), np.ravel(simulation_result[outp])):
+            all_match = False
 
-if all_match:
-    print("Output matched!")
-else:
-    print("Output did not match!")
+    if all_match:
+        print("Output matched!")
+    else:
+        print("Output did not match!")
 
