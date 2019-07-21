@@ -1,3 +1,4 @@
+import numpy as np
 from bounded_queue import BoundedQueue
 from base_node_class import BaseKernelNodeClass
 from dace.types import typeclass
@@ -25,7 +26,6 @@ class Input(BaseKernelNodeClass):
         self.queues = dict()
         self.dimension_size = data_queue.maxsize
         self.init = False  # flag for internal initialization (must be done later when all successors are added to the graph)
-
 
     def init_queues(self):
         """
@@ -82,15 +82,13 @@ class Input(BaseKernelNodeClass):
         elif isinstance(inputs[self.name]["data"], str):  # external file
             coll = None
             if inputs[self.name]["data"].lower().endswith(('.dat', '.bin', '.data')):  # general binary data file
-                from numpy import fromfile
-                coll = fromfile(inputs[self.name]["data"], float)
+                coll = np.fromfile(inputs[self.name]["data"], inputs[self.name]["data_type"].type)
             if inputs[self.name]["data"].lower().endswith('.h5'):  # h5 file
                 from h5py import File
                 f = File(inputs[self.name]["data"], 'r')
-                coll = list(f[list(f.keys())[0]])  # read data from first key
+                coll = np.array(list(f[list(f.keys())[0]]), dtype=inputs[self.name]["data_type"].type)  # read data from first key
             elif inputs[self.name]["data"].lower().endswith('.csv'):  # csv file
-                from numpy import genfromtxt
-                coll = list(genfromtxt(inputs[self.name]["data"], delimiter=','))
+                coll = list(np.genfromtxt(inputs[self.name]["data"], delimiter=',', dtype=inputs[self.name]["data_type"].type))
             # add data to queue
             self.data_queue.import_data(coll)
         else:
