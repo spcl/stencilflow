@@ -18,3 +18,4 @@ shutil
 subprocess
 unittest
 h5py
+pydot
