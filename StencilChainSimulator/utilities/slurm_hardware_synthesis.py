@@ -8,8 +8,8 @@ from subprocess import call
 parser = argparse.ArgumentParser()
 parser.add_argument("name")  # name of the design we want to synthesis
 parser.add_argument("-N", default=1)  # nodes, default: 1
-parser.add_argument("-n", default=1)  # task, default: 1
-parser.add_argument("-c", default=1)  # cores, default: 1
+parser.add_argument("-n", default=8)  # task, default: 8
+parser.add_argument("-c", default=8)  # cores, default: 8
 parser.add_argument("--mem", default=131072)  # memory, default: 131072MB=128GB
 parser.add_argument("-o", default="outfile")  # stdout, default: saved to outfile_NAME
 parser.add_argument("-e", default="errfile")  # stderr, default: saved to errfile_NAME
