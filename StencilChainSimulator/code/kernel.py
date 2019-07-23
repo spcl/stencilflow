@@ -635,7 +635,13 @@ class Kernel(BaseKernelNodeClass):
         print("Program Counter: {}".format(self.program_counter))
         print("All inputs available? {}".format(self.all_available))
         print("Center reached? {}".format(self.center_reached))
-        # inputs
+        print("Exception traceback:")
+        if ex is not None:
+            import traceback
+            try:
+                raise ex
+            except Exception:
+                print(traceback.format_exc())        # inputs
         for input in self.inputs:
             buffer = self.inputs[input]
             print("Buffer info from input {}".format(input))
