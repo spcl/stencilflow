@@ -24,7 +24,8 @@ class Calculator:
         ast.Sub: operator.sub,
         ast.Mult: operator.mul,
         ast.Div: operator.truediv,
-        ast.Invert: operator.neg
+        ast.Invert: operator.neg,
+        ast.USub: operator.sub
     }
 
     """
@@ -133,6 +134,9 @@ class Calculator:
             """
             return Calculator._CALL_MAP[node.func.id](self.visit(node.args[0]))
 
+        def visit_UnaryOp(self, node: ast) -> float:
+            return Calculator._OP_MAP[type(node.op)](0.0, self.visit(node.operand))
+
         @classmethod
         def evaluate(cls,
                      variable_map: Dict[str, float],
@@ -180,7 +184,7 @@ if __name__ == "__main__":
     for var in variables:
         print("name: " + var + " value: " + str(variables[var]))
 
-    computation = "cos(a + b) if (a > b) else (a + 5) * b"
+    computation = "cos(-a + b) if (a > b) else (a + 5) * b"
     calculator = Calculator()
     result = calculator.eval_expr(variables, computation)
     print(computation + " = " + str(result))
