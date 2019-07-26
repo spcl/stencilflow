@@ -28,6 +28,7 @@ name = os.path.basename(args.stencil_file)
 name = re.match("[^\.]+", name).group(0)
 
 # Create SDFG
+print("Create KernelChainGraph")
 chain = KernelChainGraph(path=args.stencil_file,
                          plot_graph=args.plot,
                          log_level=int(args.log_level))
@@ -46,9 +47,11 @@ if args.simulation:
     sim.simulate()
     simulation_result = sim.get_result()
 
+print("Generate sdfg")
 sdfg = generate_sdfg(name, chain)
 
 # Configure and compile SDFG
+print("Configure sdfg")
 dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
 # dace.config.Config.set("compiler", "use_cache", value=True)
 dace.config.Config.set("optimizer", "interface", value="")
@@ -56,6 +59,7 @@ if args.mode == "emulation":
     dace.config.Config.set("compiler", "intel_fpga", "mode", value="emulator")
 else:
     dace.config.Config.set("compiler", "intel_fpga", "mode", value="hardware")
+print("Compile sdfg")
 program = sdfg.compile()
 
 # Load data from disk
