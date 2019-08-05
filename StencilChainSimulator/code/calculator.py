@@ -182,9 +182,9 @@ if __name__ == "__main__":
     variables["b"] = 2
 
     for var in variables:
-        print("name: " + var + " value: " + str(variables[var]))
+        print("name: {}, value: {}".format(var, str(variables[var])))
 
     computation = "cos(-a + b) if (a > b) else (a + 5) * b"
     calculator = Calculator()
     result = calculator.eval_expr(variables, computation)
-    print(computation + " = " + str(result))
+    print("{} = {}".format(computation, str(result)))
