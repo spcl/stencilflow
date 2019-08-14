@@ -37,6 +37,6 @@ with open("{}/{}_run.sh".format(home_dir, args.name), "w") as f:
     f.write(_PYTHON_PATH)
     f.write(_CMAKE_PATH)
     f.write(_GCC_PATH)
-    f.write("python3 code/run_program.py stencils/{}}.json hardware -log-level 0\n".format(args.name))
+    f.write("python3 code/run_program.py stencils/{}.json hardware -log-level 0\n".format(args.name))
 
 call(["sbatch", "{}/{}.sh".format(home_dir, args.name)])
