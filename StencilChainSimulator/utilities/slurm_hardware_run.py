@@ -13,14 +13,14 @@ parser.add_argument("-c", default=1)  # cores, default: 1
 parser.add_argument("--mem", default=32768)  # memory, default: 131072MB=128GB
 parser.add_argument("-o", default="outfile")  # stdout, default: saved to outfile_NAME
 parser.add_argument("-e", default="errfile")  # stderr, default: saved to errfile_NAME
-parser.add_argument("-t", default="24:00:00")  # time requested hh:mm:ss, default: 24h
-parser.add_argument("--partition", default="long")  # cluster queue, default: long
+parser.add_argument("-t", default="01:00:00")  # time requested hh:mm:ss, default: 24h
+parser.add_argument("--partition", default="fpga")  # cluster queue, default: long
 args = parser.parse_args()
 
 if args.name is None:
     raise Exception("No design name specified, exit.")
 
-header = [("-N", args.N), ("-n", args.n), ("-c", args.c), ("--mem", args.mem), ("-o", "{}_{}".format(args.o, args.name)), ("-e", "{}_{}".format(args.e, args.name)), ("-t", args.t), ("--partition", args.partition)]
+header = [("-N", args.N), ("-n", args.n), ("-c", args.c), ("--mem", args.mem), ("-o", "{}_{}_run".format(args.o, args.name)), ("-e", "{}_{}_run".format(args.e, args.name)), ("-t", args.t), ("--partition", args.partition)]
 home_dir = os.path.expanduser("~")
 
 _SDK_PATH = "source /apps/ault/intelFPGA_pro/19.1/hld/init_stratix.sh\n"
