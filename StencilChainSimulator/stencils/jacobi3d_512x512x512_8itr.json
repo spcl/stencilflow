@@ -8,7 +8,7 @@
 	"outputs": ["b7"],
 	"dimensions": [512, 512, 512],
 	"program": {
-		"b": {
+		"b0": {
 			"computation_string": "res = 0.16666666 * (a[i-1,j,k] + a[i+1,j,k] + a[i,j-1,k] + a[i,j+1,k] + a[i,j,k-1] + a[i,j,k+1])",
 			"boundary_condition": {
 				"a": {
