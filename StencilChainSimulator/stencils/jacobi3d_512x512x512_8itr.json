@@ -1,0 +1,92 @@
+{
+	"inputs": {
+		"a": {
+			"data": "stencils/data/zeros_512x512x512_fp32.dat",
+			"data_type": "float32"
+		}
+	},
+	"outputs": ["i"],
+	"dimensions": [512, 512, 512],
+	"program": {
+		"b": {
+			"computation_string": "res = 0.16666666 * (a[i-1,j,k] + a[i+1,j,k] + a[i,j-1,k] + a[i,j+1,k] + a[i,j,k-1] + a[i,j,k+1])",
+			"boundary_condition": {
+				"a": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		},
+		"c": {
+			"computation_string": "res = 0.16666666 * (b[i-1,j,k] + b[i+1,j,k] + b[i,j-1,k] + b[i,j+1,k] + b[i,j,k-1] + b[i,j,k+1])",
+			"boundary_condition": {
+				"b": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		},
+		"d": {
+			"computation_string": "res = 0.16666666 * (c[i-1,j,k] + c[i+1,j,k] + c[i,j-1,k] + c[i,j+1,k] + c[i,j,k-1] + c[i,j,k+1])",
+			"boundary_condition": {
+				"c": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		},
+		"e": {
+			"computation_string": "res = 0.16666666 * (d[i-1,j,k] + d[i+1,j,k] + d[i,j-1,k] + d[i,j+1,k] + d[i,j,k-1] + d[i,j,k+1])",
+			"boundary_condition": {
+				"d": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		},
+		"f": {
+			"computation_string": "res = 0.16666666 * (e[i-1,j,k] + e[i+1,j,k] + e[i,j-1,k] + e[i,j+1,k] + e[i,j,k-1] + e[i,j,k+1])",
+			"boundary_condition": {
+				"e": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		},
+		"g": {
+			"computation_string": "res = 0.16666666 * (f[i-1,j,k] + f[i+1,j,k] + f[i,j-1,k] + f[i,j+1,k] + f[i,j,k-1] + f[i,j,k+1])",
+			"boundary_condition": {
+				"f": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		},
+		"h": {
+			"computation_string": "res = 0.16666666 * (g[i-1,j,k] + g[i+1,j,k] + g[i,j-1,k] + g[i,j+1,k] + g[i,j,k-1] + g[i,j,k+1])",
+			"boundary_condition": {
+				"g": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		},
+		"i": {
+			"computation_string": "res = 0.16666666 * (h[i-1,j,k] + h[i+1,j,k] + h[i,j-1,k] + h[i,j+1,k] + h[i,j,k-1] + h[i,j,k+1])",
+			"boundary_condition": {
+				"h": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		}
+	}
+}
