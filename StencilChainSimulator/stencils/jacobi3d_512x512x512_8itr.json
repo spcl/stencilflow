@@ -5,7 +5,7 @@
 			"data_type": "float32"
 		}
 	},
-	"outputs": ["i"],
+	"outputs": ["b7"],
 	"dimensions": [512, 512, 512],
 	"program": {
 		"b": {
@@ -18,70 +18,70 @@
 			},
 			"data_type": "float32"
 		},
-		"c": {
-			"computation_string": "res = 0.16666666 * (b[i-1,j,k] + b[i+1,j,k] + b[i,j-1,k] + b[i,j+1,k] + b[i,j,k-1] + b[i,j,k+1])",
+		"b1": {
+			"computation_string": "res = 0.16666666 * (b0[i-1,j,k] + b0[i+1,j,k] + b0[i,j-1,k] + b0[i,j+1,k] + b0[i,j,k-1] + b0[i,j,k+1])",
 			"boundary_condition": {
-				"b": {
+				"b0": {
 					"type": "constant",
 					"value": 1.0
 				}
 			},
 			"data_type": "float32"
 		},
-		"d": {
-			"computation_string": "res = 0.16666666 * (c[i-1,j,k] + c[i+1,j,k] + c[i,j-1,k] + c[i,j+1,k] + c[i,j,k-1] + c[i,j,k+1])",
+		"b2": {
+			"computation_string": "res = 0.16666666 * (b1[i-1,j,k] + b1[i+1,j,k] + b1[i,j-1,k] + b1[i,j+1,k] + b1[i,j,k-1] + b1[i,j,k+1])",
 			"boundary_condition": {
-				"c": {
+				"b1": {
 					"type": "constant",
 					"value": 1.0
 				}
 			},
 			"data_type": "float32"
 		},
-		"e": {
-			"computation_string": "res = 0.16666666 * (d[i-1,j,k] + d[i+1,j,k] + d[i,j-1,k] + d[i,j+1,k] + d[i,j,k-1] + d[i,j,k+1])",
+		"b3": {
+			"computation_string": "res = 0.16666666 * (b2[i-1,j,k] + b2[i+1,j,k] + b2[i,j-1,k] + b2[i,j+1,k] + b2[i,j,k-1] + b2[i,j,k+1])",
 			"boundary_condition": {
-				"d": {
+				"b2": {
 					"type": "constant",
 					"value": 1.0
 				}
 			},
 			"data_type": "float32"
 		},
-		"f": {
-			"computation_string": "res = 0.16666666 * (e[i-1,j,k] + e[i+1,j,k] + e[i,j-1,k] + e[i,j+1,k] + e[i,j,k-1] + e[i,j,k+1])",
+		"b4": {
+			"computation_string": "res = 0.16666666 * (b3[i-1,j,k] + b3[i+1,j,k] + b3[i,j-1,k] + b3[i,j+1,k] + b3[i,j,k-1] + b3[i,j,k+1])",
 			"boundary_condition": {
-				"e": {
+				"b3": {
 					"type": "constant",
 					"value": 1.0
 				}
 			},
 			"data_type": "float32"
 		},
-		"g": {
-			"computation_string": "res = 0.16666666 * (f[i-1,j,k] + f[i+1,j,k] + f[i,j-1,k] + f[i,j+1,k] + f[i,j,k-1] + f[i,j,k+1])",
+		"b5": {
+			"computation_string": "res = 0.16666666 * (b4[i-1,j,k] + b4[i+1,j,k] + b4[i,j-1,k] + b4[i,j+1,k] + b4[i,j,k-1] + b4[i,j,k+1])",
 			"boundary_condition": {
-				"f": {
+				"b4": {
 					"type": "constant",
 					"value": 1.0
 				}
 			},
 			"data_type": "float32"
 		},
-		"h": {
-			"computation_string": "res = 0.16666666 * (g[i-1,j,k] + g[i+1,j,k] + g[i,j-1,k] + g[i,j+1,k] + g[i,j,k-1] + g[i,j,k+1])",
+		"b6": {
+			"computation_string": "res = 0.16666666 * (b5[i-1,j,k] + b5[i+1,j,k] + b5[i,j-1,k] + b5[i,j+1,k] + b5[i,j,k-1] + b5[i,j,k+1])",
 			"boundary_condition": {
-				"g": {
+				"b5": {
 					"type": "constant",
 					"value": 1.0
 				}
 			},
 			"data_type": "float32"
 		},
-		"i": {
-			"computation_string": "res = 0.16666666 * (h[i-1,j,k] + h[i+1,j,k] + h[i,j-1,k] + h[i,j+1,k] + h[i,j,k-1] + h[i,j,k+1])",
+		"b7": {
+			"computation_string": "res = 0.16666666 * (b6[i-1,j,k] + b6[i+1,j,k] + b6[i,j-1,k] + b6[i,j+1,k] + b6[i,j,k-1] + b6[i,j,k+1])",
 			"boundary_condition": {
-				"h": {
+				"b6": {
 					"type": "constant",
 					"value": 1.0
 				}
