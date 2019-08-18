@@ -1,5 +1,5 @@
-import os
 import argparse
+import os
 from subprocess import call
 
 # example call: python3 slurm_hardware_synthesis.py jacobi3d
@@ -20,7 +20,9 @@ args = parser.parse_args()
 if args.name is None:
     raise Exception("No design name specified, exit.")
 
-header = [("-N", args.N), ("-n", args.n), ("-c", args.c), ("--mem", args.mem), ("-o", "{}_{}".format(args.o, args.name)), ("-e", "{}_{}".format(args.e, args.name)), ("-t", args.t), ("--partition", args.partition)]
+header = [("-N", args.N), ("-n", args.n), ("-c", args.c), ("--mem", args.mem),
+          ("-o", "{}_{}".format(args.o, args.name)), ("-e", "{}_{}".format(args.e, args.name)), ("-t", args.t),
+          ("--partition", args.partition)]
 home_dir = os.path.expanduser("~")
 
 _SDK_PATH = "source /apps/ault/intelFPGA_pro/19.1/hld/init_stratix.sh\n"
