@@ -1,7 +1,8 @@
 import functools
 import operator
-from log_level import LogLevel
 from typing import List, Dict
+
+from log_level import LogLevel
 
 
 class Simulator:

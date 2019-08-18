@@ -1,4 +1,5 @@
 import unittest
+
 from bounded_queue import BoundedQueue
 
 
@@ -14,9 +15,9 @@ class BoundedQueueTest(unittest.TestCase):
         # check size
         self.assertEqual(queue.size(), len(collection))
         # check if data added in the right order
-        self.assertEqual(queue.try_peek_last(), collection[len(collection)-1])
+        self.assertEqual(queue.try_peek_last(), collection[len(collection) - 1])
         # check exception for overfilling queue
-        self.assertRaises(RuntimeError, queue.import_data, 6*[1.0])
+        self.assertRaises(RuntimeError, queue.import_data, 6 * [1.0])
 
     def test_enq_deq(self):
         # init
@@ -82,6 +83,8 @@ class BoundedQueueTest(unittest.TestCase):
 
 from calculator import Calculator
 from numpy import cos
+
+
 class CalculatorTest(unittest.TestCase):
 
     def test_calc(self):
@@ -93,7 +96,8 @@ class CalculatorTest(unittest.TestCase):
         computation = "cos(a + b) if (a > b) else (a + 5) * b"
         calculator = Calculator()
         # do manual calculation and compare result
-        result = cos(variables["a"] + variables["b"]) if (variables["a"] > variables["b"]) else (variables["a"] + 5) * variables["b"]
+        result = cos(variables["a"] + variables["b"]) if (variables["a"] > variables["b"]) else (variables["a"] + 5) * \
+                                                                                                variables["b"]
         self.assertEqual(calculator.eval_expr(variables, computation), result)
 
 
@@ -105,6 +109,8 @@ class RunProgramTest(unittest.TestCase):
 
 import helper
 import numpy as np
+
+
 class HelperTest(unittest.TestCase):
 
     def test(self):
@@ -119,8 +125,10 @@ class HelperTest(unittest.TestCase):
         # check convert_3d_to_1d
         self.assertEqual(helper.convert_3d_to_1d([10, 10, 10], [3, 2, 1]), 321)
         # check load_array
-        self.assertListEqual(list(helper.load_array({"data": "testing/helper_test.csv", "data_type": "float64"})), [7.0, 7.0])
-        self.assertListEqual(list(helper.load_array({"data": "testing/helper_test.dat", "data_type": "float64"})), [7.0, 7.0])
+        self.assertListEqual(list(helper.load_array({"data": "testing/helper_test.csv", "data_type": "float64"})),
+                             [7.0, 7.0])
+        self.assertListEqual(list(helper.load_array({"data": "testing/helper_test.dat", "data_type": "float64"})),
+                             [7.0, 7.0])
         # check save_array / load_array
         out_data = np.array([1.0, 2.0, 3.0])
         file = {"data": "test.dat", "data_type": "float64"}
@@ -136,6 +144,8 @@ class HelperTest(unittest.TestCase):
 from compute_graph import ComputeGraph
 import json
 import os
+
+
 class ComputeGraphTest(unittest.TestCase):
 
     def test(self):
@@ -159,6 +169,8 @@ class ComputeGraphTest(unittest.TestCase):
 
 from kernel import Kernel
 import dace.types
+
+
 class KernelTest(unittest.TestCase):
 
     def test(self):
@@ -176,6 +188,8 @@ class KernelTest(unittest.TestCase):
 
 
 from kernel_chain_graph import KernelChainGraph
+
+
 class KernelChainGraphTest(unittest.TestCase):
 
     def test(self):
@@ -183,7 +197,10 @@ class KernelChainGraphTest(unittest.TestCase):
         # Note: Since e.g. the delay buffer sizes get tested using different cases (e.g. through the simulator), we only
         # add a basic (no exception) case in here for the moment.
 
+
 from optimizer import Optimizer
+
+
 class OptimizerTest(unittest.TestCase):
 
     def test(self):
@@ -202,8 +219,9 @@ class OptimizerTest(unittest.TestCase):
         opt.optimize_to_ratio(ratio=ratio)
 
 
-
 from simulator import Simulator
+
+
 class SimulatorTest(unittest.TestCase):
 
     def test(self):
@@ -255,7 +273,8 @@ class SimulatorTest(unittest.TestCase):
             },
             "sample12": {
                 "file": "stencils/simulator12.json",
-                "res": [20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25, 16.25, 20.25, 20.25, 19.25, 20.25, 20.25,
+                "res": [20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25, 16.25, 20.25, 20.25, 19.25, 20.25,
+                        20.25,
                         19.25, 16.25, 16.25, 16.25, 20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25, 16.25]
             }
         }

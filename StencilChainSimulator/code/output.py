@@ -1,11 +1,14 @@
-import operator
 import functools
-import helper
+import operator
 import os
-from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass
 from typing import List
+
 from dace.types import typeclass
+
+import helper
+from base_node_class import BaseKernelNodeClass
+from bounded_queue import BoundedQueue
+
 
 class Output(BaseKernelNodeClass):
     """
@@ -27,7 +30,8 @@ class Output(BaseKernelNodeClass):
         """
         # init superclass with queue of size: global problem size
         super().__init__(name=name, data_type=data_type, data_queue=BoundedQueue(name="output",
-                                                                                 maxsize=functools.reduce(operator.mul, dimensions),
+                                                                                 maxsize=functools.reduce(operator.mul,
+                                                                                                          dimensions),
                                                                                  collection=[]))
 
     def reset_old_compute_state(self) -> None:
@@ -44,7 +48,8 @@ class Output(BaseKernelNodeClass):
         assert len(self.inputs) == 1  # there should be only a single one
         for inp in self.inputs:
             # read data
-            if self.inputs[inp]["delay_buffer"].try_peek_last() is not False and self.inputs[inp]["delay_buffer"].try_peek_last() is not None:
+            if self.inputs[inp]["delay_buffer"].try_peek_last() is not False and self.inputs[inp]["delay_buffer"]\
+                    .try_peek_last() is not None:
                 self.data_queue.enqueue(self.inputs[inp]["delay_buffer"].dequeue())
                 self.program_counter += 1
             elif self.inputs[inp]["delay_buffer"].try_peek_last() is not False:

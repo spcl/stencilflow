@@ -1,7 +1,8 @@
 import numpy as np
-from bounded_queue import BoundedQueue
-from base_node_class import BaseKernelNodeClass
 from dace.types import typeclass
+
+from base_node_class import BaseKernelNodeClass
+from bounded_queue import BoundedQueue
 
 
 class Input(BaseKernelNodeClass):
@@ -25,7 +26,8 @@ class Input(BaseKernelNodeClass):
         # set internal fields
         self.queues = dict()
         self.dimension_size = data_queue.maxsize
-        self.init = False  # flag for internal initialization (must be done later when all successors are added to the graph)
+        self.init = False  # flag for internal initialization (must be done later when all successors are added to the
+        # graph)
 
     def init_queues(self):
         """
@@ -61,7 +63,8 @@ class Input(BaseKernelNodeClass):
             self.init_queues()
         # feed data into pipeline inputs (all kernels that feed from this input data array)
         for successor in self.outputs:
-            if self.queues[successor].is_empty() and not self.outputs[successor]["delay_buffer"].is_full():  # no more data to feed, add bubble
+            if self.queues[successor].is_empty() and not self.outputs[successor]["delay_buffer"].is_full():  # no more
+                # data to feed, add bubble
                 self.outputs[successor]["delay_buffer"].enqueue(None)  # insert bubble
             elif self.outputs[successor]["delay_buffer"].is_full():  # channel full, skip
                 pass
@@ -86,9 +89,11 @@ class Input(BaseKernelNodeClass):
             if inputs[self.name]["data"].lower().endswith('.h5'):  # h5 file
                 from h5py import File
                 f = File(inputs[self.name]["data"], 'r')
-                coll = np.array(list(f[list(f.keys())[0]]), dtype=inputs[self.name]["data_type"].type)  # read data from first key
+                coll = np.array(list(f[list(f.keys())[0]]), dtype=inputs[self.name]["data_type"].type)  # read data
+                # from first key
             elif inputs[self.name]["data"].lower().endswith('.csv'):  # csv file
-                coll = list(np.genfromtxt(inputs[self.name]["data"], delimiter=',', dtype=inputs[self.name]["data_type"].type))
+                coll = list(np.genfromtxt(inputs[self.name]["data"], delimiter=',',
+                                          dtype=inputs[self.name]["data_type"].type))
             # add data to queue
             self.data_queue.import_data(coll)
         else:

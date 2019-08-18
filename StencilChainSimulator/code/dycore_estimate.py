@@ -79,7 +79,8 @@ def do_estimate():
     print("###########################################################")
     # instantiate the dummy-dycore (modified to fixed latency per kernel of 4*latency(addition) to get full analysis
     chain = KernelChainGraph("input/dycore_upper_half.json")
-    # assumption: since we implemented ~1/2 of the dycore in the dummy input file, we assume the critical path is 2x longer
+    # assumption: since we implemented ~1/2 of the dycore in the dummy input file, we assume the critical path is 2x
+    # longer
     _DYCORE_CRITICAL_PATH_LENGTH = 2 * chain.compute_critical_path()
     # compute total critical path
     critical_path_dim = [x * _DYCORE_CRITICAL_PATH_LENGTH for x in _MEAN_CRITICAL_PATH_KERNEL]

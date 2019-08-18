@@ -1,15 +1,17 @@
 import ast
-import helper
+from typing import List, Dict, Set
+
 import networkx as nx
+
+import helper
 from base_node_class import BaseOperationNodeClass
 from compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
-from typing import List, Dict, Set
 
 
 class ComputeGraph:
     """
-        The ComputeGraph class manages the inner data flow of a single computation respectively a single kernel including its
-        properties e.g. latency, internal buffer sizes and field accesses.
+        The ComputeGraph class manages the inner data flow of a single computation respectively a single kernel
+        including its properties e.g. latency, internal buffer sizes and field accesses.
 
         Notes:
             - Creation of a proper graph representation for the computation data flow graph.
@@ -41,14 +43,16 @@ class ComputeGraph:
         # initialize internal data structures
         self.graph: nx.DiGraph = nx.DiGraph()  # networkx (library) compute graph with compute_graph_nodes as nodes
         self.tree: type(ast) = None  # abstract syntax tree (python) data structure
-        self.max_latency: int = -1  # (non-valid) initial value for the maximum latency (critical path) of the computational tree
+        self.max_latency: int = -1  # (non-valid) initial value for the maximum latency (critical path) of the
+        # computational tree
         self.inputs: Set[BaseOperationNodeClass] = set()  # link to all nodes that feed input into this computation
         self.outputs: Set[BaseOperationNodeClass] = set()  # link to all nodes this computation feeds data to
         self.min_index: Dict[str, List] = dict()  # per input array the last access index of the stencil
         self.max_index: Dict[str, List] = dict()  # per input array the furthest access index of the stencil
-        self.buffer_size: Dict[str, List] = dict()  # size (dimensional) from the last to the first access (determines the internal buffer size)
-        self.accesses: Dict[str, List[List]] = dict()  # dictionary containing all field accesses for a specific resource e.g.
-        # {"A":{[0,0,0],[0,1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
+        self.buffer_size: Dict[str, List] = dict()  # size (dimensional) from the last to the first access (determines
+        # the internal buffer size)
+        self.accesses: Dict[str, List[List]] = dict()  # dictionary containing all field accesses for a specific
+        # resource e.g. {"A":{[0,0,0],[0,1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
     @staticmethod
     def create_operation_node(node: ast,
@@ -84,8 +88,9 @@ class ComputeGraph:
                                relative_to_center=True) -> None:
         """
         Set up minimum/maximum index and accesses for the internal data structures.
-        :param relative_to_center: if true, the center of the stencil is at position [0,0,0] respecively 0, if false, the
-        furthest element is at position [0,0,0] and all other accesses on the same input field are relative to that (i.e. negative)
+        :param relative_to_center: if true, the center of the stencil is at position [0,0,0] respecively 0, if false,
+        the furthest element is at position [0,0,0] and all other accesses on the same input field are relative to that
+        (i.e. negative)
         """
         # init dicts
         self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
@@ -107,7 +112,8 @@ class ComputeGraph:
                 self.accesses[inp.name].append(inp.index)  # add entry
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
-            self.buffer_size[buffer_name] = [abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name], self.min_index[buffer_name])]
+            self.buffer_size[buffer_name] = [abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name],
+                                                                                self.min_index[buffer_name])]
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
             for field in self.accesses:
@@ -169,7 +175,8 @@ class ComputeGraph:
             if isinstance(outp, Name):
                 inp_nodes = list(self.graph.nodes)
                 for inp in inp_nodes:
-                    if isinstance(outp, Subscript) and outp is not inp and outp.name == inp.name and outp.index == inp.index:
+                    if isinstance(outp, Subscript) and outp is not inp and outp.name == inp.name and \
+                            outp.index == inp.index:
                         # only contract if the indices and the names match
                         self.contract_edge(outp, inp)
                     elif isinstance(outp, Name) and outp is not inp and outp.name == inp.name:
@@ -251,7 +258,7 @@ class ComputeGraph:
         :param n: parent number
         :return: left child number
         """
-        return 2*n + 1
+        return 2 * n + 1
 
     @staticmethod
     def child_right_number(n: int) -> int:
@@ -260,7 +267,7 @@ class ComputeGraph:
         :param n: parent number
         :return: right child number
         """
-        return 2*n
+        return 2 * n
 
     def plot_graph(self,
                    save_path: str = None) -> None:
@@ -385,12 +392,14 @@ class ComputeGraph:
         :param node: current node
         """
         # check node type
-        if isinstance(node, Name) or isinstance(node, Num) or isinstance(node, Subscript):  # variable or numeral: no additional latency
+        if isinstance(node, Name) or isinstance(node, Num) or isinstance(node, Subscript):  # variable or numeral:
+            # no additional latency
             # copy parent latency to children
             for child in self.graph.pred[node]:
                 child.latency = node.latency
                 self.latency_tree_walk(child)
-        elif isinstance(node, Binop) or isinstance(node, Call):  # function calls: additional latency of the function added
+        elif isinstance(node, Binop) or isinstance(node, Call):  # function calls: additional latency of the function
+            # added
             # get op latency from config
             op_latency = self.config["op_latency"][node.name]
             # add latency to children

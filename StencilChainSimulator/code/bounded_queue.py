@@ -1,6 +1,7 @@
 import collections
-import numpy as np
 from typing import List
+
+import numpy as np
 
 
 class BoundedQueue:
@@ -57,7 +58,8 @@ class BoundedQueue:
         :return: nothing
         """
         if self.maxsize < len(data):
-            raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})".format(self.maxsize, len(data)))
+            raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})"
+                               .format(self.maxsize, len(data)))
         else:
             self.queue: collections.deque = collections.deque(data, self.maxsize)
             self.current_size = len(data)

@@ -1,13 +1,13 @@
 import ast
-import operator
 import math
+import operator
 from typing import Dict
 
 
 class Calculator:
     """
-        The Calculator (wrapper) class can evaluate a (python) mathematical expression string in conjunction with a variable-to-value
-        mapping and compute its result.
+        The Calculator (wrapper) class can evaluate a (python) mathematical expression string in conjunction with a
+        variable-to-value mapping and compute its result.
     """
 
     def __init__(self, verbose: bool = False) -> None:
@@ -52,7 +52,8 @@ class Calculator:
 
     def eval_expr(self, variable_map: Dict[str, float], computation_string: str) -> float:
         """
-        Given a mapping from variable names to values and a mathematical (python) expression, it evaluates the expression.
+        Given a mapping from variable names to values and a mathematical (python) expression, it evaluates the
+        expression.
         :param variable_map: a dictionary map containing all variables of the computation_string
         :param computation_string: a python-syntax-compatible input string
         :return: the result of the expression
@@ -62,6 +63,7 @@ class Calculator:
     """
         Internal Calc class for the actual calculation.
     """
+
     class Calc(ast.NodeVisitor):
 
         def __init__(self) -> None:
@@ -97,7 +99,8 @@ class Calculator:
             """
             return self.visit(node.value)
 
-        def visit_IfExp(self, node: ast) -> float:  # added for ternary operations of the (python syntax: a if expr else b)
+        def visit_IfExp(self,
+                        node: ast) -> float:  # added for ternary operations of the (python syntax: a if expr else b)
             """
             Ternary operator evaluator.
             :param node: ast tree node
@@ -149,7 +152,7 @@ class Calculator:
             """
             # remove LHS of the equality sign e.g. 'res=...' --> '...'
             if "=" in expression:
-                expression = expression[expression.find("=")+1:]
+                expression = expression[expression.find("=") + 1:]
             # parse tree
             tree = ast.parse(expression)
             # create calculator

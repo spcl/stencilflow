@@ -1,8 +1,9 @@
 import ast
 import operator
-from calculator import Calculator
-from base_node_class import BaseOperationNodeClass
 from typing import List, Dict
+
+from base_node_class import BaseOperationNodeClass
+from calculator import Calculator
 
 
 class Name(BaseOperationNodeClass):
@@ -243,8 +244,8 @@ class Subscript(BaseOperationNodeClass):
 
 class Ternary(BaseOperationNodeClass):
     """
-        The Ternary operator class is a subclass of the BaseOperationNodeClass and represents ternary operation of the form:
-        expression_true if comparison_expression else expression_false
+        The Ternary operator class is a subclass of the BaseOperationNodeClass and represents ternary operation of the
+        form: expression_true if comparison_expression else expression_false
     """
 
     def __init__(self,

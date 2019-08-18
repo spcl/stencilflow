@@ -1,20 +1,21 @@
 import argparse
 import collections
 import functools
-import helper
 import itertools
 import operator
-import numpy as np
 import os
 import re
 
 import dace
+import dace.codegen.targets.fpga
+import numpy as np
 from dace.graph.edges import InterstateEdge
 from dace.memlet import Memlet
 from dace.sdfg import SDFG
-from dace.types import ScheduleType, StorageType, Language, typeclass
+from dace.types import ScheduleType, StorageType, Language
+
+import helper
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
-import dace.codegen.targets.fpga
 
 ITERATORS = ["i", "j", "k"]
 

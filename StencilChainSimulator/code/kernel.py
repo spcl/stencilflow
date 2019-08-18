@@ -10,7 +10,6 @@ from bounded_queue import BoundedQueue
 from calculator import Calculator
 from compute_graph import ComputeGraph
 from compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
-from input import Input
 
 
 class Kernel(BaseKernelNodeClass):
@@ -56,15 +55,18 @@ class Kernel(BaseKernelNodeClass):
         self.graph: ComputeGraph = ComputeGraph()
         self.graph.generate_graph(kernel_string)  # generate the ast computation graph from the mathematicl expression
         self.graph.calculate_latency()  # calculate the latency in the compuation tree to find the critical path
-        self.graph.determine_inputs_outputs()  # sort out input nodes (field accesses and constant values) and output nodes
+        self.graph.determine_inputs_outputs()  # sort out input nodes (field accesses and constant values) and output
+        # nodes
         self.graph.setup_internal_buffers()
         # set plot path (if plot is set to True)
         if plot_graph:
             self.graph.plot_graph(name + ".png")
         # init sim specific params
         self.var_map: Dict[
-            str, float] = dict()  # mapping between variable names and its (current) value: var_map[var_name] = var_value
-        self.read_success: bool = False  # flag indicating if read has been successful from all input nodes (=> ready to execute)
+            str, float] = dict()  # mapping between variable names and its (current) value: var_map[var_name] =
+        # var_value
+        self.read_success: bool = False  # flag indicating if read has been successful from all input nodes (=> ready
+        # to execute)
         self.exec_success: bool = False  # flag indicating if the execution has been successful
         self.result: float = float('nan')  # execution result of current iteration (see program counter)
         self.outputs: Dict[str, BoundedQueue] = dict()
@@ -75,9 +77,9 @@ class Kernel(BaseKernelNodeClass):
         # setup internal buffer queues
         self.internal_buffer: Dict[str, BoundedQueue] = dict()
         self.setup_internal_buffers()
-        # this method takes care of the (falsely) executed kernel in case of not having a field access at [0,0,0] present
-        # and the implication that there might be only fields out of bound s.t. there is a result produced, but there
-        # should not be a result yet (see paper example ref# TODO)
+        # this method takes care of the (falsely) executed kernel in case of not having a field access at [0,0,0]
+        # present and the implication that there might be only fields out of bound s.t. there is a result produced,
+        # but there should not be a result yet (see paper example ref# TODO)
         self.dist_to_center: Dict = dict()
         self.set_up_dist_to_center()
         self.center_reached = False
@@ -99,8 +101,8 @@ class Kernel(BaseKernelNodeClass):
             print("#############################")
             print("input buffer name: {}".format(input))
             print("max buffer usage: {}".format(self.max_del_buf_usage[input]))
-            print("average buffer usage: {}".format(self.buf_usage_sum[input]/self.buf_usage_num[input]))
-        print("total execution time (from first exec to last): {}".format(self.PC_exec_end-self.PC_exec_start))
+            print("average buffer usage: {}".format(self.buf_usage_sum[input] / self.buf_usage_num[input]))
+        print("total execution time (from first exec to last): {}".format(self.PC_exec_end - self.PC_exec_start))
 
     def update_performance_metric(self):
         """
@@ -135,7 +137,8 @@ class Kernel(BaseKernelNodeClass):
 
     def set_up_dist_to_center(self):
         """
-        Computes for all fields/channels the distance from the furthest field access to the center of the stencil ([0,0,0,]).
+        Computes for all fields/channels the distance from the furthest field access to the center of the stencil
+        ([0,0,0,]).
         """
         for item in self.graph.accesses:
             furthest = max(self.graph.accesses[item])
@@ -150,7 +153,8 @@ class Kernel(BaseKernelNodeClass):
         Iterate through the computation tree in order to generate the kernel string (according to some properties
         e.g. relative to center or replace negative index.
         :param node: current node in the tree
-        :param index_relative_to_center: indication wheter the zero index should be at the center of the stencil or the furthest element
+        :param index_relative_to_center: indication wheter the zero index should be at the center of the stencil or the
+        furthest element
         :param replace_negative_index: replace the negativ sign '-' by n in order to create variable names that are not
         being split up by the python expression parser (Calculator)
         :return: computation string of the subgraph
@@ -217,7 +221,8 @@ class Kernel(BaseKernelNodeClass):
             # extract expression element
             expr = pred[0]
             # recursively compute the child string
-            expr_str = self.iter_comp_tree(node=expr, index_relative_to_center=index_relative_to_center, replace_negative_index=replace_negative_index, python_syntax=python_syntax)
+            expr_str = self.iter_comp_tree(node=expr, index_relative_to_center=index_relative_to_center,
+                                           replace_negative_index=replace_negative_index, python_syntax=python_syntax)
             # return formatted string
             return "({}{})".format(node.generate_op_sym(), expr_str)
         else:
@@ -461,14 +466,16 @@ class Kernel(BaseKernelNodeClass):
             elif isinstance(inp, Subscript):  # normal subscript access
                 # get current internal state position in [i,j,k] format
                 gki = self.get_global_kernel_index()
-                # check bound, out of bound is handled by the boundary condition automatically (always available for constant)
+                # check bound, out of bound is handled by the boundary condition automatically (always available for
+                # constant)
                 if self.is_out_of_bound(helper.list_add_cwise(inp.index, gki)):
                     pass
                 else:  # within bounds
                     # get position and check if the value (not None) is available
                     index = self.buffer_number(inp)
                     if index == -1:  # delay buffer
-                        if self.inputs[inp.name]['delay_buffer'].try_peek_last() is None or self.inputs[inp.name]['delay_buffer'].try_peek_last() is False:
+                        if self.inputs[inp.name]['delay_buffer'].try_peek_last() is None or \
+                                self.inputs[inp.name]['delay_buffer'].try_peek_last() is False:
                             all_available = False
                             self.not_available.add(inp.name)
                     elif 0 <= index < len(self.inputs[inp.name]['internal_buffer']):  # internal buffer
@@ -576,17 +583,18 @@ class Kernel(BaseKernelNodeClass):
 
     def try_execute(self):
         """
-        This is the implementation of the kernel execution functionality of the simulator. It executes the stencil computation
-        for the current variable mapping that was set up by the try_read() function.
+        This is the implementation of the kernel execution functionality of the simulator. It executes the stencil
+        computation for the current variable mapping that was set up by the try_read() function.
         """
         # check if read has been succeeded
-        if self.center_reached and self.read_success and 0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
+        if self.center_reached and self.read_success and \
+                0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
             # execute calculation
             try:
                 # get computation string
                 computation = self.generate_relative_access_kernel_string(relative_to_center=True,
                                                                           replace_negative_index=True,
-                                                                          python_syntax=True)\
+                                                                          python_syntax=True) \
                     .replace("[", "_").replace("]", "").replace(" ", "")
                 # compute result and
                 self.result = self.data_type(self.calculator.eval_expr(self.var_map, computation))
@@ -605,8 +613,8 @@ class Kernel(BaseKernelNodeClass):
 
     def try_write(self):
         """
-        This is the implementation of the kernel write functionality of the simulator. It writes the output element to its
-        successor channels.
+        This is the implementation of the kernel write functionality of the simulator. It writes the output element to
+        its successor channels.
         """
         # read last element of the delay queue
         data = self.out_delay_queue.dequeue()
@@ -641,7 +649,7 @@ class Kernel(BaseKernelNodeClass):
             try:
                 raise ex
             except Exception:
-                print(traceback.format_exc())        # inputs
+                print(traceback.format_exc())  # inputs
         for input in self.inputs:
             buffer = self.inputs[input]
             print("Buffer info from input {}".format(input))

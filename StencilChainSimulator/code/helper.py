@@ -1,13 +1,14 @@
 import collections
-import json
-import os.path
 import functools
-import warnings
+import json
 import operator
-import dace
-import numpy as np
+import os.path
+import warnings
 from functools import reduce
 from typing import List, Dict
+
+import dace
+import numpy as np
 
 """
     This file contains many helper methods that are being re-used in multiple classes and do not specifically belong to
@@ -171,7 +172,8 @@ def load_array(source_config: Dict, search_path=None):
     elif isinstance(data, np.ndarray):  # embedded array: already numpy array
         return data
     else:
-        return np.array(data, dtype=source_config["data_type"].type) # embedded array: collection item -> convert to np array
+        return np.array(data, dtype=source_config["data_type"].type) # embedded array: collection item -> convert to
+        # np array
 
 
 def load_input_arrays(program: Dict) -> Dict:

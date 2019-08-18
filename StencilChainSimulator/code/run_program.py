@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 import argparse
-import helper
-import numpy as np
-import dace
 import itertools
 import os
 import re
-import shutil
 import subprocess as sp
-from sdfg_generator import generate_sdfg
+
+import dace
+import numpy as np
+
+import helper
 from kernel_chain_graph import KernelChainGraph
+from sdfg_generator import generate_sdfg
 from simulator import Simulator
 
 parser = argparse.ArgumentParser()
@@ -121,9 +122,7 @@ if args.simulation:
         print(np.ravel(simulation_result[outp]))
         if not helper.arrays_are_equal(np.ravel(output_arrays[outp]), np.ravel(simulation_result[outp])):
             all_match = False
-
     if all_match:
         print("Output matched!")
     else:
         print("Output did not match!")
-

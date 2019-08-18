@@ -1,17 +1,19 @@
 # from __future__ import annotations  # support return type of its own class
 import ast
-import dace.types
 from abc import ABCMeta, abstractmethod
-from typing import List, Dict
-from bounded_queue import BoundedQueue
 from enum import Enum
+from typing import List, Dict
+
+import dace.types
+
+from bounded_queue import BoundedQueue
 
 
 class BoundaryCondition(Enum):
     """
-        The BoundaryCondition Enumeration works as an adapter between the input string representation and the programmatically
-        more useful enumeration. It defines the strategy used for out-of-bound stencil accesses on the data arrays we iterate
-        over.
+        The BoundaryCondition Enumeration works as an adapter between the input string representation and the
+        programmatically more useful enumeration. It defines the strategy used for out-of-bound stencil accesses on
+        the data arrays we iterate over.
     """
 
     CONSTANT = 1  # use a fixed (static) value for all out-of-bound accesses
@@ -29,8 +31,8 @@ class BoundaryCondition(Enum):
 
 class BaseKernelNodeClass:
     """
-        The BaseKernelClass provides all the basic fields and functionality for its subclasses which are the Input, Kernel
-        and Output classes. These are nodes of of the KernelChainGraph.
+        The BaseKernelClass provides all the basic fields and functionality for its subclasses which are the Input,
+        Kernel and Output classes. These are nodes of of the KernelChainGraph.
     """
 
     __metaclass__ = ABCMeta
@@ -70,8 +72,8 @@ class BaseKernelNodeClass:
 
 class BaseOperationNodeClass:
     """
-        The BaseOperationNodeClass class provides all the basic fields and methods for its subclasses (Num, Subscript,..).
-        These are the nodes of the ComputeGraph .
+        The BaseOperationNodeClass class provides all the basic fields and methods for its subclasses (Num,
+        Subscript,..). These are the nodes of the ComputeGraph .
     """
 
     __metaclass__ = ABCMeta

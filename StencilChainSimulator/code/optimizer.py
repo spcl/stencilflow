@@ -1,8 +1,9 @@
 import operator
-import helper
-from kernel import Kernel
 from functools import reduce
 from typing import List, Dict
+
+import helper
+from kernel import Kernel
 from log_level import LogLevel
 
 
@@ -72,7 +73,9 @@ class Optimizer:
         :param slow_memory_bound: maximum available slow dram memory
         """
         if self.log_level >= LogLevel.BASIC.value:
-            print("Run optimizer in mode: Minimize Communication Volume with fast memory bound: {} and slow memory bound: {}.".format(fast_memory_bound, slow_memory_bound))
+            print(
+                "Run optimizer in mode: Minimize Communication Volume with fast memory bound: {} and slow memory "
+                "bound: {}.".format(fast_memory_bound, slow_memory_bound))
         self.reinit()
         # optimize for minimal communication volume use / maximal fast memory use
         opt = self.max_metric()
@@ -97,7 +100,8 @@ class Optimizer:
         :param communication_volume_bound: maximum available data volume between fast and slow memory
         """
         if self.log_level >= LogLevel.BASIC.value:
-            print("Run optimizer in mode: Minimize Fast Memory Usage with comm volume bound: {}".format(communication_volume_bound))
+            print("Run optimizer in mode: Minimize Fast Memory Usage with comm volume bound: {}".format(
+                communication_volume_bound))
         self.reinit()
         # optimize for minimal fast memory use / maximum communication volume use
         opt = self.max_metric()
@@ -222,9 +226,9 @@ class Optimizer:
             succ_fast = True
         # set comm vol accordingly
         if pre_fast and succ_fast:  # case (fast, fast)
-            buffer["comm_vol"] = 2*self.single_comm_volume(buffer["datatype_size"])
+            buffer["comm_vol"] = 2 * self.single_comm_volume(buffer["datatype_size"])
         elif (pre_fast and not succ_fast) or (not pre_fast and succ_fast):  # case (fast, slow) or (slow, fast)
-            buffer["comm_vol"] = 1*self.single_comm_volume(buffer["datatype_size"])
+            buffer["comm_vol"] = 1 * self.single_comm_volume(buffer["datatype_size"])
         else:  # case (slow, slow)
             buffer["comm_vol"] = self.eps
 
@@ -239,7 +243,7 @@ class Optimizer:
                 # get delay buffer first
                 del_buf = {
                     "queue": self.kernels[kernel].delay_buffer[buf],
-                    "comm_vol": 2*self.single_comm_volume(self.kernels[kernel].data_type.bytes),
+                    "comm_vol": 2 * self.single_comm_volume(self.kernels[kernel].data_type.bytes),
                     "type": "delay",
                     "datatype_size": self.kernels[kernel].data_type.bytes,
                     "prev": None,
@@ -251,7 +255,7 @@ class Optimizer:
                 for entry in self.kernels[kernel].internal_buffer[buf]:
                     curr = {
                         "queue": entry,
-                        "comm_vol": 2*self.single_comm_volume(self.kernels[kernel].data_type.bytes),
+                        "comm_vol": 2 * self.single_comm_volume(self.kernels[kernel].data_type.bytes),
                         "type": "internal",
                         "datatype_size": self.kernels[kernel].data_type.bytes,
                         "prev": prev,
@@ -287,10 +291,12 @@ class Optimizer:
                 # get internal buffers
                 for entry in self.kernels[kernel].internal_buffer[buf]:
                     if entry.swap_out:
-                        print("Internal buffer: {} {} index {}: swapped out to slow memory".format(kernel, buf, self.kernels[kernel].internal_buffer[buf].index(entry)))
+                        print("Internal buffer: {} {} index {}: swapped out to slow memory"
+                              .format(kernel, buf, self.kernels[kernel].internal_buffer[buf].index(entry)))
                         total_slow += entry.maxsize * self.kernels[kernel].data_type.bytes
                     else:
-                        print("Internal buffer: {} {} index {}: kept in fast memory".format(kernel, buf, self.kernels[kernel].internal_buffer[buf].index(entry)))
+                        print("Internal buffer: {} {} index {}: kept in fast memory".format(kernel, buf, self.kernels[
+                            kernel].internal_buffer[buf].index(entry)))
                         total_fast += entry.maxsize * self.kernels[kernel].data_type.bytes
         for item in self.metric_data:
             total_comm += self.metric_data["comm_vol"]
