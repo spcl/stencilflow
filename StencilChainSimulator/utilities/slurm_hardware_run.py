@@ -23,7 +23,7 @@ if args.name is None:
 
 header = [("-N", args.N), ("-n", args.n), ("-c", args.c), ("--mem", args.mem),
           ("-o", "{}_{}_run".format(args.o, args.name)), ("-e", "{}_{}_run".format(args.e, args.name)), ("-t", args.t),
-          ("--partition", args.partition)]
+          ("--partition", args.partition), ("--exclude", "ault11")]
 home_dir = os.path.expanduser("~")
 
 _SDK_PATH = "source /apps/ault/intelFPGA_pro/19.1/hld/init_stratix.sh\n"
