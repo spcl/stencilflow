@@ -7,6 +7,7 @@ from subprocess import call
 # grab all arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("name")  # name of the design we want to synthesis
+parser.add_argument("--runs", default=1)  # nodes, default: 1
 parser.add_argument("-N", default=1)  # nodes, default: 1
 parser.add_argument("-n", default=1)  # task, default: 1
 parser.add_argument("-c", default=1)  # cores, default: 1
@@ -29,6 +30,7 @@ _SDK_PATH = "source /apps/ault/intelFPGA_pro/19.1/hld/init_stratix.sh\n"
 _PYTHON_PATH = "module load python/3.7.2\n"
 _CMAKE_PATH = "module load cmake/3.14.0\n"
 _GCC_PATH = "module load gcc/8.3.0\n"
+_RUNS = int(args.runs)
 
 # generate slurm batch job file
 with open("{}/{}_run.sh".format(home_dir, args.name), "w") as f:
@@ -39,6 +41,7 @@ with open("{}/{}_run.sh".format(home_dir, args.name), "w") as f:
     f.write(_PYTHON_PATH)
     f.write(_CMAKE_PATH)
     f.write(_GCC_PATH)
-    f.write("python3 code/run_program.py stencils/{}.json hardware -log-level 0\n".format(args.name))
+    for i in range(_RUNS):
+        f.write("python3 code/run_program.py stencils/{}.json hardware -log-level 0\n".format(args.name))
 
 call(["sbatch", "{}/{}_run.sh".format(home_dir, args.name)])
