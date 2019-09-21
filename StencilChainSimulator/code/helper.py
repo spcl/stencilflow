@@ -185,7 +185,7 @@ def load_input_arrays(program: Dict) -> Dict:
     # add all input arrays to the dict
     input_arrays = dict()
     for arr_name, source in program["inputs"].items():
-        input_arrays[arr_name] = load_array(source, program["path"])
+        input_arrays[arr_name] = aligned(load_array(source, program["path"]), 64)
     return input_arrays
 
 
@@ -253,6 +253,21 @@ def convert_3d_to_1d(dimensions: List[int], index: List[int]) -> int:
     return dim_to_abs_val(index, dimensions)
 
 
+import numpy as np
+# credits: https://stackoverflow.com/questions/9895787/memory-alignment-for-fast-fft-in-python-using-shared-arrays
+def aligned(a, alignment=16):
+    if (a.ctypes.data % alignment) == 0:
+        return a
+
+    extra = alignment / a.itemsize
+    buf = np.empty(a.size + int(extra), dtype=a.dtype)
+    ofs = int((-buf.ctypes.data % alignment) / a.itemsize)
+    aa = buf[ofs:ofs+a.size].reshape(a.shape)
+    np.copyto(aa, a)
+    assert (aa.ctypes.data % alignment) == 0
+    return aa
+
+
 if __name__ == "__main__":
     """
         Basic helper function test. Comprehensive testing is implemented in 'testing.py'.
@@ -269,3 +284,9 @@ if __name__ == "__main__":
     }
     print("max value entry key of dict {} is:\n\'{}\'".format(
         example_dict, max_dict_entry_key(example_dict)))
+
+    array = aligned(np.array([1.0, 2.0, 3.0]), 64)
+    if array.ctypes.data % 64 == 0:  # check if address is aligned
+        print("correct alignment")
+    else:
+        print("wrong alignment")

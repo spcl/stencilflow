@@ -70,9 +70,9 @@ input_arrays = helper.load_input_arrays(program_description)
 # Initialize output arrays
 print("Initializing output arrays...")
 output_arrays = {
-    arr_name: np.zeros(
+    arr_name: helper.aligned(np.zeros(
         program_description["dimensions"],
-        dtype=program_description["program"][arr_name]["data_type"].type)
+        dtype=program_description["program"][arr_name]["data_type"].type), 64)
     for arr_name in program_description["outputs"]
 }
 
