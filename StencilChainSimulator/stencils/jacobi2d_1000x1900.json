@@ -1,0 +1,22 @@
+{
+	"inputs": {
+		"a": {
+			"data": "stencils/data/zeros_1000x1900_fp32.dat",
+			"data_type": "float32"
+		}
+	},
+	"outputs": ["b"],
+	"dimensions": [1000, 1900],
+	"program": {
+		"b": {
+			"computation_string": "res = 0.25 * (a[j-1,k] + a[j+1,k] + a[j,k-1] + a[j,k+1])",
+			"boundary_condition": {
+				"a": {
+					"type": "constant",
+					"value": 1.0
+				}
+			},
+			"data_type": "float32"
+		}
+	}
+}
