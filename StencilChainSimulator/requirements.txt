@@ -11,8 +11,6 @@ functools
 os
 re
 networkx
-operator
-functools
 itertools
 shutil
 subprocess
