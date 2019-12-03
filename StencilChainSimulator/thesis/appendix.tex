@@ -1,0 +1,34 @@
+\chapter{Appendix}
+
+\section*{Appendix A}
+The approximation is based on the 45nm technology described in \textit{Computing's Energy Problem (and what we can do about it)} \cite{label1}.
+\\
+We used the following assumptions:
+\begin{itemize}
+	\item Scenario
+	\begin{itemize}
+		\item 1000 iterations over 200 data elements by applying floating-point multiplication
+		\item data has to be loaded from DRAM first and is later fetched from the first-level cache (CPU, 95\% cache hit rate) or fast on-chip memory (FPGA)
+	\end{itemize}
+	\item Energy partitioning
+	\begin{itemize}
+		\item Floating-Point Multiplication: 4pJ
+		\item Memory:
+		\begin{itemize}
+			\item DRAM access: 2nJ
+			\item Cache (8KB): 10pJ
+		\end{itemize}
+		\item Control overhead:
+		\begin{itemize}
+			\item CPU (instruction decoding): 30pJ
+			\item FPGA (only pipeline-stall logic, assumption): 5pJ
+		\end{itemize}
+	\end{itemize}
+\end{itemize}
+Calculation:
+\\ 
+CPU energy consumption:  $200\cdot(2\cdot2nJ + 4pJ + 30pJ + 10pJ + 999 \cdot (0.95\cdot3\cdot10pJ + 0.05\cdot(2\cdot2nJ + 10pJ) + 4pJ + 30pJ)) \approx 53356nJ$
+\\
+FPGA energy consumption: $200\cdot(2nJ + 4pJ + 5pJ + 10pJ + 999\cdot(10pJ + 4pJ + 5pJ + 10pJ)) \approx 6198nJ$
+\\
+Energy efficiency of FPGA over CPU: $\frac{53356nJ}{6198nJ} \approx 8.6$

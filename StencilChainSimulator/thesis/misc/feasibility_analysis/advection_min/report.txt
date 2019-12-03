@@ -1,0 +1,42 @@
+internal buffer: uatv {'uin': [0, 0, 0]}
+path lengths: uatv {'uin': [[0, 0, 0]]}
+delay buffer: uatv [0, 0, 0]
+latency: uatv 7
+
+internal buffer: uteu {'uin': [5, 0, 0], 'uatu': [0, 0, 0]}
+path lengths: uteu {'uin': [[0, 0, 0], [2, 0, 5]]}
+delay buffer: uteu [2, 0, 5]
+latency: uteu 21
+
+internal buffer: vatu {'vin': [0, 0, 0]}
+path lengths: vatu {'vin': [[0, 0, 0]]}
+delay buffer: vatu [0, 0, 0]
+latency: vatu 7
+
+internal buffer: vatv {'vin': [0, 2, 0]}
+path lengths: vatv {'vin': [[0, 0, 0]]}
+delay buffer: vatv [0, 0, 0]
+latency: vatv 5
+
+internal buffer: uatu {'uin': [2, 0, 0]}
+path lengths: uatu {'uin': [[0, 0, 0]]}
+delay buffer: uatu [0, 0, 0]
+latency: uatu 5
+
+internal buffer: utev {'uteu': [0, 0, 0], 'vatu': [0, 0, 0], 'uin': [0, 4, 0]}
+path lengths: utev {'vin': [[0, 0, 7]], 'uin': [[0, 0, 0], [7, 0, 26]]}
+delay buffer: utev [7, 0, 26]
+latency: utev 22
+
+internal buffer: vtev {'vin': [0, 2, 0], 'vatv': [0, 0, 0], 'vteu': [0, 0, 0]}
+path lengths: vtev {'vin': [[0, 0, 0], [0, 2, 5], [1, 0, 21]], 'uin': [[1, 0, 28]]}
+delay buffer: vtev [1, 2, 26]
+latency: vtev 22
+
+internal buffer: vteu {'vin': [1, 0, 0], 'uatv': [0, 0, 0]}
+path lengths: vteu {'vin': [[0, 0, 0]], 'uin': [[0, 0, 7]]}
+delay buffer: vteu [0, 0, 0]
+latency: vteu 21
+
+total internal buffer:  [8, 8, 0]
+total delay buffer:  [10, 2, 57]

@@ -1,0 +1,32 @@
+internal buffer: ppgk {'wtgfac': [0, 1, 1]}
+path lengths: ppgk {'wtgfac': [[0, 0, 0]]}
+delay buffer: ppgk [0, 0, 0]
+latency: ppgk 7
+
+internal buffer: vout {'ppgv': [0, 1, 1]}
+path lengths: vout {'wtgfac': [[0, 2, 23]]}
+delay buffer: vout [0, 0, 0]
+latency: vout 7
+
+internal buffer: ppgc {'ppgk': [0, 0, 0]}
+path lengths: ppgc {'wtgfac': [[0, 1, 8]]}
+delay buffer: ppgc [0, 0, 0]
+latency: ppgc 7
+
+internal buffer: div {'vout': [0, 0, 0], 'vdc': [0, 0, 0]}
+path lengths: div {'wtgfac': [[0, 3, 31], [0, 3, 39]]}
+delay buffer: div [0, 0, 8]
+latency: div 1
+
+internal buffer: vdc {'vout': [0, 0, 0], 'wtgfac': [0, 0, 0]}
+path lengths: vdc {'wtgfac': [[0, 0, 0], [0, 3, 31]]}
+delay buffer: vdc [0, 3, 31]
+latency: vdc 8
+
+internal buffer: ppgv {'ppgc': [0, 1, 1]}
+path lengths: ppgv {'wtgfac': [[0, 1, 15]]}
+delay buffer: ppgv [0, 0, 0]
+latency: ppgv 7
+
+total internal buffer:  [0, 3, 3]
+total delay buffer:  [0, 3, 39]

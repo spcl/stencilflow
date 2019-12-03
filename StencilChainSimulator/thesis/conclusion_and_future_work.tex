@@ -1,0 +1,23 @@
+\chapter{Future Work}
+
+The StencilFlow framework and the theoretical findings of this Bachelor thesis provide the foundation for future work. We seek to further develop this toolbox with a strong focus on performance optimization and the evaluation of a real-world sized problem on the re-programmable hardware architecture.
+
+
+\section{Generalization and Optimization for Different Domains}
+Despite that our motivation for the development of StencilFlow was the COSMO weather forecasting model, we generalized the problem definition in order to be valid for general stencil programs on structured grids. This gives us the opportunity to look into further fields of application. This could give researchers and software developers the opportunity to exploit the benefits of FPGAs as a high level tool while having the implementation details and optimization tweak abstracted.
+
+
+\section{Implementation of the Full Dynamical Core}
+The result of the feasibility study gave us confidence to put this idea into action. The ongoing collaboration with MeteoSwiss enables us to port the full dynamical core of the COSMO weather forecast model gives us the chance to see if FPGAs are part of the next generation of compute accelerator in the high performance computing sector. 
+
+
+\section{Hardware Optimization}
+Beside optimizing for the theoretical objective of fast/slow memory and bandwidth usage, studies \cite{label4,label5,label18,label33,label30} have shown that optimization of high level synthesis code is crucial for maximal performance. By using the knowledge of field experts from ETH Zurich and the University of Paderborn, we seek to improve the code generator to get a higher yield of the available compute resources.
+
+
+\section{FPGA Performance}
+The rapid advance in on-chip resources such as memory bandwidth, floating point IPs, etc justifies a tool that can automatically adapt and generate efficient code for the new constraints. Furthermore, the current technology allows us to use the classical high performance scaling approach to not only increase the compute capacity locally, but to split the work by using multiple devices. The usage of the Noctua cluster at the University of Paderborn, equipped with 32 Intel Stratix 10 FPGAs \cite{label46} with four integrated 40Gbit/s transceivers connected through an fiber optical switch with configurable topology, enables us to find an optimal strategy of dividing the design for optimum area usage while keeping the communication overhead minimal.
+
+
+
+
