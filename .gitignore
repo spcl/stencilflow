@@ -4,5 +4,6 @@ dace
 *.dat
 *.csv
 results
-*.json
 *.png
+__pycache__
+_dotgraphs
