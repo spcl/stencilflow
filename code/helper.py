@@ -1,3 +1,28 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+
+"""
+    StencilFlow
+    Copyright (C) 2018-2020  Andreas Kuster
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+__author__ = "Andreas Kuster"
+__copyright__ = "Copyright 2018-2020, StencilFlow"
+__license__ = "GPL"
+
 import collections
 import functools
 import json
@@ -21,6 +46,7 @@ def deprecated(func):
     This is a decorator which can be used to mark functions as deprecated. It will result in a warning being emitted
     when the function is used.
     """
+
     @functools.wraps(func)
     def new_func(*args, **kwargs):
         warnings.simplefilter('always', DeprecationWarning)  # turn off filter
@@ -30,6 +56,7 @@ def deprecated(func):
             stacklevel=2)
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
         return func(*args, **kwargs)
+
     return new_func
 
 
@@ -67,6 +94,7 @@ def parse_json(config_path: str) -> Dict:
         config = json.loads(file_handle.read())  # type: dict
     # Save the path to the config
     config["path"] = os.path.dirname(os.path.abspath(config_path))
+
     def walk(d):  # replace string data type in config
         for key, val in d.items():
             if isinstance(val, dict):
@@ -74,6 +102,7 @@ def parse_json(config_path: str) -> Dict:
             else:
                 if key == "data_type":
                     d[key] = str_to_dtype(val)
+
     walk(config)
     # return dict
     return config
@@ -172,7 +201,7 @@ def load_array(source_config: Dict, search_path=None):
     elif isinstance(data, np.ndarray):  # embedded array: already numpy array
         return data
     else:
-        return np.array(data, dtype=source_config["data_type"].type) # embedded array: collection item -> convert to
+        return np.array(data, dtype=source_config["data_type"].type)  # embedded array: collection item -> convert to
         # np array
 
 
@@ -254,6 +283,8 @@ def convert_3d_to_1d(dimensions: List[int], index: List[int]) -> int:
 
 
 import numpy as np
+
+
 # credits: https://stackoverflow.com/questions/9895787/memory-alignment-for-fast-fft-in-python-using-shared-arrays
 def aligned(a, alignment=16):
     if (a.ctypes.data % alignment) == 0:
@@ -262,7 +293,7 @@ def aligned(a, alignment=16):
     extra = alignment / a.itemsize
     buf = np.empty(a.size + int(extra), dtype=a.dtype)
     ofs = int((-buf.ctypes.data % alignment) / a.itemsize)
-    aa = buf[ofs:ofs+a.size].reshape(a.shape)
+    aa = buf[ofs:ofs + a.size].reshape(a.shape)
     np.copyto(aa, a)
     assert (aa.ctypes.data % alignment) == 0
     return aa
