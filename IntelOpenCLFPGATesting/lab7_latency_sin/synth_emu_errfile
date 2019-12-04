@@ -1,9 +1,0 @@
-Section '.acl.aoco' already exists.
-Section '.acl.dep' already exists.
-Section '.acl.clang_log' already exists.
-slurmstepd: error: *** JOB 180397 ON cn-0132 CANCELLED AT 2019-04-26T16:33:42 ***
-Compiler Warning: 
-Compiler Warning: The default channel depths in the emulation flow will be different from the hardware flow depths (0) to speed up emulation; To match the "__attribute__((depth(<depth>)))".
-Compiler Warning: or
-Compiler Warning: * Use compiler option: "-emulator-channel-depth-model=<model>".
-Compiler Warning: For more details run aoc -help.

@@ -1,6 +1,0 @@
-{"rows":[
-{"name":"control may reach end of non-void function"
-,"debug":[[{"filename":"/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl"
-,"line":78}]]
-,"details":["/scratch/hpc-prf-cosmo/andreas/lab3/channels.cl:78:1: warning: control may reach end of non-void function"]}
-]}
