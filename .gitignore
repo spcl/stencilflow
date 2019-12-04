@@ -7,3 +7,4 @@ results
 *.png
 __pycache__
 _dotgraphs
+*.xml
