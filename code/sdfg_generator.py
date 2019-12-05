@@ -1,3 +1,28 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+
+"""
+    StencilFlow
+    Copyright (C) 2018-2020 Johannes de Fine Licht
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+__author__ = "Johannes de Fine Licht"
+__copyright__ = "Copyright 2018-2020, StencilFlow"
+__license__ = "GPL"
+
 import argparse
 import collections
 import functools
@@ -26,6 +51,7 @@ def make_iterators(dimensions, halo_sizes=None):
             return " + " + str(-halo_sizes[0] + halo_sizes[1])
         else:
             return ""
+
     if len(dimensions) > 3:
         return collections.OrderedDict(
             [("i" + str(i), "0:" + str(d) + add_halo(i))
@@ -45,7 +71,6 @@ def relative_to_buffer_index(buffer_size, index):
 
 
 def generate_sdfg(name, chain):
-
     sdfg = SDFG(name)
 
     pre_state = sdfg.add_state("initialize")
@@ -297,11 +322,11 @@ def generate_sdfg(name, chain):
         #######################################################################
 
         write_code = (
-            ("if (!{}) {{\n".format("".join(pipeline.init_condition()))
-             if init_size_max > 0 else "") + ("\n".join([
-                 "write_channel_intel({}_inner_out, res);".format(output)
-                 for output in outputs
-             ])) + ("\n}" if init_size_max > 0 else "\n"))
+                ("if (!{}) {{\n".format("".join(pipeline.init_condition()))
+                 if init_size_max > 0 else "") + ("\n".join([
+            "write_channel_intel({}_inner_out, res);".format(output)
+            for output in outputs
+        ])) + ("\n}" if init_size_max > 0 else "\n"))
 
         #######################################################################
         # Tasklet code generation
@@ -461,7 +486,7 @@ def generate_sdfg(name, chain):
                 "}} else {{\n"
                 "buffer_out = -1000;\n"
                 "}}\n".format(it=pipeline.iterator_str(), begin=begin_reading,
-                end=end_reading),
+                              end=end_reading),
                 language=Language.CPP)
             update_state.add_memlet_path(
                 update_read,
@@ -488,7 +513,6 @@ def generate_sdfg(name, chain):
                         compute_read.data, str(offset), num_accesses=1))
 
         for out_name in outputs:
-
             # Outer write
             stream_name_outer = make_stream_name(node.name, out_name)
             write_node_outer = state.add_write(stream_name_outer)
