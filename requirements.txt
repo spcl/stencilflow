@@ -5,7 +5,6 @@ enum
 collections
 numpy
 argparse
-operator
 functools
 os
 re
@@ -16,3 +15,10 @@ subprocess
 unittest
 h5py
 pydot
+matplotlib
+ast
+typing
+math
+operator
+json
+warnings
