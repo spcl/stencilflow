@@ -101,12 +101,12 @@ class KernelChainGraph:
             if self.log_level >= LogLevel.BASIC.value:
                 print("Plot kernel chain graph.")
             # plot kernel chain graph
-            self.plot_graph()
+            self.plot_graph(self.name + ".png")
             # plot all compute graphs
             if self.log_level >= LogLevel.BASIC.value:
                 print("Plot computation graph of each kernel.")
             for compute_kernel in self.kernel_nodes:
-                self.kernel_nodes[compute_kernel].graph.plot_graph()
+                self.kernel_nodes[compute_kernel].graph.plot_graph(self.name + "_" + compute_kernel + ".png")
         # print sin/cos/tan latency warning
         for kernel in self.program:
             if "sin" in self.program[kernel]['computation_string'] or "cos" in self.program[kernel][
