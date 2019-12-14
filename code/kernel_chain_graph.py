@@ -142,6 +142,9 @@ class KernelChainGraph:
                 names.append(node)
             elif isinstance(node, Output):
                 outs.append(node)
+
+        num_nodes = (len(nums) + len(names) + len(ops) + len(outs))
+        fig.set_size_inches(num_nodes, num_nodes)
         # create dictionary of labels
         labels = dict()
         for node in self.graph.nodes:
