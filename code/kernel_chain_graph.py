@@ -125,7 +125,6 @@ class KernelChainGraph:
         # create drawing area
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
-        fig.set_size_inches(25, 25)
         ax.set_axis_off()
         # generate positions of the node (for pretty visualization)
         positions = nx.nx_pydot.graphviz_layout(self.graph, prog='dot')

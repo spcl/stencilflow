@@ -302,7 +302,6 @@ class ComputeGraph:
         """
         # create drawing area
         import matplotlib.pyplot as plt  # import matplotlib only if graph plotting is set to true
-        plt.figure(figsize=(20, 20))  # define drawing size. NOTE: must probably be a function of the number of nodes at
         # some point (for large graphs)
         plt.axis('off')
         # generate positions
@@ -324,6 +323,11 @@ class ComputeGraph:
                 outs.append(node)
             elif isinstance(node, Ternary) or isinstance(node, Compare):  # comparison
                 comp.append(node)
+
+        # define drawing size
+        num_nodes = (len(nums) + len(names) + len(ops) + len(outs))
+        plt.figure(figsize=(num_nodes, num_nodes))
+
         # create dictionary of the labels and add all of them
         labels = dict()
         for node in self.graph.nodes:
