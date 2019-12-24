@@ -1,6 +1,6 @@
 {
   "inputs": {
-    "in": {
+    "inA": {
       "data": "stencils/data/ones_16x1024x1024_float32.dat",
       "data_type": "float32"
     }
@@ -15,9 +15,9 @@
   ],
   "program": {
     "out": {
-      "computation_string": "res = 0.5 * (in[i,j,k] + in[i,j,k+63])",
+      "computation_string": "res = 0.5 * (inA[i,j,k] + inA[i,j,k+63])",
       "boundary_condition": {
-        "in": {
+        "inA": {
           "type": "constant",
           "value": 1.0
         }
