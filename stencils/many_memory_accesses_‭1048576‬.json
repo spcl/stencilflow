@@ -1,22 +1,28 @@
 {
-	"inputs": {
-		"in": {
-			"data": "stencils/data/ones_16x1024x1024_float32.dat",
-			"data_type": "float32"
-		}
-	},
-	"outputs": ["out"],
-	"dimensions": [16, 1024, 1024],
-	"program": {
-		"out": {
-			"computation_string": "res = 0.5 * (in[i,j,k] + in[i+1,j,k])",
-			"boundary_condition": {
-				"in": {
-					"type": "constant",
-					"value": 1.0
-				}
-			},
-			"data_type": "float32"
-		}
-	}
+  "inputs": {
+    "in": {
+      "data": "stencils/data/ones_16x1024x1024_float32.dat",
+      "data_type": "float32"
+    }
+  },
+  "outputs": [
+    "out"
+  ],
+  "dimensions": [
+    16,
+    1024,
+    1024
+  ],
+  "program": {
+    "out": {
+      "computation_string": "res = 0.5 * (in[i,j,k] + in[i+1,j,k])",
+      "boundary_condition": {
+        "in": {
+          "type": "constant",
+          "value": 1.0
+        }
+      },
+      "data_type": "float32"
+    }
+  }
 }
