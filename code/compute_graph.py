@@ -326,7 +326,8 @@ class ComputeGraph:
 
         # define drawing size
         num_nodes = (len(nums) + len(names) + len(ops) + len(outs))
-        plt.figure(figsize=(num_nodes, num_nodes))
+        fig_size = num_nodes if (num_nodes > 10) else 10
+        plt.figure(figsize=(fig_size, fig_size))
 
         # create dictionary of the labels and add all of them
         labels = dict()

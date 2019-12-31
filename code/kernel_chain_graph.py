@@ -143,7 +143,8 @@ class KernelChainGraph:
                 outs.append(node)
 
         num_nodes = (len(nums) + len(names) + len(ops) + len(outs))
-        fig.set_size_inches(num_nodes, num_nodes)
+        fig_size = num_nodes if (num_nodes > 10) else 10
+        fig.set_size_inches(fig_size, fig_size)
         # create dictionary of labels
         labels = dict()
         for node in self.graph.nodes:
