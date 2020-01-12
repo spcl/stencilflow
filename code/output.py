@@ -28,7 +28,7 @@ import operator
 import os
 from typing import List
 
-from dace.types import typeclass
+from dace.dtypes import typeclass
 
 import helper
 from base_node_class import BaseKernelNodeClass

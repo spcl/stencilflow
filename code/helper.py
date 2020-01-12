@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # encoding: utf-8
 
@@ -60,7 +61,7 @@ def deprecated(func):
     return new_func
 
 
-def str_to_dtype(dtype_str: str) -> dace.types.typeclass:
+def str_to_dtype(dtype_str: str) -> dace.dtypes.typeclass:
     """
     Conversion from the data type name (string) to its type defined in dace.
     :param dtype_str: string data type
@@ -69,7 +70,7 @@ def str_to_dtype(dtype_str: str) -> dace.types.typeclass:
     if not isinstance(dtype_str, str):  # type check
         raise TypeError("Expected string, got: " + type(dtype_str).__name__)
     try:
-        return getattr(dace.types, dtype_str)  # match type
+        return getattr(dace.dtypes, dtype_str)  # match type
     except AttributeError:
         pass
     raise AttributeError("Unsupported data type: " + dtype_str)  # missmatch

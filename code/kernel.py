@@ -27,7 +27,7 @@ import functools
 import operator
 from typing import List, Dict
 
-import dace.types
+import dace.dtypes
 
 import helper
 from base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
@@ -49,7 +49,7 @@ class Kernel(BaseKernelNodeClass):
                  name: str,
                  kernel_string: str,
                  dimensions: List[int],
-                 data_type: dace.types.typeclass,
+                 data_type: dace.dtypes.typeclass,
                  boundary_conditions: Dict[str, Dict[str, str]],
                  plot_graph: bool = False,
                  verbose: bool = False) -> None:
@@ -713,7 +713,7 @@ if __name__ == "__main__":
                     boundary_conditions={"a": {
                         "type": "constant",
                         "value": 0.0}},
-                    data_type=dace.types.float64)
+                    data_type=dace.dtypes.float64)
     print("Kernel string conversion:")
     print("dimensions are: {}".format(dim))
     print(kernel.kernel_string)

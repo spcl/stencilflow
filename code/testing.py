@@ -193,7 +193,7 @@ class ComputeGraphTest(unittest.TestCase):
 
 
 from kernel import Kernel
-import dace.types
+import dace.dtypes
 
 
 class KernelTest(unittest.TestCase):
@@ -205,7 +205,7 @@ class KernelTest(unittest.TestCase):
         kernel = Kernel(name="dummy",
                         kernel_string="SUBST = a[i,j,k] + a[i,j,k-1] + a[i,j-1,k] + a[i-1,j,k]; res = SUBST + a[i,j,k]",
                         dimensions=dimensions,
-                        data_type=dace.types.float64,
+                        data_type=dace.dtypes.float64,
                         boundary_conditions={"a": {"type": "constant", "value": 1.0}})
         # check if the string matches
         self.assertEqual(kernel.generate_relative_access_kernel_string(),

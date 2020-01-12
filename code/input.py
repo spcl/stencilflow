@@ -24,7 +24,7 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "GPL"
 
 import numpy as np
-from dace.types import typeclass
+from dace.dtypes import typeclass
 
 from base_node_class import BaseKernelNodeClass
 from bounded_queue import BoundedQueue

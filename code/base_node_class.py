@@ -29,7 +29,7 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum
 from typing import List, Dict
 
-import dace.types
+import dace.dtypes
 
 from bounded_queue import BoundedQueue
 
@@ -64,7 +64,7 @@ class BaseKernelNodeClass:
 
     def __init__(self, name: str,
                  data_queue: BoundedQueue,
-                 data_type: dace.types.typeclass,
+                 data_type: dace.dtypes.typeclass,
                  verbose: bool = False) -> None:
         """
         Create new BaseKernelNodeClass with given initialization parameters.
@@ -77,8 +77,8 @@ class BaseKernelNodeClass:
         self.name: str = name
         self.data_queue: BoundedQueue = data_queue
         self.data_type = data_type
-        if not isinstance(data_type, dace.types.typeclass):  # check type of input
-            raise TypeError("Expected dace.types.typeclass, got: " + type(data_type).__name__)
+        if not isinstance(data_type, dace.dtypes.typeclass):  # check type of input
+            raise TypeError("Expected dace.dtypes.typeclass, got: " + type(data_type).__name__)
         self.verbose = verbose
         # define basic node structures
         self.input_paths: Dict[str, List] = dict()  # contains all paths to the source arrays
