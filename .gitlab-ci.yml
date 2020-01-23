@@ -4,5 +4,6 @@ stages:
 test:
   stage: test
   script:
+  - source /opt/rh/devtoolset-6/enable
   - export PYTHONPATH=`pwd`
   - python3 src/testing.py
