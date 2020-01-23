@@ -372,13 +372,13 @@ def generate_sdfg(name, chain):
             # Create buffer transient in outer SDFG
             # TODO: use data type from edge
             if size > 1:
-                desc_outer = sdfg.add_array(
+                _, desc_outer = sdfg.add_array(
                     buffer_name_outer, [size],
                     dtype,
                     storage=StorageType.FPGA_Local,
                     transient=True)
             else:
-                desc_outer = sdfg.add_scalar(
+                _, desc_outer = sdfg.add_scalar(
                     buffer_name_outer,
                     dtype,
                     storage=StorageType.FPGA_Registers,
