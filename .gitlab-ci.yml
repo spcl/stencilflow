@@ -6,4 +6,5 @@ test:
   script:
   - source /opt/rh/devtoolset-6/enable
   - export PYTHONPATH=`pwd`
+  - pip3 install --user -r requirements.txt
   - python3 src/testing.py
