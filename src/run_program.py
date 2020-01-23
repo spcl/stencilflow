@@ -17,11 +17,12 @@ from simulator import Simulator
 parser = argparse.ArgumentParser()
 parser.add_argument("stencil_file")
 parser.add_argument("mode", choices=["emulation", "hardware"])
-parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
-parser.add_argument("-plot", action="store_true")
 parser.add_argument("-simulation", action="store_true")
+parser.add_argument("-input-directory")
 parser.add_argument("-skip-execution", dest="skip_execution", action="store_true")
-parser.add_argument("--print-result", dest="print_result", action="store_true")
+parser.add_argument("-plot", action="store_true")
+parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
+parser.add_argument("-print-result", dest="print_result", action="store_true")
 args = parser.parse_args()
 
 # Load program file
@@ -66,7 +67,8 @@ program = sdfg.compile()
 
 # Load data from disk
 print("Loading input arrays...")
-input_arrays = helper.load_input_arrays(program_description)
+input_arrays = helper.load_input_arrays(
+    program_description, prefix=args.input_directory)
 
 # Initialize output arrays
 print("Initializing output arrays...")
