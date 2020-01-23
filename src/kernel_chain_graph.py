@@ -37,7 +37,7 @@ class KernelChainGraph:
             print("Initialize KernelChainGraph.")
         # set parameters
         # absolute path
-        self.path: str = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), path)  # get valid
+        self.path: str = os.path.abspath(path)  # get valid
         self.log_level: int = log_level
         # init internal fields
         self.inputs: Dict[str, Dict[str, str]] = dict()  # input data
@@ -571,7 +571,7 @@ if __name__ == "__main__":
 
     """
         simple test stencil program for debugging
-        
+
         usage: python3 kernel_chain_graph.py -stencil_file stencils/simulator12.json -plot -simulate -report -log-level 2
     """
     # instantiate the argument parser
