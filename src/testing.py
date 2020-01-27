@@ -332,7 +332,7 @@ class SimulatorTest(unittest.TestCase):
             self.assertTrue(
                 helper.arrays_are_equal(
                     np.array(samples[sample]['res']),
-                    sim.get_result()['res'], 0.01))
+                    np.array(sim.get_result()['res']).ravel(), 0.01))
 
 
 if __name__ == '__main__':
