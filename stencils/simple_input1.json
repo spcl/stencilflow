@@ -30,14 +30,14 @@
 			},
 			"data_type": "float64"
 		},
-		"res1": {
+		"res2": {
 			"computation_string": "res = res1[i,j,k] + inC[i,j,k];",
 			"boundary_condition": {
-				"inA": {
+				"res1": {
 					"type": "constant",
 					"value": 0.0
 				},
-				"inB": {
+				"inC": {
 					"type": "constant",
 					"value": 0.0
 				}
