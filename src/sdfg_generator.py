@@ -4,7 +4,7 @@
 """
 BSD 3-Clause License
 
-Copyright (c) 2018-2020, Andreas Kuster
+Copyright (c) 2018-2020, Johannes de Fine Licht
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
