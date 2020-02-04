@@ -8,3 +8,5 @@ results
 __pycache__
 _dotgraphs
 *.xml
+*.sdfg
+*.sdfg.html

@@ -63,6 +63,8 @@ if args.mode == "emulation":
 else:
     dace.config.Config.set("compiler", "intel_fpga", "mode", value="hardware")
 print("Compile sdfg")
+sdfg.expand_library_nodes()
+sdfg.save("stencilflow.sdfg")
 program = sdfg.compile()
 
 # Load data from disk
