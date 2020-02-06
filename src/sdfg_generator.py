@@ -75,6 +75,23 @@ def generate_sdfg(name, chain):
     sdfg.add_edge(pre_state, state, InterstateEdge())
     sdfg.add_edge(state, post_state, InterstateEdge())
 
+    # Only iterate over dimensions larger than 1, the rest will be added to the
+    # SDFG as symbols that must be passed from outside.
+    parameters = np.array(ITERATORS)  # All iterator parameters
+    shape = np.array(chain.dimensions)
+    iterator_mask = shape > 1  # Dimensions we need to iterate over
+    iterators = dacelibs.stencil.make_iterators(
+        shape[iterator_mask], parameters=parameters[iterator_mask])
+    symbols = parameters[np.logical_not(iterator_mask)]
+    for s in symbols:
+        sdfg.add_symbol(s, np.long)
+    memlet_indices = [
+        iterators[k] if iterator_mask[i] else k
+        for i, k in enumerate(parameters)
+    ]
+    memcopy_accesses = str(
+        functools.reduce(operator.mul, shape[iterator_mask], 1))
+
     def add_pipe(sdfg, edge):
 
         stream_name = make_stream_name(edge[0].name, edge[1].name)
@@ -100,9 +117,6 @@ def generate_sdfg(name, chain):
             transient=True)
         access_node = state.add_read(node.name)
 
-        iterators = dacelibs.stencil.make_iterators(
-            chain.dimensions, parameters=ITERATORS)
-
         # Copy data to the FPGA
         copy_host = pre_state.add_read(node.name + "_host")
         copy_fpga = pre_state.add_write(node.name)
@@ -111,9 +125,8 @@ def generate_sdfg(name, chain):
             copy_fpga,
             memlet=Memlet.simple(
                 copy_fpga,
-                ", ".join(iterators.values()),
-                num_accesses=functools.reduce(operator.mul, chain.dimensions,
-                                              1)))
+                ", ".join(memlet_indices),
+                num_accesses=memcopy_accesses))
 
         entry, exit = state.add_map(
             "read_" + node.name, iterators, schedule=ScheduleType.FPGA_Device)
@@ -135,7 +148,7 @@ def generate_sdfg(name, chain):
             tasklet,
             dst_conn="memory",
             memlet=Memlet.simple(
-                node.name, ", ".join(iterators.keys()), num_accesses=1))
+                node.name, ", ".join(parameters), num_accesses=1))
 
         # Add memlets to all FIFOs connecting to compute units
         for out_name, out_memlet in zip(outputs, out_memlets):
@@ -162,9 +175,6 @@ def generate_sdfg(name, chain):
             transient=True)
         write_node = state.add_write(node.name)
 
-        iterators = dacelibs.stencil.make_iterators(
-            chain.dimensions, parameters=ITERATORS)
-
         # Copy data to the FPGA
         copy_fpga = post_state.add_read(node.name)
         copy_host = post_state.add_write(node.name + "_host")
@@ -173,9 +183,8 @@ def generate_sdfg(name, chain):
             copy_host,
             memlet=Memlet.simple(
                 copy_host,
-                ", ".join(iterators.values()),
-                num_accesses=functools.reduce(operator.mul, chain.dimensions,
-                                              1)))
+                ", ".join(memlet_indices),
+                num_accesses=memcopy_accesses))
 
         entry, exit = state.add_map(
             "write_" + node.name, iterators, schedule=ScheduleType.FPGA_Device)
@@ -208,7 +217,7 @@ def generate_sdfg(name, chain):
             write_node,
             src_conn="memory",
             memlet=Memlet.simple(
-                node.name, ", ".join(iterators.keys()), num_accesses=1))
+                node.name, ", ".join(parameters), num_accesses=1))
 
     def add_kernel(node):
 
@@ -238,9 +247,11 @@ def generate_sdfg(name, chain):
         # Generate the C code. We unfortunately cannot pass the Python
         # directly, because OpenCL doesn't support auto.
         code = "\n".join([
-            output_ctype + " " + expr.strip() + ";"
-            for expr in node.generate_relative_access_kernel_string(
-                relative_to_center=False).split(";")
+            output_ctype + " " + re.sub(r"\bres\b", output, expr.strip()) + ";"
+            for output, expr in zip(
+                outputs,
+                node.generate_relative_access_kernel_string(
+                    relative_to_center=False).split(";"))
         ])
 
         stencil_node = dacelibs.stencil.Stencil(

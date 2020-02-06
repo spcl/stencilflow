@@ -103,7 +103,11 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         ]
         init_size_max = np.max(init_sizes)
 
-        iterators = make_iterators(node.shape, parameters=node.iterators)
+        parameters = np.array(node.iterators)  # All iterator parameters
+        shape = np.array(node.shape)
+        iterator_mask = shape > 1  # Dimensions we need to iterate over
+        iterators = make_iterators(
+            shape[iterator_mask], parameters=parameters[iterator_mask])
 
         # Manually add pipeline entry and exit nodes
         pipeline_range = dace.properties.SubsetProperty.from_string(', '.join(
@@ -154,10 +158,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 cond = []
                 for i, offset in enumerate(indices):
                     if offset < 0:
-                        cond.append(node.iterators[i] + " < " + str(-offset))
+                        cond.append(parameters[i] + " < " + str(-offset))
                     elif offset > 0:
-                        cond.append(node.iterators[i] + " >= " +
-                                    str(node.shape[i] - offset))
+                        cond.append(parameters[i] + " >= " +
+                                    str(shape[i] - offset))
                 ctype = parent_sdfg.data(field_to_data[field_name]).dtype.ctype
                 if len(cond) == 0:
                     boundary_code += "{} {}_{} = _{}_{};\n".format(
@@ -182,7 +186,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         write_code = (
             ("if (!{}) {{\n".format("".join(pipeline.init_condition()))
              if init_size_max > 0 else "") + ("\n".join([
-                 "write_channel_intel({}_inner_out, res);".format(output)
+                 "write_channel_intel({}_inner_out, {});".format(output, output)
                  for output in node.output_fields
              ])) + ("\n}" if init_size_max > 0 else "\n"))
 
@@ -337,7 +341,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             # translated to an index by subtracting it from the maximum buffer
             # size
             begin_reading = (init_size_max - init_size)
-            end_reading = (functools.reduce(operator.mul, node.shape, 1) +
+            end_reading = (functools.reduce(operator.mul, shape, 1) +
                            init_size_max - init_size)
 
             update_read = update_state.add_read(stream_name_inner)
@@ -420,12 +424,12 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 class Stencil(dace.library.LibraryNode):
     """Represents applying a stencil to a full input domain."""
 
-    implementations = {"pure": ExpandStencilFPGA}
-    default_implementation = "pure"
+    implementations = {"FPGA": ExpandStencilFPGA}
+    default_implementation = "FPGA"
 
     # Iteration space definition
-    iterators = dace.properties.ParamsProperty(
-        desc="Iterators mapping the dimensions")
+    iterators = dace.properties.ListProperty(
+        element_type=str, desc="Iterators mapping the dimensions")
     shape = dace.properties.ListProperty(
         dace.symbolic.pystr_to_symbolic, desc="Shape of stencil dimensions")
 
