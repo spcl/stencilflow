@@ -438,19 +438,16 @@ class Stencil(dace.library.LibraryNode):
         desc="Stencil code using all inputs to produce all outputs",
         default="")
     code._language = dace.dtypes.Language.CPP
-    accesses = dace.properties.Property(
-        dtype=dict,
+    accesses = dace.properties.OrderedDictProperty(
         desc=("For each input field, the corresponding input connector "
               "and a list of field accesses"),
-        default={})
-    output_fields = dace.properties.Property(
-        dtype=dict,
+        default=collections.OrderedDict())
+    output_fields = dace.properties.OrderedDictProperty(
         desc="List of output fields and their corresponding output connectors",
-        default={})
-    boundary_conditions = dace.properties.Property(
-        dtype=dict,
+        default=collections.OrderedDict())
+    boundary_conditions = dace.properties.OrderedDictProperty(
         desc="Boundary condition specifications for each accessed field",
-        default={})
+        default=collections.OrderedDict())
 
     def __init__(self,
                  label,
@@ -469,9 +466,6 @@ class Stencil(dace.library.LibraryNode):
         self.output_fields = output_fields
         self.boundary_conditions = boundary_conditions
         self.code = type(self).code.from_string(code, dace.dtypes.Language.CPP)
-
-    def validate(state, sdfg):
-        return True  # NYI
 
 
 @dace.library.library
