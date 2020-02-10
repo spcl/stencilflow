@@ -254,6 +254,13 @@ def generate_sdfg(name, chain):
                     relative_to_center=False).split(";"))
         ])
 
+        boundary_conditions = node.boundary_conditions
+        # Replace "type" with "btype" to avoid problems with DaCe deserialize
+        for field, bc in boundary_conditions.items():
+            if "type" in bc:
+                bc["btype"] = bc["type"]
+                del bc["type"]
+
         stencil_node = dacelibs.stencil.Stencil(
             node.name, ITERATORS, chain.dimensions, accesses, outputs,
             node.boundary_conditions, code)

@@ -59,7 +59,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             # Deduplicate, as we can have multiple accesses to the same index
             abs_indices = dace.dtypes.deduplicate(
                 [dim_to_abs_val(i, node.shape) for i in relative] +
-                ([0] if node.boundary_conditions[field_name]["type"] == "copy"
+                ([0] if node.boundary_conditions[field_name]["btype"] == "copy"
                  else []))
             max_access = max(abs_indices)
             min_access = min(abs_indices)
@@ -168,10 +168,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                         ctype, field_name, offset_buffer, field_name,
                         offset_buffer)
                 else:
-                    if node.boundary_conditions[field_name]["type"] == "copy":
+                    if node.boundary_conditions[field_name]["btype"] == "copy":
                         boundary_val = "_{}_{}".format(field_name, center)
                     elif node.boundary_conditions[field_name][
-                            "type"] == "constant":
+                            "btype"] == "constant":
                         boundary_val = node.boundary_conditions[field_name][
                             "value"]
                     boundary_code += (
