@@ -227,8 +227,8 @@ def generate_sdfg(name, chain):
 
         # Enrich outputs with the names of the corresponding output connectors
         outputs = collections.OrderedDict(
-            (f, make_stream_name(node.name, f) + "_out") for f in sorted(
-                e[1].name for e in chain.graph.out_edges(node)))
+            (f, (make_stream_name(node.name, f) + "_out", (0, 0, 0)))
+            for f in sorted(e[1].name for e in chain.graph.out_edges(node)))
 
         # We currently don't parse the output code, so we have to make a best
         # effort to know the type of each assignment (auto does not work for
@@ -279,7 +279,7 @@ def generate_sdfg(name, chain):
                 memlet=Memlet.simple(stream_name, "0", num_accesses=-1))
 
         # Add write nodes and memlets
-        for field_name, connector in outputs.items():
+        for field_name, (connector, _) in outputs.items():
 
             stream_name = make_stream_name(node.name, field_name)
 

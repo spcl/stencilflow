@@ -83,7 +83,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                         connector, field_name, node.label))
 
         # Find output connectors
-        for field_name, connector in node.output_fields.items():
+        for field_name, (connector, offset) in node.output_fields.items():
             for e in parent_state.out_edges(node):
                 if e.src_connector == connector:
                     field_to_memlet[field_name] = e
@@ -385,7 +385,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     memlet=dace.memlet.Memlet.simple(
                         compute_read.data, str(offset), num_accesses=1))
 
-        for field_name, connector in node.output_fields.items():
+        for field_name, (connector, offset) in node.output_fields.items():
+
+            if offset is not None and tuple(offset) != (0, 0, 0):
+                raise NotImplementedError("Output offsets not yet implemented")
 
             data_name = field_to_data[field_name]
 
@@ -446,7 +449,8 @@ class Stencil(dace.library.LibraryNode):
               "and a list of field accesses"),
         default=collections.OrderedDict())
     output_fields = dace.properties.OrderedDictProperty(
-        desc="List of output fields and their corresponding output connectors",
+        desc="List of output fields and their corresponding output connectors"
+             "and the field offset",
         default=collections.OrderedDict())
     boundary_conditions = dace.properties.OrderedDictProperty(
         desc="Boundary condition specifications for each accessed field",
@@ -461,7 +465,7 @@ class Stencil(dace.library.LibraryNode):
                  boundary_conditions={},
                  code=""):
         in_connectors = [v[0] for v in accesses.values()]
-        out_connectors = list(output_fields.values())
+        out_connectors = [c for c, _ in output_fields.values()]
         super().__init__(label, inputs=in_connectors, outputs=out_connectors)
         self.iterators = iterators
         self.shape = shape
