@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-
 """
 BSD 3-Clause License
 
@@ -56,7 +55,7 @@ from dace.dtypes import ScheduleType, StorageType, Language
 import helper
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
 
-import dacelibs.stencil
+import stencil
 
 ITERATORS = ["i", "j", "k"]
 
@@ -80,7 +79,7 @@ def generate_sdfg(name, chain):
     parameters = np.array(ITERATORS)  # All iterator parameters
     shape = np.array(chain.dimensions)
     iterator_mask = shape > 1  # Dimensions we need to iterate over
-    iterators = dacelibs.stencil.make_iterators(
+    iterators = stencil.make_iterators(
         shape[iterator_mask], parameters=parameters[iterator_mask])
     symbols = parameters[np.logical_not(iterator_mask)]
     for s in symbols:
@@ -228,8 +227,8 @@ def generate_sdfg(name, chain):
 
         # Enrich outputs with the names of the corresponding output connectors
         outputs = collections.OrderedDict(
-            (f, make_stream_name(node.name, f) + "_out")
-            for f in sorted(e[1].name for e in chain.graph.out_edges(node)))
+            (f, make_stream_name(node.name, f) + "_out") for f in sorted(
+                e[1].name for e in chain.graph.out_edges(node)))
 
         # We currently don't parse the output code, so we have to make a best
         # effort to know the type of each assignment (auto does not work for
@@ -261,9 +260,9 @@ def generate_sdfg(name, chain):
                 bc["btype"] = bc["type"]
                 del bc["type"]
 
-        stencil_node = dacelibs.stencil.Stencil(
-            node.name, ITERATORS, chain.dimensions, accesses, outputs,
-            node.boundary_conditions, code)
+        stencil_node = stencil.Stencil(node.name, ITERATORS, chain.dimensions,
+                                       accesses, outputs,
+                                       node.boundary_conditions, code)
         state.add_node(stencil_node)
 
         # Add read nodes and memlets
@@ -320,7 +319,8 @@ def generate_sdfg(name, chain):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("stencil_input", help="Stencil description file (.json)")
+    parser.add_argument(
+        "stencil_input", help="Stencil description file (.json)")
     parser.add_argument("sdfg_output", help="Output SDFG file (.sdfg)")
     parser.add_argument("--plot-graph", dest="plot-graph", action="store_true")
     parser.add_argument("--plot-sdfg", dest="plot-sdfg", action="store_true")

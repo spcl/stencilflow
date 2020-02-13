@@ -5,6 +5,7 @@ import operator
 import re
 
 import dace
+import dace.library
 import numpy as np
 
 
@@ -110,8 +111,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             shape[iterator_mask], parameters=parameters[iterator_mask])
 
         # Manually add pipeline entry and exit nodes
-        pipeline_range = dace.properties.SubsetProperty.from_string(', '.join(
-            iterators.values()))
+        pipeline_range = dace.properties.SubsetProperty.from_string(
+            ', '.join(iterators.values()))
         pipeline = dace.codegen.targets.fpga.Pipeline(
             "compute_" + node.label,
             list(iterators.keys()),
@@ -134,7 +135,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             nested_sdfg,
             [k + "_in" for k in node.accesses.keys()] +  # Input connectors
             [name + "_buffer_in" for name, _ in buffer_sizes.items()],
-            [k + "_out" for k in node.output_fields.keys()] +  # Output connectors
+            [k + "_out"
+             for k in node.output_fields.keys()] +  # Output connectors
             [name + "_buffer_out" for name, _ in buffer_sizes.items()])
         state.add_node(nested_sdfg_tasklet)
 
@@ -151,7 +153,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         boundary_code = ""
         # Loop over each input
         for (field_name, (accesses, accesses_buffer,
-                         center)) in buffer_accesses.items():
+                          center)) in buffer_accesses.items():
             # Loop over each access to this data
             for indices, offset_buffer in zip(accesses, accesses_buffer):
                 # Loop over each index of this access
@@ -160,8 +162,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     if offset < 0:
                         cond.append(parameters[i] + " < " + str(-offset))
                     elif offset > 0:
-                        cond.append(parameters[i] + " >= " +
-                                    str(shape[i] - offset))
+                        cond.append(
+                            parameters[i] + " >= " + str(shape[i] - offset))
                 ctype = parent_sdfg.data(field_to_data[field_name]).dtype.ctype
                 if len(cond) == 0:
                     boundary_code += "{} {}_{} = _{}_{};\n".format(
@@ -176,8 +178,9 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                             "value"]
                     boundary_code += (
                         "{} {}_{} = ({}) ? ({}) : (_{}_{});\n".format(
-                            ctype, field_name, offset_buffer, " || ".join(cond),
-                            boundary_val, field_name, offset_buffer))
+                            ctype, field_name, offset_buffer,
+                            " || ".join(cond), boundary_val, field_name,
+                            offset_buffer))
 
         #######################################################################
         # Only write if we're in bounds
@@ -186,8 +189,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         write_code = (
             ("if (!{}) {{\n".format("".join(pipeline.init_condition()))
              if init_size_max > 0 else "") + ("\n".join([
-                 "write_channel_intel({}_inner_out, {});".format(output, output)
-                 for output in node.output_fields
+                 "write_channel_intel({}_inner_out, {});".format(
+                     output, output) for output in node.output_fields
              ])) + ("\n}" if init_size_max > 0 else "\n"))
 
         #######################################################################
@@ -468,9 +471,4 @@ class Stencil(dace.library.LibraryNode):
         self.code = type(self).code.from_string(code, dace.dtypes.Language.CPP)
 
 
-@dace.library.library
-class Stencils:
-
-    nodes = [Stencil]
-    transformations = []
-    default_implementation = None
+dace.library.register_library(__name__, "stencil")
