@@ -56,6 +56,7 @@ import helper
 from kernel_chain_graph import Kernel, Input, Output, KernelChainGraph
 
 import stencil
+from stencil.fpga import make_iterators
 
 ITERATORS = ["i", "j", "k"]
 
@@ -79,7 +80,7 @@ def generate_sdfg(name, chain):
     parameters = np.array(ITERATORS)  # All iterator parameters
     shape = np.array(chain.dimensions)
     iterator_mask = shape > 1  # Dimensions we need to iterate over
-    iterators = stencil.make_iterators(
+    iterators = make_iterators(
         shape[iterator_mask], parameters=parameters[iterator_mask])
     symbols = parameters[np.logical_not(iterator_mask)]
     for s in symbols:
