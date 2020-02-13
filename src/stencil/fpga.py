@@ -55,7 +55,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         buffer_sizes = collections.OrderedDict()
         buffer_accesses = collections.OrderedDict()
         in_edges = parent_state.in_edges(node)
-        for field_name, (connector, relative) in node.accesses.items():
+        for field_name, relative in node.accesses.items():
             # Deduplicate, as we can have multiple accesses to the same index
             abs_indices = dace.dtypes.deduplicate(
                 [dim_to_abs_val(i, node.shape) for i in relative] +
@@ -71,20 +71,20 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             ], -min_access)
             # Find the corresponding input memlets
             for e in in_edges:
-                if e.dst_connector == connector:
+                if e.dst_connector == field_name:
                     field_to_memlet[field_name] = e
                     field_to_data[field_name] = dace.sdfg.find_input_arraynode(
                         parent_state, e).data
                     break
             else:
                 raise KeyError(
-                    "Input connector {} for {} was not found for {}".format(
+                    "Input connector {} was not found for {}".format(
                         connector, field_name, node.label))
 
         # Find output connectors
-        for field_name, (connector, offset) in node.output_fields.items():
+        for field_name, offset in node.output_fields.items():
             for e in parent_state.out_edges(node):
-                if e.src_connector == connector:
+                if e.src_connector == field_name:
                     field_to_memlet[field_name] = e
                     field_to_data[
                         field_name] = dace.sdfg.find_output_arraynode(
@@ -92,8 +92,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     break
             else:
                 raise KeyError(
-                    "Output connector {} for {} was not found for {}".format(
-                        connector, field_name, node.label))
+                    "Output connector {} was not found for {}".format(
+                        field_name, node.label))
 
         # Create a initialization phase corresponding to the highest distance
         # to the center
@@ -188,7 +188,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         write_code = (
             ("if (!{}) {{\n".format("".join(pipeline.init_condition()))
              if init_size_max > 0 else "") + ("\n".join([
-                 "write_channel_intel({}_inner_out, {});".format(
+                 "write_channel_intel({}_inner_out, {}_res);".format(
                      output, output) for output in node.output_fields
              ])) + ("\n}" if init_size_max > 0 else "\n"))
 
@@ -206,6 +206,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             if int(index) > 0:
                 raise ValueError("Received positive index " + full_str + ".")
             code = code.replace(full_str, "{}_{}".format(field, buffer_index))
+        # Replace output with temporary
+        for output in node.output_fields:
+            code = re.sub(r'\b{}\b'.format(output), "{}_res".format(output),
+                          code)
         code += "\n" + write_code
 
         #######################################################################
@@ -262,7 +266,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             buffer_name_inner_write = "{}_buffer_out".format(field_name)
 
             # Create buffer transient in outer SDFG
-            field_dtype = parent_sdfg.data(field_name).dtype
+            field_dtype = parent_sdfg.data(data_name).dtype
             if size > 1:
                 _, desc_outer = sdfg.add_array(
                     buffer_name_outer, [size],
@@ -384,7 +388,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     memlet=dace.memlet.Memlet.simple(
                         compute_read.data, str(offset), num_accesses=1))
 
-        for field_name, (connector, offset) in node.output_fields.items():
+        for field_name, offset in node.output_fields.items():
 
             if offset is not None and tuple(offset) != (0, 0, 0):
                 raise NotImplementedError("Output offsets not yet implemented")
@@ -392,7 +396,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             data_name = field_to_data[field_name]
 
             # Outer write
-            stream_name_outer = connector
+            stream_name_outer = field_name
             stream_name_inner = field_name + "_out"
             stream_outer = parent_sdfg.arrays[data_name].clone()
             stream_outer.transient = False

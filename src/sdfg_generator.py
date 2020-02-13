@@ -222,20 +222,25 @@ def generate_sdfg(name, chain):
     def add_kernel(node):
 
         # Enrich accesses with the names of the corresponding input connectors
-        accesses = collections.OrderedDict(
-            (k, (make_stream_name(k, node.name) + "_in", v))
-            for k, v in node.graph.accesses.items())
+        input_to_connector = collections.OrderedDict(
+            (k, "_" + k)
+            for k in node.graph.accesses)
+        accesses = collections.OrderedDict((k, v) for k, v in zip(
+            input_to_connector.values(), node.graph.accesses.values()))
 
         # Enrich outputs with the names of the corresponding output connectors
-        outputs = collections.OrderedDict(
-            (f, (make_stream_name(node.name, f) + "_out", (0, 0, 0)))
+        output_to_connector = collections.OrderedDict(
+            (f, "_" + f)
             for f in sorted(e[1].name for e in chain.graph.out_edges(node)))
+        outputs = collections.OrderedDict(
+            (connector, (0, 0, 0))
+            for connector in output_to_connector.values())
 
         # We currently don't parse the output code, so we have to make a best
         # effort to know the type of each assignment (auto does not work for
         # Intel FPGA).
         output_ctype = None
-        for output in outputs:
+        for output in output_to_connector:
             proposed = sdfg.data(output).dtype.ctype
             if output_ctype is None:
                 output_ctype = proposed
@@ -253,8 +258,16 @@ def generate_sdfg(name, chain):
                 node.generate_relative_access_kernel_string(
                     relative_to_center=False).split(";"))
         ])
+        # Replace input fields with the connector name.
+        for f, c in input_to_connector.items():
+            code = re.sub(r"\b{}\b".format(f), c, code)
 
-        boundary_conditions = node.boundary_conditions
+        # Replace input fields with the connector name.
+        boundary_conditions = {
+            input_to_connector[f]: bc
+            for f, bc in node.boundary_conditions.items()
+        }
+
         # Replace "type" with "btype" to avoid problems with DaCe deserialize
         for field, bc in boundary_conditions.items():
             if "type" in bc:
@@ -263,11 +276,11 @@ def generate_sdfg(name, chain):
 
         stencil_node = stencil.Stencil(node.name, ITERATORS, chain.dimensions,
                                        accesses, outputs,
-                                       node.boundary_conditions, code)
+                                       boundary_conditions, code)
         state.add_node(stencil_node)
 
         # Add read nodes and memlets
-        for field_name, (connector, _) in accesses.items():
+        for field_name, connector in input_to_connector.items():
 
             stream_name = make_stream_name(field_name, node.name)
 
@@ -280,7 +293,7 @@ def generate_sdfg(name, chain):
                 memlet=Memlet.simple(stream_name, "0", num_accesses=-1))
 
         # Add write nodes and memlets
-        for field_name, (connector, _) in outputs.items():
+        for field_name, connector in output_to_connector.items():
 
             stream_name = make_stream_name(node.name, field_name)
 
