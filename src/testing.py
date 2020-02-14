@@ -245,7 +245,7 @@ class KernelTest(unittest.TestCase):
         # check if the string matches
         self.assertEqual(
             kernel.generate_relative_access_kernel_string(),
-            "SUBST = (((a[0] + a[-1]) + a[-100]) + a[-10000]); res = (SUBST + a[0])"
+            "SUBST = (((a[0] + a[-1]) + a[-100]) + a[-10000]); dummy = (SUBST + a[0])"
         )
 
 
