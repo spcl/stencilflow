@@ -2,7 +2,7 @@
 import json
 
 import dace
-import dacelibs.stencil
+import stencil
 
 def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
@@ -13,7 +13,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
     for node, parent in sdfg.all_nodes_recursive():
 
-        if isinstance(node, dacelibs.stencil.Stencil):
+        if isinstance(node, stencil.Stencil):
 
             if node.label in result["program"]:
                 raise KeyError("Duplicate stencil: " + node.label)
@@ -25,14 +25,14 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
             in_edges = {e.dst_conn: e for e in parent.in_edges(node)}
             out_edges = {e.src_conn: e for e in parent.out_edges(node)}
 
-            for field, (connector, accesses) in node.accesses.items():
+            for field, accesses in node.accesses.items():
                 if field in reads:
                     raise KeyError(
                         "Multiple reads from field: {}".format(field))
 
                 dtype = sdfg.data(
                     dace.sdfg.find_input_arraynode(
-                        parent, in_edges[connector]).data).dtype.ctype
+                        parent, in_edges[field]).data).dtype.ctype
                 reads[field] = dtype
 
             if len(node.output_fields) != 1:
@@ -40,7 +40,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                                  "but {} has {} outputs.".format(
                                      node.label, len(node.output_fields)))
 
-            for output, connector in node.output_fields.items():
+            for output in node.output_fields:
                 break  # Grab first and only element
             if output in writes:
                 raise KeyError("Multiple writes to field: {}".format(field))
@@ -48,7 +48,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
             stencil_json["data_type"] = sdfg.data(
                 dace.sdfg.find_output_arraynode(
-                    parent, out_edges[connector]).data).dtype.ctype
+                    parent, out_edges[output]).data).dtype.ctype
 
             result["program"][node.label] = stencil_json
 

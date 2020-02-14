@@ -252,11 +252,15 @@ def generate_sdfg(name, chain):
         # Generate the C code. We unfortunately cannot pass the Python
         # directly, because OpenCL doesn't support auto.
         code = "\n".join([
-            output_ctype + " " + re.sub(r"\bres\b", output, expr.strip()) + ";"
-            for output, expr in zip(
-                outputs,
+            output_ctype + " " + re.sub(
+                r"\b{}\b".format(output_field), "{}[{}]".format(
+                    output_connector, ", ".join("0"
+                                                for _ in chain.dimensions)),
+                expr.strip()) + ";"
+            for (output_field, output_connector), expr in zip(
+                output_to_connector.items(),
                 node.generate_relative_access_kernel_string(
-                    relative_to_center=False).split(";"))
+                    relative_to_center=False, flatten_index=False).split(";"))
         ])
         # Replace input fields with the connector name.
         for f, c in input_to_connector.items():
@@ -274,9 +278,9 @@ def generate_sdfg(name, chain):
                 bc["btype"] = bc["type"]
                 del bc["type"]
 
-        stencil_node = stencil.Stencil(node.name, ITERATORS, chain.dimensions,
-                                       accesses, outputs,
-                                       boundary_conditions, code)
+        stencil_node = stencil.Stencil(node.name, chain.dimensions, accesses,
+                                       outputs, boundary_conditions, code)
+        stencil_node.implementation = "FPGA"
         state.add_node(stencil_node)
 
         # Add read nodes and memlets

@@ -11,19 +11,11 @@ class Stencil(dace.library.LibraryNode):
     """Represents applying a stencil to a full input domain."""
 
     implementations = {"FPGA": ExpandStencilFPGA}
-    default_implementation = "FPGA"
-
-    # Iteration space definition
-    iterators = dace.properties.ListProperty(
-        element_type=str, desc="Iterators mapping the dimensions")
-    shape = dace.properties.ListProperty(
-        dace.symbolic.pystr_to_symbolic, desc="Shape of stencil dimensions")
+    default_implementation = None
 
     # Definition of stencil computation
-    code = dace.properties.CodeProperty(
-        desc="Stencil code using all inputs to produce all outputs",
-        default="")
-    code._language = dace.dtypes.Language.CPP
+    shape = dace.properties.ListProperty(
+        dace.symbolic.pystr_to_symbolic, desc="Shape of stencil dimensions")
     accesses = dace.properties.OrderedDictProperty(
         desc=("Dictionary mapping input fields to lists of offsets"),
         default=collections.OrderedDict())
@@ -33,10 +25,13 @@ class Stencil(dace.library.LibraryNode):
     boundary_conditions = dace.properties.OrderedDictProperty(
         desc="Boundary condition specifications for each accessed field",
         default=collections.OrderedDict())
+    code = dace.properties.CodeProperty(
+        desc="Stencil code using all inputs to produce all outputs",
+        default="")
+    code._language = dace.dtypes.Language.CPP
 
     def __init__(self,
                  label,
-                 iterators=[],
                  shape=[],
                  accesses={},
                  output_fields={},
@@ -45,7 +40,6 @@ class Stencil(dace.library.LibraryNode):
         in_connectors = accesses.keys()
         out_connectors = output_fields.keys()
         super().__init__(label, inputs=in_connectors, outputs=out_connectors)
-        self.iterators = iterators
         self.shape = shape
         self.accesses = accesses
         self.output_fields = output_fields

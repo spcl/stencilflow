@@ -187,7 +187,8 @@ class Kernel(BaseKernelNodeClass):
                        node: BaseOperationNodeClass,
                        index_relative_to_center=True,
                        replace_negative_index=False,
-                       python_syntax=False) -> str:
+                       python_syntax=False,
+                       flatten_index=True) -> str:
         """
         Iterate through the computation tree in order to generate the kernel string (according to some properties
         e.g. relative to center or replace negative index.
@@ -206,8 +207,8 @@ class Kernel(BaseKernelNodeClass):
             lhs = pred[0]  # left hand side
             rhs = pred[1]  # right hand side
             # recursively compute the child string
-            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax)
-            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax)
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index)
             # return formatted string
             return "({} {} {})".format(lhs_str, node.generate_op_sym(), rhs_str)
         elif isinstance(node, Call):  # function call
@@ -227,21 +228,24 @@ class Kernel(BaseKernelNodeClass):
             else:
                 dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             # break down index from 3D (i.e. [X,Y,Z]) to 1D
-            word_index = self.convert_3d_to_1d(dim_index)
-            # replace negative sign if the flag is set
-            if replace_negative_index and word_index < 0:
-                return node.name + "[" + "n" + str(abs(word_index)) + "]"
+            if flatten_index:
+                word_index = self.convert_3d_to_1d(dim_index)
+                # replace negative sign if the flag is set
+                if replace_negative_index and word_index < 0:
+                    return node.name + "[" + "n" + str(abs(word_index)) + "]"
+                else:
+                    return node.name + "[" + str(word_index) + "]"
             else:
-                return node.name + "[" + str(word_index) + "]"
+                return node.name + str(dim_index)
         elif isinstance(node, Ternary):  # ternary operator of the form true_expr if comp else false_expr
             # extract expression elements
             compare = [x for x in pred if type(x) == Compare][0]  # comparison
             lhs = [x for x in pred if type(x) != Compare][0]  # left hand side
             rhs = [x for x in pred if type(x) != Compare][1]  # right hand side
             # recursively compute the child string
-            compare_str = self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index, python_syntax)
-            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax)
-            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax)
+            compare_str = self.iter_comp_tree(compare, index_relative_to_center, replace_negative_index, python_syntax, flatten_index)
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index)
             # return formatted string
             if python_syntax:
                 return "(({}) if ({}) else ({}))".format(lhs_str, compare_str, rhs_str)
@@ -252,8 +256,8 @@ class Kernel(BaseKernelNodeClass):
             lhs = pred[0]
             rhs = pred[1]
             # recursively compute the child string
-            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax)
-            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax)
+            lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index)
+            rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index)
             # return formatted string
             return "{} {} {}".format(lhs_str, str(node.name), rhs_str)
         elif isinstance(node, UnaryOp):  # unary operations e.g. negation
@@ -261,7 +265,8 @@ class Kernel(BaseKernelNodeClass):
             expr = pred[0]
             # recursively compute the child string
             expr_str = self.iter_comp_tree(node=expr, index_relative_to_center=index_relative_to_center,
-                                           replace_negative_index=replace_negative_index, python_syntax=python_syntax)
+                                           replace_negative_index=replace_negative_index, python_syntax=python_syntax,
+                                           flatten_index=flatten_index)
             # return formatted string
             return "({}{})".format(node.generate_op_sym(), expr_str)
         else:
@@ -270,7 +275,8 @@ class Kernel(BaseKernelNodeClass):
     def generate_relative_access_kernel_string(self,
                                                relative_to_center=True,
                                                replace_negative_index=False,
-                                               python_syntax=False) -> str:
+                                               python_syntax=False,
+                                               flatten_index=True) -> str:
         """
         Generates the relative (either to the center or to the furthest field access) access kernel string which
         is necessary for the code generator HLS tool.
@@ -279,13 +285,13 @@ class Kernel(BaseKernelNodeClass):
         arrA_n20 in order to be correctly recognised as a single variable name.
         :return: the generated relative access kernel string
         """
-        # format: 'res = vdc[index1] + vout[index2]'
+        # format: 'output = vdc[index1] + vout[index2]'
         res = []
         # treat named nodes
         for n in self.graph.graph.nodes:
             if isinstance(n, Name):
                 res.append(n.name + " = " + self.iter_comp_tree(
-                    list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index, python_syntax))
+                    list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index, python_syntax, flatten_index))
         # treat output node(s)
         output_node = [
             n for n in self.graph.graph.nodes if isinstance(n, Output)
@@ -294,10 +300,12 @@ class Kernel(BaseKernelNodeClass):
             raise Exception("Expected a single output node")
         output_node = output_node[0]
         # concatenate the expressions
-        res.append("res = " + self.iter_comp_tree(node=list(self.graph.graph.pred[output_node])[0],
-                                                  index_relative_to_center=relative_to_center,
-                                                  replace_negative_index=replace_negative_index,
-                                                  python_syntax=python_syntax))
+        res.append(self.name + " = " + self.iter_comp_tree(
+            node=list(self.graph.graph.pred[output_node])[0],
+            index_relative_to_center=relative_to_center,
+            replace_negative_index=replace_negative_index,
+            python_syntax=python_syntax,
+            flatten_index=flatten_index))
         return "; ".join(res)
 
     def reset_old_compute_state(self) -> None:
@@ -721,8 +729,8 @@ if __name__ == "__main__":
     # global dimensions
     dim = [100, 100, 100]
     # instantiate kernel
-    kernel = Kernel(name="dummy",
-                    kernel_string="res = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k] + (-a[i,j,k])",
+    kernel = Kernel(name="b",
+                    kernel_string="b = a[i+1,j+1,k+1] + a[i+1,j,k] + a[i-1,j-1,k-1] + a[i+1,j+1,k] + (-a[i,j,k])",
                     dimensions=dim,
                     boundary_conditions={"a": {
                         "type": "constant",

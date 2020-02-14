@@ -103,7 +103,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         ]
         init_size_max = np.max(init_sizes)
 
-        parameters = np.array(node.iterators)  # All iterator parameters
+        parameters = np.array(["i", "j", "k"])[0:len(node.shape)]
         shape = np.array(node.shape)
         iterator_mask = shape > 1  # Dimensions we need to iterate over
         iterators = make_iterators(
@@ -201,15 +201,16 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         # Replace array accesses with memlet names
         pattern = re.compile("(([a-zA-Z_][a-zA-Z0-9_]*)\[([^\]]+)\])")
         for full_str, field, index in re.findall(pattern, code):
-            buffer_index = relative_to_buffer_index(buffer_sizes[field],
-                                                    int(index))
-            if int(index) > 0:
-                raise ValueError("Received positive index " + full_str + ".")
-            code = code.replace(full_str, "{}_{}".format(field, buffer_index))
-        # Replace output with temporary
-        for output in node.output_fields:
-            code = re.sub(r'\b{}\b'.format(output), "{}_res".format(output),
-                          code)
+            if field in buffer_sizes:
+                relative = list(map(int, index.split(",")))
+                absolute_index = dim_to_abs_val(relative, node.shape)
+                buffer_index = relative_to_buffer_index(buffer_sizes[field], absolute_index)
+                code = code.replace(full_str, "{}_{}".format(
+                    field, buffer_index))
+            elif field in node.output_fields:
+                code = code.replace(full_str, "{}_res".format(field))
+            else:
+                ValueError("Unrecognized field: {}".format(field))
         code += "\n" + write_code
 
         #######################################################################
