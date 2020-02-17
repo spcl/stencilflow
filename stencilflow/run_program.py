@@ -47,6 +47,7 @@ import dace
 import numpy as np
 
 from stencilflow import *
+from stencilflow.log_level import LogLevel
 import stencilflow.helper as helper
 
 
