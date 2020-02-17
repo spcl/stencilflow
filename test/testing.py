@@ -371,24 +371,21 @@ class SimulatorTest(unittest.TestCase):
                     np.array(sim.get_result()['res']).ravel(), 0.01))
 
 
-# from stencilflow.run_program import run_program
-#
-# class ProgramTest(unittest.TestCase):
-#
-#     def test_program(program):
-#         test_directory = os.path.join(os.path.dirname(__file__), "testing")
-#         for stencil_file in [
-#                 "jacobi2d_128x128",
-#                 "jacobi3d_32x32x32_8itr"
-#         ]:
-#             print("Testing program {}...".format(stencil_file))
-#             stencil_file = os.path.join(test_directory, stencil_file + ".json")
-#             run_program(
-#                 stencil_file,
-#                 "emulation",
-#                 run_simulation=False,
-#                 log_level=1,
-#                 input_directory=os.path.abspath(test_directory))
+from stencilflow.run_program import run_program
+
+
+class ProgramTest(unittest.TestCase):
+    def test_program(program):
+        test_directory = os.path.join(os.path.dirname(__file__), "testing")
+        for stencil_file in ["jacobi2d_128x128", "jacobi3d_32x32x32_8itr"]:
+            print("Testing program {}...".format(stencil_file))
+            stencil_file = os.path.join(test_directory, stencil_file + ".json")
+            run_program(stencil_file,
+                        "emulation",
+                        run_simulation=False,
+                        log_level=1,
+                        input_directory=os.path.abspath(test_directory))
+
 
 if __name__ == '__main__':
     """
