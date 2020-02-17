@@ -46,11 +46,8 @@ import sys
 import dace
 import numpy as np
 
-import helper
-from log_level import LogLevel
-from kernel_chain_graph import KernelChainGraph
-from sdfg_generator import generate_sdfg
-from simulator import Simulator
+from stencilflow import *
+import stencilflow.helper as helper
 
 
 def run_program(stencil_file,
@@ -70,25 +67,23 @@ def run_program(stencil_file,
     # Create SDFG
     if log_level >= LogLevel.BASIC.value:
         print("Creating kernel graph...")
-    chain = KernelChainGraph(
-        path=stencil_file,
-        plot_graph=plot,
-        log_level=int(log_level))
+    chain = KernelChainGraph(path=stencil_file,
+                             plot_graph=plot,
+                             log_level=int(log_level))
 
     # do simulation
     if run_simulation:
         if log_level >= LogLevel.BASIC.value:
             print("Running simulation...")
-        sim = Simulator(
-            program_name=re.match("[^\.]+",
-                                  os.path.basename(stencil_file)).group(0),
-            program_description=program_description,
-            input_nodes=chain.input_nodes,
-            kernel_nodes=chain.kernel_nodes,
-            output_nodes=chain.output_nodes,
-            dimensions=chain.dimensions,
-            write_output=False,
-            log_level=int(log_level))
+        sim = Simulator(program_name=re.match(
+            "[^\.]+", os.path.basename(stencil_file)).group(0),
+                        program_description=program_description,
+                        input_nodes=chain.input_nodes,
+                        kernel_nodes=chain.kernel_nodes,
+                        output_nodes=chain.output_nodes,
+                        dimensions=chain.dimensions,
+                        write_output=False,
+                        log_level=int(log_level))
         sim.simulate()
         simulation_result = sim.get_result()
 
@@ -101,11 +96,15 @@ def run_program(stencil_file,
     # dace.config.Config.set("compiler", "use_cache", value=True)
     dace.config.Config.set("optimizer", "interface", value="")
     if mode == "emulation":
-        dace.config.Config.set(
-            "compiler", "intel_fpga", "mode", value="emulator")
+        dace.config.Config.set("compiler",
+                               "intel_fpga",
+                               "mode",
+                               value="emulator")
     elif mode == "hardware":
-        dace.config.Config.set(
-            "compiler", "intel_fpga", "mode", value="hardware")
+        dace.config.Config.set("compiler",
+                               "intel_fpga",
+                               "mode",
+                               value="hardware")
     else:
         raise ValueError("Unrecognized execution mode: {}".format(mode))
     if log_level >= LogLevel.BASIC.value:
@@ -118,18 +117,17 @@ def run_program(stencil_file,
         print("Loading input arrays...")
     if input_directory is None:
         input_directory = os.path.dirname(stencil_file)
-    input_arrays = helper.load_input_arrays(
-        program_description["inputs"], prefix=input_directory)
+    input_arrays = helper.load_input_arrays(program_description["inputs"],
+                                            prefix=input_directory)
 
     # Initialize output arrays
     if log_level >= LogLevel.BASIC.value:
         print("Initializing output arrays...")
     output_arrays = {
         arr_name: helper.aligned(
-            np.zeros(
-                program_description["dimensions"],
-                dtype=program_description["program"][arr_name]["data_type"]
-                .type), 64)
+            np.zeros(program_description["dimensions"],
+                     dtype=program_description["program"][arr_name]
+                     ["data_type"].type), 64)
         for arr_name in program_description["outputs"]
     }
 
@@ -137,10 +135,9 @@ def run_program(stencil_file,
     build_folder = os.path.join(".dacecache", name, "build")
     if mode == "emulation":
         print("Compiling emulation kernel...")
-        sp.run(
-            ["make", "intelfpga_compile_" + name + "_emulator"],
-            cwd=build_folder,
-            check=True)
+        sp.run(["make", "intelfpga_compile_" + name + "_emulator"],
+               cwd=build_folder,
+               check=True)
     elif mode == "hardware":
         if not os.path.exists(
                 os.path.join(build_folder, name + "_hardware.aocx")):
@@ -178,9 +175,8 @@ def run_program(stencil_file,
             print("\t" + np.ravel(output_arrays[outp]))
             print("Simulation result:")
             print("\t" + np.ravel(simulation_result[outp]))
-            if not helper.arrays_are_equal(
-                    np.ravel(output_arrays[outp]),
-                    np.ravel(simulation_result[outp])):
+            if not helper.arrays_are_equal(np.ravel(output_arrays[outp]),
+                                           np.ravel(simulation_result[outp])):
                 all_match = False
         if all_match:
             print("Results verified.")
@@ -188,21 +184,3 @@ def run_program(stencil_file,
         else:
             print("Result mismatch.")
             return 1
-
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("stencil_file")
-    parser.add_argument("mode", choices=["emulation", "hardware"])
-    parser.add_argument("-run-simulation", action="store_true")
-    parser.add_argument("-input-directory")
-    parser.add_argument(
-        "-skip-execution", dest="skip_execution", action="store_true")
-    parser.add_argument("-plot", action="store_true")
-    parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
-    parser.add_argument(
-        "-print-result", dest="print_result", action="store_true")
-    args = parser.parse_args()
-
-    sys.exit(run_program(**vars(args)))

@@ -44,7 +44,7 @@ from typing import List, Dict
 
 import dace.dtypes
 
-from bounded_queue import BoundedQueue
+from .bounded_queue import BoundedQueue
 
 
 class BoundaryCondition(Enum):

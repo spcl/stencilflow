@@ -44,9 +44,11 @@ from typing import List
 
 from dace.dtypes import typeclass
 
-import helper
-from base_node_class import BaseKernelNodeClass
-from bounded_queue import BoundedQueue
+from stencilflow import *
+import stencilflow.helper as helper
+
+from .base_node_class import BaseKernelNodeClass
+from .bounded_queue import BoundedQueue
 
 
 class Output(BaseKernelNodeClass):

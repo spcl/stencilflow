@@ -42,16 +42,15 @@ import operator
 from functools import reduce
 from typing import List
 
-import helper
-from kernel_chain_graph import KernelChainGraph
+import stencilflow.helper as helper
 
 """
     Intro:
-        This is a buffer size and bandwidth estimate for the whole dynamical core of the COSMO weather model. With only 
-        a few actual kernel chains ported and having the shape of the whole (production) dynamical core, we try to 
-        estimate if it the buffer space and bandwidth requirements are in the order of resources we have available on a 
+        This is a buffer size and bandwidth estimate for the whole dynamical core of the COSMO weather model. With only
+        a few actual kernel chains ported and having the shape of the whole (production) dynamical core, we try to
+        estimate if it the buffer space and bandwidth requirements are in the order of resources we have available on a
         single or an cluster of at most 32 Intel Stratix 10 FPGAs.
-    
+
     Assumptions:
         - data type: float (32bit IEEE 754)
         - iteration over the smaller two dimensions possible (e.g. 1024x1024x64 -> iterate over 64x1024)

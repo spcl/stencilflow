@@ -2,7 +2,7 @@
 import json
 
 import dace
-import stencil
+from stencilflow.stencil import stencil
 
 def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
@@ -10,6 +10,9 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     writes = set()
 
     result = {"inputs": {}, "outputs": [], "dimensions": None, "program": {}}
+
+    if not isinstance(sdfg, dace.SDFG):
+        sdfg = dace.SDFG.from_file(sdfg)
 
     for node, parent in sdfg.all_nodes_recursive():
 
@@ -102,18 +105,3 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
     with open(output_path, "w") as out_file:
         out_file.write(json.dumps(result, indent=True))
-
-if __name__ == "__main__":
-
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input_sdfg")
-    parser.add_argument("output_json")
-    parser.add_argument("-data-directory")
-    args = parser.parse_args()
-
-    sdfg = dace.sdfg.SDFG.from_file(args.input_sdfg)
-
-    sdfg_to_stencilflow(sdfg, args.output_json, args.data_directory)
-
-    print("Saved StencilFlow program to: {}".format(args.output_json))

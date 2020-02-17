@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-
 """
 BSD 3-Clause License
 
@@ -42,9 +41,9 @@ from typing import List, Dict, Set
 
 import networkx as nx
 
-import helper
-from base_node_class import BaseOperationNodeClass
-from compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
+import stencilflow.helper as helper
+from .base_node_class import BaseOperationNodeClass
+from .compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 
 
 class ComputeGraph:
@@ -68,9 +67,7 @@ class ComputeGraph:
             tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
             tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     """
-
-    def __init__(self,
-                 verbose: bool = False) -> None:
+    def __init__(self, verbose: bool = False) -> None:
         """
         Create new ComputeGraph with given initialization parameters.
         :param verbose: flag for console output logging
@@ -80,17 +77,25 @@ class ComputeGraph:
         # read static parameters from config file
         self.config: Dict[str, int] = helper.parse_json("compute_graph.config")
         # initialize internal data structures
-        self.graph: nx.DiGraph = nx.DiGraph()  # networkx (library) compute graph with compute_graph_nodes as nodes
-        self.tree: type(ast) = None  # abstract syntax tree (python) data structure
+        self.graph: nx.DiGraph = nx.DiGraph(
+        )  # networkx (library) compute graph with compute_graph_nodes as nodes
+        self.tree: type(
+            ast) = None  # abstract syntax tree (python) data structure
         self.max_latency: int = -1  # (non-valid) initial value for the maximum latency (critical path) of the
         # computational tree
-        self.inputs: Set[BaseOperationNodeClass] = set()  # link to all nodes that feed input into this computation
-        self.outputs: Set[BaseOperationNodeClass] = set()  # link to all nodes this computation feeds data to
-        self.min_index: Dict[str, List] = dict()  # per input array the last access index of the stencil
-        self.max_index: Dict[str, List] = dict()  # per input array the furthest access index of the stencil
-        self.buffer_size: Dict[str, List] = dict()  # size (dimensional) from the last to the first access (determines
+        self.inputs: Set[BaseOperationNodeClass] = set(
+        )  # link to all nodes that feed input into this computation
+        self.outputs: Set[BaseOperationNodeClass] = set(
+        )  # link to all nodes this computation feeds data to
+        self.min_index: Dict[str, List] = dict(
+        )  # per input array the last access index of the stencil
+        self.max_index: Dict[str, List] = dict(
+        )  # per input array the furthest access index of the stencil
+        self.buffer_size: Dict[str, List] = dict(
+        )  # size (dimensional) from the last to the first access (determines
         # the internal buffer size)
-        self.accesses: Dict[str, List[List]] = dict()  # dictionary containing all field accesses for a specific
+        self.accesses: Dict[str, List[List]] = dict(
+        )  # dictionary containing all field accesses for a specific
         # resource e.g. {"A":{[0,0,0],[0,1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
     @staticmethod
@@ -112,9 +117,11 @@ class ComputeGraph:
             return Call(node, number)
         elif isinstance(node, ast.Assign):  # assign operator (var = expr;)
             return Output(node, number)
-        elif isinstance(node, ast.Subscript):  # array access (form: arr[i,j,k])
+        elif isinstance(node,
+                        ast.Subscript):  # array access (form: arr[i,j,k])
             return Subscript(node, number)
-        elif isinstance(node, ast.IfExp):  # if/else clause of ternary operation
+        elif isinstance(node,
+                        ast.IfExp):  # if/else clause of ternary operation
             return Ternary(node, number)
         elif isinstance(node, ast.Compare):  # comparison of ternary operation
             return Compare(node, number)
@@ -123,8 +130,7 @@ class ComputeGraph:
         else:
             raise Exception("Unknown AST type {}".format(type(node)))
 
-    def setup_internal_buffers(self,
-                               relative_to_center=True) -> None:
+    def setup_internal_buffers(self, relative_to_center=True) -> None:
         """
         Set up minimum/maximum index and accesses for the internal data structures.
         :param relative_to_center: if true, the center of the stencil is at position [0,0,0] respecively 0, if false,
@@ -132,7 +138,8 @@ class ComputeGraph:
         (i.e. negative)
         """
         # init dicts
-        self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
+        self.min_index = dict(
+        )  # min_index["buffer_name"] = [i_min, j_min, k_min]
         self.max_index = dict()
         self.buffer_size = dict()  # buffer_size["buffer_name"] = size
         # find min and max index
@@ -151,14 +158,18 @@ class ComputeGraph:
                 self.accesses[inp.name].append(inp.index)  # add entry
         # set buffer_size = max_index - min_index
         for buffer_name in self.min_index:
-            self.buffer_size[buffer_name] = [abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name],
-                                                                                self.min_index[buffer_name])]
+            self.buffer_size[buffer_name] = [
+                abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name],
+                                                   self.min_index[buffer_name])
+            ]
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
             for field in self.accesses:
                 updated_entries = list()
                 for entry in self.accesses[field]:
-                    updated_entries.append(helper.list_subtract_cwise(entry, self.max_index[field]))
+                    updated_entries.append(
+                        helper.list_subtract_cwise(entry,
+                                                   self.max_index[field]))
                 self.accesses[field] = updated_entries
 
     def determine_inputs_outputs(self) -> None:
@@ -176,8 +187,7 @@ class ComputeGraph:
             if len(self.graph.succ[node]) == 0:
                 self.outputs.add(node)
 
-    def contract_edge(self,
-                      u: BaseOperationNodeClass,
+    def contract_edge(self, u: BaseOperationNodeClass,
                       v: BaseOperationNodeClass) -> None:
         """
         Contract node v into node u.
@@ -192,8 +202,7 @@ class ComputeGraph:
         # remove node v
         self.graph.remove_node(v)
 
-    def generate_graph(self,
-                       computation_string: str) -> nx.DiGraph:
+    def generate_graph(self, computation_string: str) -> nx.DiGraph:
         """
         Create networkx graph of the mathematical computation given in the computation_string.
         :param computation_string:
@@ -205,8 +214,10 @@ class ComputeGraph:
         for equation in self.tree.body:
             # check if base node is of type Expr or Assign
             if isinstance(equation, ast.Assign):
-                lhs = self.create_operation_node(equation, 0)  # left hand side equation
-                rhs = self.ast_tree_walk(equation.value, 1)  # right hand side of equation
+                lhs = self.create_operation_node(equation,
+                                                 0)  # left hand side equation
+                rhs = self.ast_tree_walk(equation.value,
+                                         1)  # right hand side of equation
                 self.graph.add_edge(rhs, lhs)
         # merge ambiguous variables in tree (implies: merge of ast.Assign trees into a single tree)
         outp_nodes = list(self.graph.nodes)
@@ -218,19 +229,21 @@ class ComputeGraph:
                             outp.index == inp.index:
                         # only contract if the indices and the names match
                         self.contract_edge(outp, inp)
-                    elif isinstance(outp, Name) and outp is not inp and outp.name == inp.name:
+                    elif isinstance(
+                            outp, Name
+                    ) and outp is not inp and outp.name == inp.name:
                         # contract nodes if the names match
                         self.contract_edge(outp, inp)
         # test if graph is now a single component (for directed graph: each non-output must have at least one successor)
         for node in self.graph.nodes:
-            if not isinstance(node, Output) and len(self.graph.succ[node]) == 0:
-                raise RuntimeError("Kernel-internal data flow is not single component (must be connected in the sense "
-                                   "of a DAG).")
+            if not isinstance(node, Output) and len(
+                    self.graph.succ[node]) == 0:
+                raise RuntimeError(
+                    "Kernel-internal data flow is not single component (must be connected in the sense "
+                    "of a DAG).")
         return self.graph
 
-    def ast_tree_walk(self,
-                      node: ast,
-                      number: int) -> BaseOperationNodeClass:
+    def ast_tree_walk(self, node: ast, number: int) -> BaseOperationNodeClass:
         """
         Recursively walk through the abstract syntax tree structure.
         :param node: current node
@@ -244,22 +257,29 @@ class ComputeGraph:
         # node type specific implementation of the tree walk
         if isinstance(node, ast.BinOp):
             # do tree-walk recursively and get references to children (to create the edges to them)
-            lhs = self.ast_tree_walk(node.left, ComputeGraph.child_left_number(number))  # left hand side
-            rhs = self.ast_tree_walk(node.right, ComputeGraph.child_right_number(number))  # right hand side
+            lhs = self.ast_tree_walk(
+                node.left,
+                ComputeGraph.child_left_number(number))  # left hand side
+            rhs = self.ast_tree_walk(
+                node.right,
+                ComputeGraph.child_right_number(number))  # right hand side
             # add edges from parent to children
             self.graph.add_edge(lhs, new_node)
             self.graph.add_edge(rhs, new_node)
         elif isinstance(node, ast.Call):
             # do tree-walk for all arguments
             if len(node.args) > 2:
-                raise NotImplementedError("Current implementation does not support more than two arguments due"
-                                          " to the binary tree numbering convention")
+                raise NotImplementedError(
+                    "Current implementation does not support more than two arguments due"
+                    " to the binary tree numbering convention")
             # process first argument
-            first = self.ast_tree_walk(node.args[0], ComputeGraph.child_left_number(number))
+            first = self.ast_tree_walk(node.args[0],
+                                       ComputeGraph.child_left_number(number))
             self.graph.add_edge(first, new_node)
             # check if second argument exist
             if len(node.args) >= 2:
-                second = self.ast_tree_walk(node.args[1], ComputeGraph.child_right_number(number))
+                second = self.ast_tree_walk(
+                    node.args[1], ComputeGraph.child_right_number(number))
                 self.graph.add_edge(second, new_node)
         elif isinstance(node, ast.Name):
             # nothing to do
@@ -269,23 +289,30 @@ class ComputeGraph:
             pass
         elif isinstance(node, ast.Compare):
             # do tree-walk recursively and get references to children (to create the edges to them)
-            lhs = self.ast_tree_walk(node.left, ComputeGraph.child_left_number(number))  # left hand side
-            rhs = self.ast_tree_walk(node.comparators[0], ComputeGraph.child_right_number(number))  # right hand side
+            lhs = self.ast_tree_walk(
+                node.left,
+                ComputeGraph.child_left_number(number))  # left hand side
+            rhs = self.ast_tree_walk(
+                node.comparators[0],
+                ComputeGraph.child_right_number(number))  # right hand side
             # add edges from parent to children
             self.graph.add_edge(lhs, new_node)
             self.graph.add_edge(rhs, new_node)
         elif isinstance(node, ast.IfExp):
             # do tree-walk recursively and get references to children (to create the edges to them)
             test = self.ast_tree_walk(node.test, 0)  # test clause
-            true_path = self.ast_tree_walk(node.body, ComputeGraph.child_left_number(number))
-            false_path = self.ast_tree_walk(node.orelse, ComputeGraph.child_right_number(number))
+            true_path = self.ast_tree_walk(
+                node.body, ComputeGraph.child_left_number(number))
+            false_path = self.ast_tree_walk(
+                node.orelse, ComputeGraph.child_right_number(number))
             # add edges from parent to children
             self.graph.add_edge(true_path, new_node)
             self.graph.add_edge(false_path, new_node)
             self.graph.add_edge(test, new_node)
         elif isinstance(node, ast.UnaryOp):
             # do tree-walk recursively and get references to child
-            operand = self.ast_tree_walk(node.operand, ComputeGraph.child_right_number(number))
+            operand = self.ast_tree_walk(
+                node.operand, ComputeGraph.child_right_number(number))
             # add edges form parent to child
             self.graph.add_edge(operand, new_node)
         return new_node
@@ -308,8 +335,7 @@ class ComputeGraph:
         """
         return 2 * n
 
-    def plot_graph(self,
-                   save_path: str = None) -> None:
+    def plot_graph(self, save_path: str = None) -> None:
         """
         Plot the compute graph graphically.
         :param save_path: filename of the output image, if none: do not save to file
@@ -329,13 +355,16 @@ class ComputeGraph:
         for node in self.graph.nodes:
             if isinstance(node, Num):  # numerals
                 nums.append(node)
-            elif isinstance(node, Name) or isinstance(node, Subscript):  # variables
+            elif isinstance(node, Name) or isinstance(node,
+                                                      Subscript):  # variables
                 names.append(node)
-            elif isinstance(node, Binop) or isinstance(node, Call) or isinstance(node, UnaryOp):  # operations
+            elif isinstance(node, Binop) or isinstance(
+                    node, Call) or isinstance(node, UnaryOp):  # operations
                 ops.append(node)
             elif isinstance(node, Output):  # outputs
                 outs.append(node)
-            elif isinstance(node, Ternary) or isinstance(node, Compare):  # comparison
+            elif isinstance(node, Ternary) or isinstance(
+                    node, Compare):  # comparison
                 comp.append(node)
 
         # define drawing size
@@ -349,13 +378,14 @@ class ComputeGraph:
             labels[node] = node.generate_label()
         # add nodes and edges
         # name nodes
-        nx.draw_networkx_nodes(G=self.graph,
-                               pos=positions,
-                               nodelist=names,
-                               node_color='orange',
-                               node_size=3000,
-                               node_shape='s',  # square
-                               edge_color='black')
+        nx.draw_networkx_nodes(
+            G=self.graph,
+            pos=positions,
+            nodelist=names,
+            node_color='orange',
+            node_size=3000,
+            node_shape='s',  # square
+            edge_color='black')
         # output nodes
         nx.draw_networkx_nodes(G=self.graph,
                                pos=positions,
@@ -405,8 +435,7 @@ class ComputeGraph:
         # plot it
         plt.show()
 
-    def try_set_max_latency(self,
-                            new_val: int) -> bool:
+    def try_set_max_latency(self, new_val: int) -> bool:
         """
         Update the maximum latency of the compute graph.
         :param new_val: new maximum latency candidate
@@ -424,25 +453,29 @@ class ComputeGraph:
         """
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         for node in self.graph.nodes:
-            if isinstance(node, Output):  # start at the output nodes and walk the tree up to the input nodes
+            if isinstance(
+                    node, Output
+            ):  # start at the output nodes and walk the tree up to the input nodes
                 node.latency = 1
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
 
-    def latency_tree_walk(self,
-                          node: BaseOperationNodeClass) -> None:
+    def latency_tree_walk(self, node: BaseOperationNodeClass) -> None:
         """
         Computation tree walk for latency calculation.
         :param node: current node
         """
         # check node type
-        if isinstance(node, Name) or isinstance(node, Num) or isinstance(node, Subscript):  # variable or numeral:
+        if isinstance(node, Name) or isinstance(node, Num) or isinstance(
+                node, Subscript):  # variable or numeral:
             # no additional latency
             # copy parent latency to children
             for child in self.graph.pred[node]:
                 child.latency = node.latency
                 self.latency_tree_walk(child)
-        elif isinstance(node, Binop) or isinstance(node, Call):  # function calls: additional latency of the function
+        elif isinstance(node, Binop) or isinstance(
+                node,
+                Call):  # function calls: additional latency of the function
             # added
             # get op latency from config
             op_latency = self.config["op_latency"][node.name]
@@ -455,14 +488,18 @@ class ComputeGraph:
             for child in self.graph.pred[node]:
                 child.latency = node.latency
                 self.latency_tree_walk(child)
-        elif isinstance(node, Ternary):  # function calls: additional latency of the conditional operator added
+        elif isinstance(
+                node, Ternary
+        ):  # function calls: additional latency of the conditional operator added
             # get op latency from config
             op_latency = self.config["op_latency"]["conditional"]
             # add latency to children
             for child in self.graph.pred[node]:
                 child.latency = max(child.latency, node.latency + op_latency)
                 self.latency_tree_walk(child)
-        elif isinstance(node, Compare):  # comparison: additional latency of the comparison operator added
+        elif isinstance(
+                node, Compare
+        ):  # comparison: additional latency of the comparison operator added
             # get op latency from config
             op_latency = self.config["op_latency"]["comparison"]
             # add latency to children
@@ -477,7 +514,9 @@ class ComputeGraph:
                 child.latency = max(child.latency, node.latency + op_latency)
                 self.latency_tree_walk(child)
         else:
-            raise NotImplementedError("Node type {} has not been implemented yet.".format(type(node)))
+            raise NotImplementedError(
+                "Node type {} has not been implemented yet.".format(
+                    type(node)))
         self.try_set_max_latency(node.latency)
 
 

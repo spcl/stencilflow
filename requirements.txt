@@ -1,5 +1,4 @@
 graphviz
-dace
 numpy
 networkx
 h5py

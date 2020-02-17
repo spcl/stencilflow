@@ -38,11 +38,14 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import os
+import sys
 import unittest
 
-from log_level import LogLevel
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from bounded_queue import BoundedQueue
+from stencilflow import *
+from stencilflow.log_level import LogLevel
+from stencilflow.bounded_queue import BoundedQueue
 
 
 class BoundedQueueTest(unittest.TestCase):
@@ -116,7 +119,7 @@ class BoundedQueueTest(unittest.TestCase):
         self.assertFalse(queue.try_peek_last())
 
 
-from calculator import Calculator
+from stencilflow.calculator import Calculator
 from numpy import cos
 
 
@@ -140,7 +143,7 @@ class RunProgramTest(unittest.TestCase):
         pass  # not a general test case, since dace and intel fgpa opencl sdk has to be installed and configured
 
 
-import helper
+import stencilflow.helper as helper
 import numpy as np
 
 
@@ -196,7 +199,6 @@ class HelperTest(unittest.TestCase):
         self.assertListEqual(sorted(helper.unique(not_unique)), [1.0, 2.0])
 
 
-from compute_graph import ComputeGraph
 import json
 
 
@@ -225,7 +227,6 @@ class ComputeGraphTest(unittest.TestCase):
         os.remove(filename)
 
 
-from kernel import Kernel
 import dace.dtypes
 
 
@@ -251,9 +252,6 @@ class KernelTest(unittest.TestCase):
         )
 
 
-from kernel_chain_graph import KernelChainGraph
-
-
 class KernelChainGraphTest(unittest.TestCase):
     def test(self):
         chain = KernelChainGraph(
@@ -262,7 +260,7 @@ class KernelChainGraphTest(unittest.TestCase):
         # add a basic (no exception) case in here for the moment.
 
 
-from optimizer import Optimizer
+from stencilflow.optimizer import Optimizer
 
 
 class OptimizerTest(unittest.TestCase):
@@ -284,7 +282,7 @@ class OptimizerTest(unittest.TestCase):
         opt.optimize_to_ratio(ratio=ratio)
 
 
-from simulator import Simulator
+from stencilflow.simulator import Simulator
 
 
 class SimulatorTest(unittest.TestCase):
@@ -374,7 +372,7 @@ class SimulatorTest(unittest.TestCase):
                     np.array(sim.get_result()['res']).ravel(), 0.01))
 
 
-from run_program import run_program
+from stencilflow.run_program import run_program
 
 class ProgramTest(unittest.TestCase):
 
