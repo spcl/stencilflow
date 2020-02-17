@@ -1,6 +1,5 @@
 .dacecache
 matplotlibrc
-dace
 *.dat
 *.csv
 results
