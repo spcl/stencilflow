@@ -37,7 +37,10 @@ __author__ = "Andreas Kuster"
 __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
+import os
 import unittest
+
+from log_level import LogLevel
 
 from bounded_queue import BoundedQueue
 
@@ -195,7 +198,6 @@ class HelperTest(unittest.TestCase):
 
 from compute_graph import ComputeGraph
 import json
-import os
 
 
 class ComputeGraphTest(unittest.TestCase):
@@ -350,18 +352,18 @@ class SimulatorTest(unittest.TestCase):
         }
         # run all samples
         for sample in samples:
-            chain = KernelChainGraph(
-                path=os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), os.path.pardir,
-                    samples[sample]['file']),
-                plot_graph=False)
+            path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), os.path.pardir,
+                samples[sample]['file'])
+            program_description = helper.parse_json(path)
+            chain = KernelChainGraph(path=path, plot_graph=False)
             sim = Simulator(
                 input_nodes=chain.input_nodes,
-                input_config=chain.inputs,
+                program_description=program_description,
                 kernel_nodes=chain.kernel_nodes,
                 output_nodes=chain.output_nodes,
                 dimensions=chain.dimensions,
-                input_config_name="test",
+                program_name="test",
                 write_output=False,
                 log_level=0)
             sim.simulate()
@@ -370,6 +372,26 @@ class SimulatorTest(unittest.TestCase):
                 helper.arrays_are_equal(
                     np.array(samples[sample]['res']),
                     np.array(sim.get_result()['res']).ravel(), 0.01))
+
+
+from run_program import run_program
+
+class ProgramTest(unittest.TestCase):
+
+    def test_program(program):
+        test_directory = os.path.join(os.path.dirname(__file__), "testing")
+        for stencil_file in [
+                "jacobi2d_128x128", "jacobi3d_32x32x32",
+                # "jacobi3d_32x32x32_8itr"
+        ]:
+            print("Testing program {}...".format(stencil_file))
+            stencil_file = os.path.join(test_directory, stencil_file + ".json")
+            run_program(
+                stencil_file,
+                "emulation",
+                run_simulation=False,
+                log_level=1,
+                input_directory=os.path.abspath(test_directory))
 
 
 if __name__ == '__main__':

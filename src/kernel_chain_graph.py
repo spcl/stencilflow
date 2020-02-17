@@ -619,6 +619,7 @@ if __name__ == "__main__":
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
     args = parser.parse_args()
+    program_description = helper.parse_json(args.stencil_file)
     # instantiate the KernelChainGraph
     chain = KernelChainGraph(path=args.stencil_file,
                              plot_graph=args.plot,
@@ -627,9 +628,9 @@ if __name__ == "__main__":
     if args.simulate:
         from simulator import Simulator
 
-        sim = Simulator(input_config_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
+        sim = Simulator(program_name=re.match("[^\.]+", os.path.basename(args.stencil_file)).group(0),
+                        program_description=program_description,
                         input_nodes=chain.input_nodes,
-                        input_config=chain.inputs,
                         kernel_nodes=chain.kernel_nodes,
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions,

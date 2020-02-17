@@ -34,10 +34,6 @@ def make_iterators(dimensions, halo_sizes=None, parameters=None):
                                         for i, d in enumerate(dimensions)])
 
 
-def relative_to_buffer_index(buffer_size, index):
-    return buffer_size - 1 - abs(index)
-
-
 @dace.library.expansion
 class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
@@ -66,7 +62,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             buffer_size = max_access - min_access + 1
             buffer_sizes[field_name] = buffer_size
             # (indices relative to center, buffer indices, buffer center index)
-            buffer_accesses[field_name] = (relative, [
+            buffer_accesses[field_name] = ([tuple(r) for r in relative], [
                 i - min_access for i in abs_indices
             ], -min_access)
             # Find the corresponding input memlets
@@ -101,9 +97,9 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             buffer_sizes[key] - 1 - val[2]
             for key, val in buffer_accesses.items()
         ]
-        init_size_max = np.max(init_sizes)
+        init_size_max = int(np.max(init_sizes))
 
-        parameters = np.array(["i", "j", "k"])[0:len(node.shape)]
+        parameters = np.array(["i", "j", "k"])[:len(node.shape)]
         shape = np.array(node.shape)
         iterator_mask = shape > 1  # Dimensions we need to iterate over
         iterators = make_iterators(
@@ -200,11 +196,15 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
         # Replace array accesses with memlet names
         pattern = re.compile("(([a-zA-Z_][a-zA-Z0-9_]*)\[([^\]]+)\])")
+        relative_to_buffer_index = {
+            field: {relative_index: buffer_index
+                for relative_index, buffer_index in zip(ba[0], ba[1])}
+            for field, ba in buffer_accesses.items()
+        }
         for full_str, field, index in re.findall(pattern, code):
             if field in buffer_sizes:
-                relative = list(map(int, index.split(",")))
-                absolute_index = dim_to_abs_val(relative, node.shape)
-                buffer_index = relative_to_buffer_index(buffer_sizes[field], absolute_index)
+                relative = tuple(map(int, index.split(",")))
+                buffer_index = relative_to_buffer_index[field][relative]
                 code = code.replace(full_str, "{}_{}".format(
                     field, buffer_index))
             elif field in node.output_fields:
@@ -391,7 +391,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
         for field_name, offset in node.output_fields.items():
 
-            if offset is not None and tuple(offset) != (0, 0, 0):
+            if offset is not None and list(offset) != [0] * len(offset):
                 raise NotImplementedError("Output offsets not yet implemented")
 
             data_name = field_to_data[field_name]

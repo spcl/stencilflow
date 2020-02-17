@@ -39,8 +39,10 @@ __license__ = "BSD-3-Clause"
 
 import functools
 import operator
+import os
 from typing import List, Dict
 
+import helper
 from log_level import LogLevel
 
 
@@ -64,9 +66,9 @@ class Simulator:
     """
 
     def __init__(self,
-                 input_config_name: str,
+                 program_name: str,
+                 program_description: Dict,
                  input_nodes: Dict,
-                 input_config: Dict,
                  kernel_nodes: Dict,
                  output_nodes: Dict,
                  dimensions: List,
@@ -74,9 +76,9 @@ class Simulator:
                  log_level: int) -> None:
         """
         Create new Simulator class with given initialization parameters.
-        :param input_config_name: name of the input file
+        :param program_name: name of the program
+        :param program_description: as produced by load_json
         :param input_nodes: dict of all input nodes
-        :param input_config: input config dict
         :param kernel_nodes: dict of all kernel nodes
         :param output_nodes: dict of all output nodes
         :param dimensions: global problem size dimensions
@@ -84,10 +86,10 @@ class Simulator:
         :param log_level: flag for console output logging
         """
         # save params
-        self.input_config_name: str = input_config_name
+        self.program_name: str = program_name
+        self.program_description: Dict = program_description
         self.dimensions: List = dimensions
         self.input_nodes: Dict = input_nodes
-        self.input_config: Dict = input_config
         self.kernel_nodes: Dict = kernel_nodes
         self.output_nodes: Dict = output_nodes
         self.write_output: bool = write_output
@@ -155,9 +157,12 @@ class Simulator:
         # loop over all input nodes
         if self.log_level >= LogLevel.BASIC.value:
             print("Initialize simulator input arrays.")
-        for input in self.input_nodes:
+        initialized = helper.load_input_arrays(
+            self.program_description["inputs"],
+            prefix=self.program_description["path"])
+        for k, v in initialized.items():
             # import data
-            self.input_nodes[input].init_input_data(self.input_config)
+            self.input_nodes[k].data_queue.import_data(v)
 
     def finalize(self):
         """
@@ -167,7 +172,7 @@ class Simulator:
         if self.write_output:
             # save data to files
             for output in self.output_nodes:
-                self.output_nodes[output].write_result_to_file(self.input_config_name)
+                self.output_nodes[output].write_result_to_file(self.program_name)
         # output kernel performance metric
         if self.log_level >= LogLevel.BASIC.value:
             for kernel in self.kernel_nodes:
@@ -214,7 +219,7 @@ class Simulator:
         self.initialize()
         # run simulation
         if self.log_level >= LogLevel.BASIC.value:
-            print("Run simulation.")
+            print("Running simulation...")
         PC = 0
         while not self.all_done():
             if self.log_level >= LogLevel.FULL.value:  # output program counter of each node
@@ -254,7 +259,7 @@ class Simulator:
         if exception is not None:
             print("Error: Exception {} has been risen. Run diagnostics.".format(exception.__traceback__))
         if self.log_level >= LogLevel.BASIC.value:
-            print("Run diagnostics of {}.".format(self.input_config_name))
+            print("Run diagnostics of {}.".format(self.program_name))
         # print info about all inputs
         for input in self.input_nodes:
             print("input:{}, PC: {}".format(input, self.input_nodes[input].program_counter))

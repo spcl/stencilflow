@@ -75,16 +75,16 @@ def generate_sdfg(name, chain):
     sdfg.add_edge(pre_state, state, InterstateEdge())
     sdfg.add_edge(state, post_state, InterstateEdge())
 
+    # TODO: For some reason, we put fake entries into the shape when the
+    # dimensions in less than 3. Have to remove them here.
+    dimensions_to_skip = len(chain.dimensions) - chain.kernel_dimensions
+    shape = np.array(chain.dimensions)[dimensions_to_skip:]
+    parameters = np.array(ITERATORS)[dimensions_to_skip:]
     # Only iterate over dimensions larger than 1, the rest will be added to the
     # SDFG as symbols that must be passed from outside.
-    parameters = np.array(ITERATORS)  # All iterator parameters
-    shape = np.array(chain.dimensions)
     iterator_mask = shape > 1  # Dimensions we need to iterate over
-    iterators = make_iterators(
-        shape[iterator_mask], parameters=parameters[iterator_mask])
-    symbols = parameters[np.logical_not(iterator_mask)]
-    for s in symbols:
-        sdfg.add_symbol(s, np.long)
+    iterators = make_iterators(shape[iterator_mask],
+                               parameters=parameters[iterator_mask])
     memlet_indices = [
         iterators[k] if iterator_mask[i] else k
         for i, k in enumerate(parameters)
@@ -96,40 +96,38 @@ def generate_sdfg(name, chain):
 
         stream_name = make_stream_name(edge[0].name, edge[1].name)
 
-        sdfg.add_stream(
-            stream_name,
-            edge[0].data_type,
-            buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
-            storage=StorageType.FPGA_Local,
-            transient=True)
+        sdfg.add_stream(stream_name,
+                        edge[0].data_type,
+                        buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
+                        storage=StorageType.FPGA_Local,
+                        transient=True)
 
     def add_input(node):
 
         # Host-side array, which will be an input argument
-        sdfg.add_array(node.name + "_host", chain.dimensions, node.data_type)
+        sdfg.add_array(node.name + "_host", shape, node.data_type)
 
         # Device-side copy
-        sdfg.add_array(
-            node.name,
-            chain.dimensions,
-            node.data_type,
-            storage=StorageType.FPGA_Global,
-            transient=True)
+        sdfg.add_array(node.name,
+                       shape,
+                       node.data_type,
+                       storage=StorageType.FPGA_Global,
+                       transient=True)
         access_node = state.add_read(node.name)
 
         # Copy data to the FPGA
         copy_host = pre_state.add_read(node.name + "_host")
         copy_fpga = pre_state.add_write(node.name)
-        pre_state.add_memlet_path(
-            copy_host,
-            copy_fpga,
-            memlet=Memlet.simple(
-                copy_fpga,
-                ", ".join(memlet_indices),
-                num_accesses=memcopy_accesses))
+        pre_state.add_memlet_path(copy_host,
+                                  copy_fpga,
+                                  memlet=Memlet.simple(
+                                      copy_fpga,
+                                      ", ".join(memlet_indices),
+                                      num_accesses=memcopy_accesses))
 
-        entry, exit = state.add_map(
-            "read_" + node.name, iterators, schedule=ScheduleType.FPGA_Device)
+        entry, exit = state.add_map("read_" + node.name,
+                                    iterators,
+                                    schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
         outputs = sorted([e[1].name for e in chain.graph.out_edges(node)])
@@ -142,52 +140,52 @@ def generate_sdfg(name, chain):
         tasklet = state.add_tasklet("read_" + node.name, {"memory"},
                                     out_memlets, tasklet_code)
 
-        state.add_memlet_path(
-            access_node,
-            entry,
-            tasklet,
-            dst_conn="memory",
-            memlet=Memlet.simple(
-                node.name, ", ".join(parameters), num_accesses=1))
+        state.add_memlet_path(access_node,
+                              entry,
+                              tasklet,
+                              dst_conn="memory",
+                              memlet=Memlet.simple(node.name,
+                                                   ", ".join(parameters),
+                                                   num_accesses=1))
 
         # Add memlets to all FIFOs connecting to compute units
         for out_name, out_memlet in zip(outputs, out_memlets):
             stream_name = make_stream_name(node.name, out_name)
             write_node = state.add_write(stream_name)
-            state.add_memlet_path(
-                tasklet,
-                exit,
-                write_node,
-                src_conn=out_memlet,
-                memlet=Memlet.simple(stream_name, "0", num_accesses=1))
+            state.add_memlet_path(tasklet,
+                                  exit,
+                                  write_node,
+                                  src_conn=out_memlet,
+                                  memlet=Memlet.simple(stream_name,
+                                                       "0",
+                                                       num_accesses=1))
 
     def add_output(node):
 
         # Host-side array, which will be an output argument
-        sdfg.add_array(node.name + "_host", chain.dimensions, node.data_type)
+        sdfg.add_array(node.name + "_host", shape, node.data_type)
 
         # Device-side copy
-        sdfg.add_array(
-            node.name,
-            chain.dimensions,
-            node.data_type,
-            storage=StorageType.FPGA_Global,
-            transient=True)
+        sdfg.add_array(node.name,
+                       shape,
+                       node.data_type,
+                       storage=StorageType.FPGA_Global,
+                       transient=True)
         write_node = state.add_write(node.name)
 
         # Copy data to the FPGA
         copy_fpga = post_state.add_read(node.name)
         copy_host = post_state.add_write(node.name + "_host")
-        post_state.add_memlet_path(
-            copy_fpga,
-            copy_host,
-            memlet=Memlet.simple(
-                copy_host,
-                ", ".join(memlet_indices),
-                num_accesses=memcopy_accesses))
+        post_state.add_memlet_path(copy_fpga,
+                                   copy_host,
+                                   memlet=Memlet.simple(
+                                       copy_host,
+                                       ", ".join(memlet_indices),
+                                       num_accesses=memcopy_accesses))
 
-        entry, exit = state.add_map(
-            "write_" + node.name, iterators, schedule=ScheduleType.FPGA_Device)
+        entry, exit = state.add_map("write_" + node.name,
+                                    iterators,
+                                    schedule=ScheduleType.FPGA_Device)
 
         src = chain.graph.in_edges(node)
         if len(src) > 1:
@@ -204,36 +202,37 @@ def generate_sdfg(name, chain):
         stream_name = make_stream_name(src.name, node.name)
         read_node = state.add_read(stream_name)
 
-        state.add_memlet_path(
-            read_node,
-            entry,
-            tasklet,
-            dst_conn=in_memlet,
-            memlet=Memlet.simple(stream_name, "0", num_accesses=1))
+        state.add_memlet_path(read_node,
+                              entry,
+                              tasklet,
+                              dst_conn=in_memlet,
+                              memlet=Memlet.simple(stream_name,
+                                                   "0",
+                                                   num_accesses=1))
 
-        state.add_memlet_path(
-            tasklet,
-            exit,
-            write_node,
-            src_conn="memory",
-            memlet=Memlet.simple(
-                node.name, ", ".join(parameters), num_accesses=1))
+        state.add_memlet_path(tasklet,
+                              exit,
+                              write_node,
+                              src_conn="memory",
+                              memlet=Memlet.simple(node.name,
+                                                   ", ".join(parameters),
+                                                   num_accesses=1))
 
     def add_kernel(node):
 
         # Enrich accesses with the names of the corresponding input connectors
         input_to_connector = collections.OrderedDict(
-            (k, "_" + k)
-            for k in node.graph.accesses)
-        accesses = collections.OrderedDict((k, v) for k, v in zip(
-            input_to_connector.values(), node.graph.accesses.values()))
+            (k, "_" + k) for k in node.graph.accesses)
+        accesses = collections.OrderedDict(
+            (k, [x[dimensions_to_skip:] for x in v]) for k, v in zip(
+                input_to_connector.values(), node.graph.accesses.values()))
 
         # Enrich outputs with the names of the corresponding output connectors
         output_to_connector = collections.OrderedDict(
             (f, "_" + f)
             for f in sorted(e[1].name for e in chain.graph.out_edges(node)))
         outputs = collections.OrderedDict(
-            (connector, (0, 0, 0))
+            (connector, [0] * len(shape))
             for connector in output_to_connector.values())
 
         # We currently don't parse the output code, so we have to make a best
@@ -241,7 +240,7 @@ def generate_sdfg(name, chain):
         # Intel FPGA).
         output_ctype = None
         for output in output_to_connector:
-            proposed = sdfg.data(output).dtype.ctype
+            proposed = node.outputs[output]["data_type"].ctype
             if output_ctype is None:
                 output_ctype = proposed
             else:
@@ -252,15 +251,15 @@ def generate_sdfg(name, chain):
         # Generate the C code. We unfortunately cannot pass the Python
         # directly, because OpenCL doesn't support auto.
         code = "\n".join([
-            output_ctype + " " + re.sub(
-                r"\b{}\b".format(output_field), "{}[{}]".format(
-                    output_connector, ", ".join("0"
-                                                for _ in chain.dimensions)),
-                expr.strip()) + ";"
+            output_ctype + " " +
+            re.sub(r"\b{}\b".format(output_field), "{}[{}]".format(
+                output_connector, ", ".join("0" for _ in shape)), expr.strip()) + ";"
             for (output_field, output_connector), expr in zip(
                 output_to_connector.items(),
                 node.generate_relative_access_kernel_string(
-                    relative_to_center=False, flatten_index=False).split(";"))
+                    relative_to_center=True,
+                    flatten_index=False,
+                    output_dimensions=len(shape)).split(";"))
         ])
         # Replace input fields with the connector name.
         for f, c in input_to_connector.items():
@@ -278,7 +277,7 @@ def generate_sdfg(name, chain):
                 bc["btype"] = bc["type"]
                 del bc["type"]
 
-        stencil_node = stencil.Stencil(node.name, chain.dimensions, accesses,
+        stencil_node = stencil.Stencil(node.name, tuple(shape), accesses,
                                        outputs, boundary_conditions, code)
         stencil_node.implementation = "FPGA"
         state.add_node(stencil_node)
@@ -290,11 +289,12 @@ def generate_sdfg(name, chain):
 
             # Outer memory read
             read_node = state.add_read(stream_name)
-            state.add_memlet_path(
-                read_node,
-                stencil_node,
-                dst_conn=connector,
-                memlet=Memlet.simple(stream_name, "0", num_accesses=-1))
+            state.add_memlet_path(read_node,
+                                  stencil_node,
+                                  dst_conn=connector,
+                                  memlet=Memlet.simple(stream_name,
+                                                       "0",
+                                                       num_accesses=-1))
 
         # Add write nodes and memlets
         for field_name, connector in output_to_connector.items():
@@ -303,11 +303,12 @@ def generate_sdfg(name, chain):
 
             # Outer write
             write_node = state.add_write(stream_name)
-            state.add_memlet_path(
-                stencil_node,
-                write_node,
-                src_conn=connector,
-                memlet=Memlet.simple(stream_name, "0", num_accesses=-1))
+            state.add_memlet_path(stencil_node,
+                                  write_node,
+                                  src_conn=connector,
+                                  memlet=Memlet.simple(stream_name,
+                                                       "0",
+                                                       num_accesses=-1))
 
     # First generate all connections between kernels and memories
     for link in chain.graph.edges(data=True):
@@ -337,8 +338,8 @@ def generate_sdfg(name, chain):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "stencil_input", help="Stencil description file (.json)")
+    parser.add_argument("stencil_input",
+                        help="Stencil description file (.json)")
     parser.add_argument("sdfg_output", help="Output SDFG file (.sdfg)")
     parser.add_argument("--plot-graph", dest="plot-graph", action="store_true")
     parser.add_argument("--plot-sdfg", dest="plot-sdfg", action="store_true")

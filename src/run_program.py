@@ -47,6 +47,7 @@ import dace
 import numpy as np
 
 import helper
+from log_level import LogLevel
 from kernel_chain_graph import KernelChainGraph
 from sdfg_generator import generate_sdfg
 from simulator import Simulator
@@ -58,7 +59,7 @@ def run_program(stencil_file,
                 input_directory=None,
                 skip_execution=False,
                 plot=False,
-                log_level=3,
+                log_level=LogLevel.BASIC.value,
                 print_result=False):
 
     # Load program file
@@ -67,7 +68,7 @@ def run_program(stencil_file,
     name = re.match("[^\.]+", name).group(0)
 
     # Create SDFG
-    if log_level > 0:
+    if log_level >= LogLevel.BASIC.value:
         print("Creating kernel graph...")
     chain = KernelChainGraph(
         path=stencil_file,
@@ -76,14 +77,13 @@ def run_program(stencil_file,
 
     # do simulation
     if run_simulation:
-        if log_level > 0:
+        if log_level >= LogLevel.BASIC.value:
             print("Running simulation...")
         sim = Simulator(
-            input_config_name=re.match("[^\.]+",
-                                       os.path.basename(
-                                           stencil_file)).group(0),
+            program_name=re.match("[^\.]+",
+                                  os.path.basename(stencil_file)).group(0),
+            program_description=program_description,
             input_nodes=chain.input_nodes,
-            input_config=chain.inputs,
             kernel_nodes=chain.kernel_nodes,
             output_nodes=chain.output_nodes,
             dimensions=chain.dimensions,
@@ -92,7 +92,7 @@ def run_program(stencil_file,
         sim.simulate()
         simulation_result = sim.get_result()
 
-    if log_level > 0:
+    if log_level >= LogLevel.BASIC.value:
         print("Generating SDFG...")
     sdfg = generate_sdfg(name, chain)
 
@@ -103,22 +103,24 @@ def run_program(stencil_file,
     if mode == "emulation":
         dace.config.Config.set(
             "compiler", "intel_fpga", "mode", value="emulator")
-    else:
+    elif mode == "hardware":
         dace.config.Config.set(
             "compiler", "intel_fpga", "mode", value="hardware")
-    if log_level > 0:
+    else:
+        raise ValueError("Unrecognized execution mode: {}".format(mode))
+    if log_level >= LogLevel.BASIC.value:
         print("Compiling SDFG...")
     sdfg.expand_library_nodes()
     program = sdfg.compile()
 
     # Load data from disk
-    if log_level > 0:
+    if log_level >= LogLevel.BASIC.value:
         print("Loading input arrays...")
     input_arrays = helper.load_input_arrays(
-        program_description, prefix=input_directory)
+        program_description["inputs"], prefix=input_directory)
 
     # Initialize output arrays
-    if log_level > 0:
+    if log_level >= LogLevel.BASIC.value:
         print("Initializing output arrays...")
     output_arrays = {
         arr_name: helper.aligned(

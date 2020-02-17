@@ -111,29 +111,3 @@ class Input(BaseKernelNodeClass):
                 data = self.queues[successor].dequeue()
                 self.outputs[successor]["delay_buffer"].enqueue(data)
                 self.program_counter = self.dimension_size - max([self.queues[x].size() for x in self.queues])
-
-    def init_input_data(self, inputs):
-        """
-        Initialize internal queue i.e. read data from config or external file.
-        :param inputs:
-        :return:
-        """
-        # check if data is in the config or in a separate file
-        if isinstance(inputs[self.name]["data"], list):  # inline
-            self.data_queue.import_data(inputs[self.name]["data"])
-        elif isinstance(inputs[self.name]["data"], str):  # external file
-            coll = None
-            if inputs[self.name]["data"].lower().endswith(('.dat', '.bin', '.data')):  # general binary data file
-                coll = np.fromfile(inputs[self.name]["data"], inputs[self.name]["data_type"].type)
-            if inputs[self.name]["data"].lower().endswith('.h5'):  # h5 file
-                from h5py import File
-                f = File(inputs[self.name]["data"], 'r')
-                coll = np.array(list(f[list(f.keys())[0]]), dtype=inputs[self.name]["data_type"].type)  # read data
-                # from first key
-            elif inputs[self.name]["data"].lower().endswith('.csv'):  # csv file
-                coll = list(np.genfromtxt(inputs[self.name]["data"], delimiter=',',
-                                          dtype=inputs[self.name]["data_type"].type))
-            # add data to queue
-            self.data_queue.import_data(coll)
-        else:
-            raise Exception("Input data representation should either be implicit (list) or a path to a csv file.")
