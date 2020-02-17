@@ -382,7 +382,7 @@ class ProgramTest(unittest.TestCase):
         test_directory = os.path.join(os.path.dirname(__file__), "testing")
         for stencil_file in [
                 "jacobi2d_128x128", "jacobi3d_32x32x32",
-                # "jacobi3d_32x32x32_8itr"
+                "jacobi3d_32x32x32_8itr"
         ]:
             print("Testing program {}...".format(stencil_file))
             stencil_file = os.path.join(test_directory, stencil_file + ".json")

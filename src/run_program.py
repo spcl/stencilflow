@@ -116,6 +116,8 @@ def run_program(stencil_file,
     # Load data from disk
     if log_level >= LogLevel.BASIC.value:
         print("Loading input arrays...")
+    if input_directory is None:
+        input_directory = os.path.dirname(stencil_file)
     input_arrays = helper.load_input_arrays(
         program_description["inputs"], prefix=input_directory)
 

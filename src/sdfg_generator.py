@@ -227,39 +227,28 @@ def generate_sdfg(name, chain):
             (k, [x[dimensions_to_skip:] for x in v]) for k, v in zip(
                 input_to_connector.values(), node.graph.accesses.values()))
 
-        # Enrich outputs with the names of the corresponding output connectors
-        output_to_connector = collections.OrderedDict(
-            (f, "_" + f)
-            for f in sorted(e[1].name for e in chain.graph.out_edges(node)))
-        outputs = collections.OrderedDict(
-            (connector, [0] * len(shape))
-            for connector in output_to_connector.values())
-
-        # We currently don't parse the output code, so we have to make a best
-        # effort to know the type of each assignment (auto does not work for
-        # Intel FPGA).
-        output_ctype = None
-        for output in output_to_connector:
-            proposed = node.outputs[output]["data_type"].ctype
-            if output_ctype is None:
-                output_ctype = proposed
-            else:
-                if output_type != proposed:
-                    raise ValueError(
-                        "Only a single output type is currently supported")
+        # Map output field to output connector
+        output_field = [e[1].name for e in chain.graph.out_edges(node)]
+        if len(output_field) != 1:
+            raise ValueError(
+                "Expected single output edge, got: {}".format(output_field))
+        output_field = output_field[0]
+        output_connector = "_" + node.name
+        output_dict = collections.OrderedDict([(output_connector,
+                                                [0] * len(shape))])
 
         # Generate the C code. We unfortunately cannot pass the Python
         # directly, because OpenCL doesn't support auto.
+        output_ctype = node.outputs[output_field]["data_type"].ctype
         code = "\n".join([
-            output_ctype + " " +
-            re.sub(r"\b{}\b".format(output_field), "{}[{}]".format(
-                output_connector, ", ".join("0" for _ in shape)), expr.strip()) + ";"
-            for (output_field, output_connector), expr in zip(
-                output_to_connector.items(),
-                node.generate_relative_access_kernel_string(
-                    relative_to_center=True,
-                    flatten_index=False,
-                    output_dimensions=len(shape)).split(";"))
+            output_ctype + " " + re.sub(
+                r"\b{}\b".format(node.name), "{}[{}]".format(
+                    output_connector, ", ".join("0" for _ in shape)),
+                expr.strip()) + ";"
+            for expr in node.generate_relative_access_kernel_string(
+                relative_to_center=True,
+                flatten_index=False,
+                output_dimensions=len(shape)).split(";")
         ])
         # Replace input fields with the connector name.
         for f, c in input_to_connector.items():
@@ -278,7 +267,7 @@ def generate_sdfg(name, chain):
                 del bc["type"]
 
         stencil_node = stencil.Stencil(node.name, tuple(shape), accesses,
-                                       outputs, boundary_conditions, code)
+                                       output_dict, boundary_conditions, code)
         stencil_node.implementation = "FPGA"
         state.add_node(stencil_node)
 
@@ -296,19 +285,17 @@ def generate_sdfg(name, chain):
                                                        "0",
                                                        num_accesses=-1))
 
-        # Add write nodes and memlets
-        for field_name, connector in output_to_connector.items():
+        # Add write node and memlet
+        stream_name = make_stream_name(node.name, output_field)
 
-            stream_name = make_stream_name(node.name, field_name)
-
-            # Outer write
-            write_node = state.add_write(stream_name)
-            state.add_memlet_path(stencil_node,
-                                  write_node,
-                                  src_conn=connector,
-                                  memlet=Memlet.simple(stream_name,
-                                                       "0",
-                                                       num_accesses=-1))
+        # Outer write
+        write_node = state.add_write(stream_name)
+        state.add_memlet_path(stencil_node,
+                              write_node,
+                              src_conn=output_connector,
+                              memlet=Memlet.simple(stream_name,
+                                                   "0",
+                                                   num_accesses=-1))
 
     # First generate all connections between kernels and memories
     for link in chain.graph.edges(data=True):
