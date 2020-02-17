@@ -321,3 +321,158 @@ def generate_sdfg(name, chain):
             add_kernel(node)
 
     return sdfg
+
+
+def _nodes_reachable_from(graph, node, ancestors=True, descendants=True):
+    q = [node]
+    seen = set()
+    while len(q) > 0:
+        n = q.pop()
+        if n in seen:
+            continue
+        seen.add(n)
+        if ancestors:
+            for reachable in graph.predecessors(n):
+                if reachable not in seen:
+                    q.append(reachable)
+        if descendants:
+            for reachable in graph.successors(n):
+                if reachable not in seen:
+                    q.append(reachable)
+    return seen
+
+
+def _nodes_before_or_after(sdfg, split_state, split_data, after):
+    import networkx as nx
+    states = set()
+    nodes = set()
+    states_to_search = collections.deque([split_state])
+    seen = {}
+    data_names = {split_data}
+    while len(states_to_search) > 0:
+        state = states_to_search.popleft()
+        if state in seen:
+            continue
+        fixed_point = False
+        while not fixed_point:
+            num_names = len(data_names)
+            for n in state.data_nodes():
+                if n.data in data_names:
+                    states.add(state)
+                    # TODO: Should be all reachable components, but need to
+                    # filter out the split node after the first cluster.
+                    # local_nodes = _nodes_reachable_from(state, n, True, True)
+                    if after:
+                        local_nodes = _nodes_reachable_from(
+                            state, n, False, True)
+                    else:
+                        local_nodes = _nodes_reachable_from(
+                            state, n, True, False)
+                    for la in local_nodes:
+                        if isinstance(la, dace.graph.nodes.AccessNode):
+                            data_names.add(la.data)
+                    nodes |= set(local_nodes)
+            fixed_point = num_names == len(data_names)
+        next_states = (sdfg.successors(state)
+                       if after else sdfg.predecessors(state))
+        for state in next_states:
+            if state not in seen:
+                states_to_search.append(state)
+    return states, nodes
+
+
+def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
+    """Split the input SDFG into two SDFGs connected by remote streams,
+       to be executed in a multi-FPGA setup using SMI.
+        :param sdfg: SDFG to split into two SDFGs.
+        :param remote_stream: Stream data name (not node) to split on
+        :param send_rank: Rank that will send
+        :param receive_rank: Rank that will receive
+        :param port: Port identifier
+        :return: The two resulting SDFGs
+    """
+
+    # Locate read and write nodes in SDFG
+    read_node = None
+    read_state = None
+    write_node = None
+    write_state = None
+    for node, state in sdfg.all_nodes_recursive():
+        if isinstance(node, dace.graph.nodes.AccessNode):
+            if node.data != remote_stream:
+                continue
+            if node.access == dace.AccessType.ReadOnly:
+                if read_state is not None:
+                    raise ValueError("Multiple reads found for: {}".format(
+                        node.data))
+                read_node = node
+                read_state = state
+            elif node.access == dace.AccessType.WriteOnly:
+                if write_state is not None:
+                    raise ValueError("Multiple writes found for: {}".format(
+                        node.data))
+                write_node = node
+                write_state = state
+            else:
+                raise ValueError("Unsupported access type: {}".format(
+                    node.access))
+
+    # Classify nodes into whether they appear before or after the split
+    states_before, nodes_before = (_nodes_before_or_after(
+        sdfg, read_state, remote_stream, False))
+    states_after, nodes_after = (_nodes_before_or_after(
+        sdfg, write_state, remote_stream, True))
+    nodes_before.remove(write_node)
+    nodes_after.remove(read_node)
+    intersection = nodes_before & nodes_after
+    if len(intersection) != 0:
+        raise ValueError(
+            "Node does not perfectly split SDFG, intersection is: {}".format(
+                intersection))
+
+    print("States before:\n\t{}".format(states_before))
+    print("States after:\n\t{}".format(states_after))
+    print("Nodes before:\n\t{}".format(nodes_before))
+    print("Nodes after:\n\t{}".format(nodes_after))
+
+    # Turn splitting stream into remote access nodes
+    sdfg.data(read_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
+    sdfg.data(read_node.data).location["snd_rank"] = send_rank
+    sdfg.data(read_node.data).location["port"] = port
+    sdfg.data(write_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
+    sdfg.data(write_node.data).location["rcv_rank"] = receive_rank
+    sdfg.data(write_node.data).location["port"] = port
+
+    # Now duplicate the SDFG, and remove all nodes that don't belong in the
+    # respectively side of the split
+    as_json = sdfg.to_json()
+    name = sdfg.name
+    as_json["attributes"]["name"] = name + "_0"
+    sdfg_before = dace.SDFG.from_json(as_json)
+    # TODO: this is a huge hack, find a better way
+    nodes_before = set(map(str, nodes_before))
+    nodes_after = set(map(str, nodes_after))
+    states_before = set(map(str, states_before))
+    states_after = set(map(str, states_after))
+    for state in list(sdfg_before.states()):
+        state_str = str(state)
+        if state_str not in states_before:
+            sdfg_before.remove_node(state)
+        else:
+            for node in list(state.nodes()):
+                node_str = str(node)
+                if node_str not in nodes_before:
+                    state.remove_node(node)
+    as_json["attributes"]["name"] = name + "_1"
+    sdfg_after = dace.SDFG.from_json(as_json)
+    for state in list(sdfg_after.states()):
+        state_str = str(state)
+        if state_str not in states_after:
+            sdfg_after.remove_node(state)
+        else:
+            for node in list(state.nodes()):
+                node_str = str(node)
+                if node_str not in nodes_after:
+                    state.remove_node(node)
+
+    return sdfg_before, sdfg_after
