@@ -1,0 +1,30 @@
+{
+	"inputs": {
+		"arrA": {
+			"data": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+			"data_type": "float64"
+		},
+		"arrB": {
+			"data": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+			"data_type": "float64"
+		}
+	},
+	"outputs": ["res"],
+	"dimensions": [1, 3, 3],
+	"program": {
+		"res": {
+			"computation_string": "res = arrA[i,j,k-1] + arrA[i,j,k+1] + arrA[i,j-1,k] + arrA[i,j+1,k] + arrB[i,j,k]",
+			"boundary_condition": {
+				"arrA": {
+					"type": "constant",
+					"value": 0.0
+				},
+				"arrB": {
+					"type": "constant",
+					"value": 0.0
+				}
+			},
+			"data_type": "float64"
+		}
+	}
+}

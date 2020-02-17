@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-
 """
 BSD 3-Clause License
 
@@ -46,6 +45,9 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from stencilflow import *
 from stencilflow.log_level import LogLevel
 from stencilflow.bounded_queue import BoundedQueue
+from stencilflow.compute_graph import ComputeGraph
+
+TEST_FOLDER = os.path.join(os.path.dirname(__file__), "testing")
 
 
 class BoundedQueueTest(unittest.TestCase):
@@ -157,11 +159,11 @@ class HelperTest(unittest.TestCase):
                 "c": [0, 0, 1]
             }), "a")
         # check list_add_cwise
-        self.assertEqual(
-            helper.list_add_cwise([1, 2, 3], [3, 2, 1]), [4, 4, 4])
+        self.assertEqual(helper.list_add_cwise([1, 2, 3], [3, 2, 1]),
+                         [4, 4, 4])
         # check list_subtract_cwise
-        self.assertEqual(
-            helper.list_subtract_cwise([1, 2, 3], [1, 2, 3]), [0, 0, 0])
+        self.assertEqual(helper.list_subtract_cwise([1, 2, 3], [1, 2, 3]),
+                         [0, 0, 0])
         # check dim_to_abs_val
         self.assertEqual(helper.dim_to_abs_val([3, 2, 1], [10, 10, 10]), 321)
         # check convert_3d_to_1d
@@ -171,9 +173,8 @@ class HelperTest(unittest.TestCase):
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(
-                        os.path.dirname(__file__), "testing",
-                        "helper_test.csv"),
+                    os.path.join(os.path.dirname(__file__), "testing",
+                                 "helper_test.csv"),
                     "data_type":
                     "float64"
                 })), [7.0, 7.0])
@@ -181,9 +182,8 @@ class HelperTest(unittest.TestCase):
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(
-                        os.path.dirname(__file__), "testing",
-                        "helper_test.dat"),
+                    os.path.join(os.path.dirname(__file__), "testing",
+                                 "helper_test.dat"),
                     "data_type":
                     "float64"
                 })), [7.0, 7.0])
@@ -212,9 +212,9 @@ class ComputeGraphTest(unittest.TestCase):
         graph.calculate_latency()
         # load operation latency manually to compare result
         with open(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    'compute_graph.config')) as json_file:
+                os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                             "stencilflow",
+                             'compute_graph.config')) as json_file:
             op_latency = json.load(json_file)
         # check if latencies match
         self.assertEqual(
@@ -254,8 +254,9 @@ class KernelTest(unittest.TestCase):
 
 class KernelChainGraphTest(unittest.TestCase):
     def test(self):
-        chain = KernelChainGraph(
-            path='stencils/simple_input_delay_buf.json', plot_graph=False)
+        chain = KernelChainGraph(path=os.path.join(
+            TEST_FOLDER, 'simple_input_delay_buf.json'),
+                                 plot_graph=False)
         # Note: Since e.g. the delay buffer sizes get tested using different cases (e.g. through the simulator), we only
         # add a basic (no exception) case in here for the moment.
 
@@ -266,8 +267,9 @@ from stencilflow.optimizer import Optimizer
 class OptimizerTest(unittest.TestCase):
     def test(self):
         # instantiate example KernelChainGraph
-        chain = KernelChainGraph(
-            path='stencils/simple_input_delay_buf.json', plot_graph=False)
+        chain = KernelChainGraph(path=os.path.join(
+            TEST_FOLDER, 'simple_input_delay_buf.json'),
+                                 plot_graph=False)
         # instantiate the Optimizer
         opt = Optimizer(chain.kernel_nodes, chain.dimensions)
         # define bounds
@@ -277,8 +279,8 @@ class OptimizerTest(unittest.TestCase):
         ratio = 0.5
         # run all optimization strategies
         opt.minimize_fast_mem(communication_volume_bound=com_bound)
-        opt.minimize_comm_vol(
-            fast_memory_bound=fast_mem_bound, slow_memory_bound=slow_mem_bound)
+        opt.minimize_comm_vol(fast_memory_bound=fast_mem_bound,
+                              slow_memory_bound=slow_mem_bound)
         opt.optimize_to_ratio(ratio=ratio)
 
 
@@ -290,56 +292,56 @@ class SimulatorTest(unittest.TestCase):
         # set up all sample configs with their (paper) result
         samples = {
             "sample1": {
-                "file": "stencils/simulator.json",
+                "file": "simulator.json",
                 "res": [5.14, 4.14, 5.14, 11.14, 7.14, 8.14]
             },
             "sample2": {
-                "file": "stencils/simulator2.json",
+                "file": "simulator2.json",
                 "res": [3., 4., 3., 4., 5., 4., 3., 4., 3.]
             },
             "sample3": {
-                "file": "stencils/simulator3.json",
+                "file": "simulator3.json",
                 "res": [4., 7., 8., 13., 20., 19., 16., 25., 20.]
             },
             "sample4": {
-                "file": "stencils/simulator4.json",
+                "file": "simulator4.json",
                 "res": [3., 3., 3., 3., 3., 3., 3., 3., 3.]
             },
             "sample5": {
-                "file": "stencils/simulator5.json",
+                "file": "simulator5.json",
                 "res": [7., 9., 7., 9., 11., 9., 7., 9., 7.]
             },
             "sample6": {
-                "file": "stencils/simulator6.json",
+                "file": "simulator6.json",
                 "res": [14., 18., 14., 18., 22., 18., 14., 18., 14.]
             },
             "sample7": {
                 "file":
-                "stencils/simulator7.json",
+                "simulator7.json",
                 "res": [
                     20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25,
                     16.25
                 ]
             },
             "sample8": {
-                "file": "stencils/simulator8.json",
+                "file": "simulator8.json",
                 "res": [4., 8., 12., 16., 20., 24., 28., 32., 36.]
             },
             "sample9": {
-                "file": "stencils/simulator9.json",
+                "file": "simulator9.json",
                 "res": [3., 5., 7., 9., 11., 13.]
             },
             "sample10": {
-                "file": "stencils/simulator10.json",
+                "file": "simulator10.json",
                 "res": [1., 6., 11., 16., 21., 26.]
             },
             "sample11": {
-                "file": "stencils/simulator11.json",
+                "file": "simulator11.json",
                 "res": [4., 2., 3., 10., 5., 6., 16., 8., 9.]
             },
             "sample12": {
                 "file":
-                "stencils/simulator12.json",
+                "simulator12.json",
                 "res": [
                     20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25,
                     16.25, 20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25,
@@ -350,20 +352,17 @@ class SimulatorTest(unittest.TestCase):
         }
         # run all samples
         for sample in samples:
-            path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), os.path.pardir,
-                samples[sample]['file'])
+            path = os.path.join(TEST_FOLDER, samples[sample]['file'])
             program_description = helper.parse_json(path)
             chain = KernelChainGraph(path=path, plot_graph=False)
-            sim = Simulator(
-                input_nodes=chain.input_nodes,
-                program_description=program_description,
-                kernel_nodes=chain.kernel_nodes,
-                output_nodes=chain.output_nodes,
-                dimensions=chain.dimensions,
-                program_name="test",
-                write_output=False,
-                log_level=0)
+            sim = Simulator(input_nodes=chain.input_nodes,
+                            program_description=program_description,
+                            kernel_nodes=chain.kernel_nodes,
+                            output_nodes=chain.output_nodes,
+                            dimensions=chain.dimensions,
+                            program_name="test",
+                            write_output=False,
+                            log_level=0)
             sim.simulate()
             # check if result matches
             self.assertTrue(
@@ -372,25 +371,24 @@ class SimulatorTest(unittest.TestCase):
                     np.array(sim.get_result()['res']).ravel(), 0.01))
 
 
-from stencilflow.run_program import run_program
-
-class ProgramTest(unittest.TestCase):
-
-    def test_program(program):
-        test_directory = os.path.join(os.path.dirname(__file__), "testing")
-        for stencil_file in [
-                "jacobi2d_128x128", "jacobi3d_32x32x32",
-                "jacobi3d_32x32x32_8itr"
-        ]:
-            print("Testing program {}...".format(stencil_file))
-            stencil_file = os.path.join(test_directory, stencil_file + ".json")
-            run_program(
-                stencil_file,
-                "emulation",
-                run_simulation=False,
-                log_level=1,
-                input_directory=os.path.abspath(test_directory))
-
+# from stencilflow.run_program import run_program
+#
+# class ProgramTest(unittest.TestCase):
+#
+#     def test_program(program):
+#         test_directory = os.path.join(os.path.dirname(__file__), "testing")
+#         for stencil_file in [
+#                 "jacobi2d_128x128",
+#                 "jacobi3d_32x32x32_8itr"
+#         ]:
+#             print("Testing program {}...".format(stencil_file))
+#             stencil_file = os.path.join(test_directory, stencil_file + ".json")
+#             run_program(
+#                 stencil_file,
+#                 "emulation",
+#                 run_simulation=False,
+#                 log_level=1,
+#                 input_directory=os.path.abspath(test_directory))
 
 if __name__ == '__main__':
     """
