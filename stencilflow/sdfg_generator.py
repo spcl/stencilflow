@@ -279,24 +279,24 @@ def generate_sdfg(name, chain):
 
             # Outer memory read
             read_node = state.add_read(stream_name)
-            state.add_memlet_path(read_node,
-                                  stencil_node,
-                                  dst_conn=connector,
-                                  memlet=Memlet.simple(stream_name,
-                                                       "0",
-                                                       num_accesses=-1))
+            state.add_memlet_path(
+                read_node,
+                stencil_node,
+                dst_conn=connector,
+                memlet=Memlet.simple(
+                    stream_name, "0", num_accesses=memcopy_accesses))
 
         # Add write node and memlet
         stream_name = make_stream_name(node.name, output_field)
 
         # Outer write
         write_node = state.add_write(stream_name)
-        state.add_memlet_path(stencil_node,
-                              write_node,
-                              src_conn=output_connector,
-                              memlet=Memlet.simple(stream_name,
-                                                   "0",
-                                                   num_accesses=-1))
+        state.add_memlet_path(
+            stencil_node,
+            write_node,
+            src_conn=output_connector,
+            memlet=Memlet.simple(
+                stream_name, "0", num_accesses=memcopy_accesses))
 
     # First generate all connections between kernels and memories
     for link in chain.graph.edges(data=True):
