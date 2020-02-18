@@ -238,11 +238,8 @@ def generate_sdfg(name, chain):
         output_dict = collections.OrderedDict([(output_connector,
                                                 [0] * len(shape))])
 
-        # Generate the C code. We unfortunately cannot pass the Python
-        # directly, because OpenCL doesn't support auto.
-        output_ctype = node.outputs[output_field]["data_type"].ctype
         code = "\n".join([
-            output_ctype + " " + re.sub(
+            re.sub(
                 r"\b{}\b".format(node.name), "{}[{}]".format(
                     output_connector, ", ".join("0" for _ in shape)),
                 expr.strip()) + ";"
