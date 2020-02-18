@@ -461,7 +461,10 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
         else:
             for node in list(state.nodes()):
                 node_str = str(node)
-                if node_str not in nodes_before:
+                if (node_str not in nodes_before
+                        or (isinstance(node, dace.graph.nodes.AccessNode)
+                            and node.data == remote_stream
+                            and node.access == dace.AccessType.ReadOnly)):
                     state.remove_node(node)
     as_json["attributes"]["name"] = name + "_1"
     sdfg_after = dace.SDFG.from_json(as_json)
@@ -472,7 +475,13 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
         else:
             for node in list(state.nodes()):
                 node_str = str(node)
-                if node_str not in nodes_after:
+                if (node_str not in nodes_after
+                        or (isinstance(node, dace.graph.nodes.AccessNode)
+                            and node.data == remote_stream
+                            and node.access == dace.AccessType.WriteOnly)):
                     state.remove_node(node)
+
+    sdfg_before.validate()
+    sdfg_after.validate()
 
     return sdfg_before, sdfg_after
