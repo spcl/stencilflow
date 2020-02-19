@@ -38,6 +38,7 @@ __license__ = "BSD-3-Clause"
 
 import argparse
 import collections
+import copy
 import functools
 import itertools
 import operator
@@ -84,8 +85,8 @@ def generate_sdfg(name, chain):
     # Only iterate over dimensions larger than 1, the rest will be added to the
     # SDFG as symbols that must be passed from outside.
     iterator_mask = shape > 1  # Dimensions we need to iterate over
-    iterators = make_iterators(shape[iterator_mask],
-                               parameters=parameters[iterator_mask])
+    iterators = make_iterators(
+        shape[iterator_mask], parameters=parameters[iterator_mask])
     memlet_indices = [
         iterators[k] if iterator_mask[i] else k
         for i, k in enumerate(parameters)
@@ -97,11 +98,12 @@ def generate_sdfg(name, chain):
 
         stream_name = make_stream_name(edge[0].name, edge[1].name)
 
-        sdfg.add_stream(stream_name,
-                        edge[0].data_type,
-                        buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
-                        storage=StorageType.FPGA_Local,
-                        transient=True)
+        sdfg.add_stream(
+            stream_name,
+            edge[0].data_type,
+            buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
+            storage=StorageType.FPGA_Local,
+            transient=True)
 
     def add_input(node):
 
@@ -109,26 +111,27 @@ def generate_sdfg(name, chain):
         sdfg.add_array(node.name + "_host", shape, node.data_type)
 
         # Device-side copy
-        sdfg.add_array(node.name,
-                       shape,
-                       node.data_type,
-                       storage=StorageType.FPGA_Global,
-                       transient=True)
+        sdfg.add_array(
+            node.name,
+            shape,
+            node.data_type,
+            storage=StorageType.FPGA_Global,
+            transient=True)
         access_node = state.add_read(node.name)
 
         # Copy data to the FPGA
         copy_host = pre_state.add_read(node.name + "_host")
         copy_fpga = pre_state.add_write(node.name)
-        pre_state.add_memlet_path(copy_host,
-                                  copy_fpga,
-                                  memlet=Memlet.simple(
-                                      copy_fpga,
-                                      ", ".join(memlet_indices),
-                                      num_accesses=memcopy_accesses))
+        pre_state.add_memlet_path(
+            copy_host,
+            copy_fpga,
+            memlet=Memlet.simple(
+                copy_fpga,
+                ", ".join(memlet_indices),
+                num_accesses=memcopy_accesses))
 
-        entry, exit = state.add_map("read_" + node.name,
-                                    iterators,
-                                    schedule=ScheduleType.FPGA_Device)
+        entry, exit = state.add_map(
+            "read_" + node.name, iterators, schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
         outputs = sorted([e[1].name for e in chain.graph.out_edges(node)])
@@ -141,25 +144,24 @@ def generate_sdfg(name, chain):
         tasklet = state.add_tasklet("read_" + node.name, {"memory"},
                                     out_memlets, tasklet_code)
 
-        state.add_memlet_path(access_node,
-                              entry,
-                              tasklet,
-                              dst_conn="memory",
-                              memlet=Memlet.simple(node.name,
-                                                   ", ".join(parameters),
-                                                   num_accesses=1))
+        state.add_memlet_path(
+            access_node,
+            entry,
+            tasklet,
+            dst_conn="memory",
+            memlet=Memlet.simple(
+                node.name, ", ".join(parameters), num_accesses=1))
 
         # Add memlets to all FIFOs connecting to compute units
         for out_name, out_memlet in zip(outputs, out_memlets):
             stream_name = make_stream_name(node.name, out_name)
             write_node = state.add_write(stream_name)
-            state.add_memlet_path(tasklet,
-                                  exit,
-                                  write_node,
-                                  src_conn=out_memlet,
-                                  memlet=Memlet.simple(stream_name,
-                                                       "0",
-                                                       num_accesses=1))
+            state.add_memlet_path(
+                tasklet,
+                exit,
+                write_node,
+                src_conn=out_memlet,
+                memlet=Memlet.simple(stream_name, "0", num_accesses=1))
 
     def add_output(node):
 
@@ -167,26 +169,27 @@ def generate_sdfg(name, chain):
         sdfg.add_array(node.name + "_host", shape, node.data_type)
 
         # Device-side copy
-        sdfg.add_array(node.name,
-                       shape,
-                       node.data_type,
-                       storage=StorageType.FPGA_Global,
-                       transient=True)
+        sdfg.add_array(
+            node.name,
+            shape,
+            node.data_type,
+            storage=StorageType.FPGA_Global,
+            transient=True)
         write_node = state.add_write(node.name)
 
         # Copy data to the FPGA
         copy_fpga = post_state.add_read(node.name)
         copy_host = post_state.add_write(node.name + "_host")
-        post_state.add_memlet_path(copy_fpga,
-                                   copy_host,
-                                   memlet=Memlet.simple(
-                                       copy_host,
-                                       ", ".join(memlet_indices),
-                                       num_accesses=memcopy_accesses))
+        post_state.add_memlet_path(
+            copy_fpga,
+            copy_host,
+            memlet=Memlet.simple(
+                copy_host,
+                ", ".join(memlet_indices),
+                num_accesses=memcopy_accesses))
 
-        entry, exit = state.add_map("write_" + node.name,
-                                    iterators,
-                                    schedule=ScheduleType.FPGA_Device)
+        entry, exit = state.add_map(
+            "write_" + node.name, iterators, schedule=ScheduleType.FPGA_Device)
 
         src = chain.graph.in_edges(node)
         if len(src) > 1:
@@ -203,21 +206,20 @@ def generate_sdfg(name, chain):
         stream_name = make_stream_name(src.name, node.name)
         read_node = state.add_read(stream_name)
 
-        state.add_memlet_path(read_node,
-                              entry,
-                              tasklet,
-                              dst_conn=in_memlet,
-                              memlet=Memlet.simple(stream_name,
-                                                   "0",
-                                                   num_accesses=1))
+        state.add_memlet_path(
+            read_node,
+            entry,
+            tasklet,
+            dst_conn=in_memlet,
+            memlet=Memlet.simple(stream_name, "0", num_accesses=1))
 
-        state.add_memlet_path(tasklet,
-                              exit,
-                              write_node,
-                              src_conn="memory",
-                              memlet=Memlet.simple(node.name,
-                                                   ", ".join(parameters),
-                                                   num_accesses=1))
+        state.add_memlet_path(
+            tasklet,
+            exit,
+            write_node,
+            src_conn="memory",
+            memlet=Memlet.simple(
+                node.name, ", ".join(parameters), num_accesses=1))
 
     def add_kernel(node):
 
@@ -371,7 +373,7 @@ def _nodes_before_or_after(sdfg, split_state, split_data, after):
                     for la in local_nodes:
                         if isinstance(la, dace.graph.nodes.AccessNode):
                             data_names.add(la.data)
-                    nodes |= set(local_nodes)
+                    nodes |= set((state, ln) for ln in local_nodes)
             fixed_point = num_names == len(data_names)
         next_states = (sdfg.successors(state)
                        if after else sdfg.predecessors(state))
@@ -379,6 +381,26 @@ def _nodes_before_or_after(sdfg, split_state, split_data, after):
             if state not in seen:
                 states_to_search.append(state)
     return states, nodes
+
+
+def _remove_nodes_and_states(sdfg, states_to_keep, nodes_to_keep):
+    node_to_id = {}
+    # Create mapping that will not change as we modify the graph
+    for state in sdfg:
+        state_id = sdfg.node_id(state)
+        node_to_id[state] = state_id
+        for node in state:
+            node_to_id[node] = (state_id, state.node_id(node))
+    # Now remove the nodes that (in the original mapping) should not be kept
+    for state in list(sdfg.states()):
+        state_id = node_to_id[state]
+        if state_id not in states_to_keep:
+            sdfg.remove_node(state)
+        else:
+            for node in list(state.nodes()):
+                node_id = node_to_id[node]
+                if node_id not in nodes_to_keep:
+                    state.remove_node(node)
 
 
 def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
@@ -422,18 +444,13 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
         sdfg, read_state, remote_stream, False))
     states_after, nodes_after = (_nodes_before_or_after(
         sdfg, write_state, remote_stream, True))
-    nodes_before.remove(write_node)
-    nodes_after.remove(read_node)
+    nodes_before.remove((read_state, read_node))
+    nodes_after.remove((write_state, write_node))
     intersection = nodes_before & nodes_after
     if len(intersection) != 0:
         raise ValueError(
             "Node does not perfectly split SDFG, intersection is: {}".format(
                 intersection))
-
-    print("States before:\n\t{}".format(states_before))
-    print("States after:\n\t{}".format(states_after))
-    print("Nodes before:\n\t{}".format(nodes_before))
-    print("Nodes after:\n\t{}".format(nodes_after))
 
     # Turn splitting stream into remote access nodes
     sdfg.data(read_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
@@ -445,41 +462,17 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
 
     # Now duplicate the SDFG, and remove all nodes that don't belong in the
     # respectively side of the split
-    as_json = sdfg.to_json()
     name = sdfg.name
-    as_json["attributes"]["name"] = name + "_0"
-    sdfg_before = dace.SDFG.from_json(as_json)
+    sdfg_before = copy.deepcopy(sdfg)
+    sdfg_after = copy.deepcopy(sdfg)
     # TODO: this is a huge hack, find a better way
-    nodes_before = set(map(str, nodes_before))
-    nodes_after = set(map(str, nodes_after))
-    states_before = set(map(str, states_before))
-    states_after = set(map(str, states_after))
-    for state in list(sdfg_before.states()):
-        state_str = str(state)
-        if state_str not in states_before:
-            sdfg_before.remove_node(state)
-        else:
-            for node in list(state.nodes()):
-                node_str = str(node)
-                if (node_str not in nodes_before
-                        or (isinstance(node, dace.graph.nodes.AccessNode)
-                            and node.data == remote_stream
-                            and node.access == dace.AccessType.ReadOnly)):
-                    state.remove_node(node)
-    as_json["attributes"]["name"] = name + "_1"
-    sdfg_after = dace.SDFG.from_json(as_json)
-    for state in list(sdfg_after.states()):
-        state_str = str(state)
-        if state_str not in states_after:
-            sdfg_after.remove_node(state)
-        else:
-            for node in list(state.nodes()):
-                node_str = str(node)
-                if (node_str not in nodes_after
-                        or (isinstance(node, dace.graph.nodes.AccessNode)
-                            and node.data == remote_stream
-                            and node.access == dace.AccessType.WriteOnly)):
-                    state.remove_node(node)
+    nodes_before = set(
+        (sdfg.node_id(s), s.node_id(n)) for s, n in nodes_before)
+    nodes_after = set((sdfg.node_id(s), s.node_id(n)) for s, n in nodes_after)
+    states_before = set(sdfg.node_id(s) for s in states_before)
+    states_after = set(sdfg.node_id(s) for s in states_after)
+    _remove_nodes_and_states(sdfg_before, states_before, nodes_before)
+    _remove_nodes_and_states(sdfg_after, states_after, nodes_after)
 
     sdfg_before.validate()
     sdfg_after.validate()
