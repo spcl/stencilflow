@@ -161,9 +161,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                     str(shape[i] - offset))
                 ctype = parent_sdfg.data(field_to_data[field_name]).dtype.ctype
                 if len(cond) == 0:
-                    boundary_code += "{} {}_{} = _{}_{};\n".format(
-                        ctype, field_name, offset_buffer, field_name,
-                        offset_buffer)
+                    boundary_code += "{}_{} = _{}_{}\n".format(
+                        field_name, offset_buffer, field_name, offset_buffer)
                 else:
                     if node.boundary_conditions[field_name]["btype"] == "copy":
                         boundary_val = "_{}_{}".format(field_name, center)
@@ -171,22 +170,21 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                             "btype"] == "constant":
                         boundary_val = node.boundary_conditions[field_name][
                             "value"]
-                    boundary_code += (
-                        "{} {}_{} = ({}) ? ({}) : (_{}_{});\n".format(
-                            ctype, field_name, offset_buffer,
-                            " || ".join(cond), boundary_val, field_name,
-                            offset_buffer))
+                    boundary_code += ("{}_{} = {} if {} else _{}_{}\n".format(
+                        field_name, offset_buffer, boundary_val,
+                        " or ".join(cond), field_name, offset_buffer))
 
         #######################################################################
         # Only write if we're in bounds
         #######################################################################
 
         write_code = (
-            ("if (!{}) {{\n".format("".join(pipeline.init_condition()))
+            ("if not {}:\n".format("".join(pipeline.init_condition()))
              if init_size_max > 0 else "") + ("\n".join([
-                 "write_channel_intel({}_inner_out, {}_res);".format(
-                     output, output) for output in node.output_fields
-             ])) + ("\n}" if init_size_max > 0 else "\n"))
+                 "{}{}_inner_out = {}_res\n".format(
+                     "\t" if init_size_max > 0 else "", output, output)
+                 for output in node.output_fields
+             ])))
 
         #######################################################################
         # Tasklet code generation
@@ -229,7 +227,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             compute_inputs,
             [name + "_inner_out" for name in node.output_fields],
             code,
-            language=dace.dtypes.Language.CPP)
+            language=dace.dtypes.Language.Python)
 
         # Connect the three nested states
         nested_sdfg.add_edge(shift_state, update_state,
@@ -355,15 +353,14 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             update_write = update_state.add_write(buffer_name_inner_write)
             update_tasklet = update_state.add_tasklet(
                 "read_wavefront", {"wavefront_in"}, {"buffer_out"},
-                "if ({it} >= {begin} && {it} < {end}) {{\n"
-                "buffer_out = read_channel_intel(wavefront_in);\n"
-                "}} else {{\n"
-                "buffer_out = -1000;\n"
-                "}}\n".format(
+                "if {it} >= {begin} and {it} < {end}:\n"
+                "\tbuffer_out = wavefront_in\n"
+                "else:\n"
+                "\tbuffer_out = -1000\n".format(
                     it=pipeline.iterator_str(),
                     begin=begin_reading,
                     end=end_reading),
-                language=dace.dtypes.Language.CPP)
+                language=dace.dtypes.Language.Python)
             update_state.add_memlet_path(
                 update_read,
                 update_tasklet,
