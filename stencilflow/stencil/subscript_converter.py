@@ -6,6 +6,22 @@ class SubscriptConverter(ast.NodeTransformer):
     def __init__(self):
         self.names = defaultdict(dict)
 
+    def convert(self, varname, index_tuple):
+
+        # Remove extraneous symbols
+        index_str = ''.join(c for c in str(index_tuple) if c not in '( )')
+
+        # Replace tuple and negative symbols
+        index_str = index_str.replace(',', '_')
+        index_str = index_str.replace('-', 'm')
+
+        # Add variable name
+        index_str = varname + '_' + index_str
+
+        self.names[varname][index_tuple] = index_str
+
+        return index_str
+
     def visit_Subscript(self, node: ast.Subscript):
         if not isinstance(node.value, ast.Name):
             raise TypeError('Only subscripts of variables are supported')
@@ -18,17 +34,7 @@ class SubscriptConverter(ast.NodeTransformer):
             return ast.copy_location(ast.Name(id=self.names[varname][index_tuple]),
                                      node)
 
-        # Create new index string
-
-        # Remove extraneous symbols
-        index_str = ''.join(c for c in str(index_tuple) if c not in '( )')
-
-        # Replace tuple and negative symbols
-        index_str = index_str.replace(',', '_')
-        index_str = index_str.replace('-', 'm')
-
-        # Add variable name
-        index_str = varname + '_' + index_str
+        index_str = self.convert(varname, index_tuple)
 
         self.names[varname][index_tuple] = index_str
         return ast.copy_location(ast.Name(id=index_str), node)

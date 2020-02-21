@@ -1,3 +1,5 @@
+import ast
+import astunparse
 import collections
 import functools
 import itertools
@@ -6,6 +8,7 @@ import re
 
 import dace
 import numpy as np
+from .subscript_converter import SubscriptConverter
 
 
 def dim_to_abs_val(input, dimensions):
@@ -45,16 +48,18 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         sdfg = dace.SDFG(node.label + "_outer")
         state = sdfg.add_state(node.label + "_outer")
 
+        shape = np.array(node.shape)
+
         # Extract which fields to read from streams and what to buffer
         field_to_memlet = {}  # Maps fields to which memlet carries it
         field_to_data = {}  # Maps fields to which data object represents it
         buffer_sizes = collections.OrderedDict()
         buffer_accesses = collections.OrderedDict()
         in_edges = parent_state.in_edges(node)
-        for field_name, relative in node.accesses.items():
+        for field_name, (dim_mask, relative) in node.accesses.items():
             # Deduplicate, as we can have multiple accesses to the same index
             abs_indices = dace.dtypes.deduplicate(
-                [dim_to_abs_val(i, node.shape) for i in relative] +
+                [dim_to_abs_val(i, shape[dim_mask]) for i in relative] +
                 ([0] if node.boundary_conditions[field_name]["btype"] == "copy"
                  else []))
             max_access = max(abs_indices)
@@ -99,8 +104,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         ]
         init_size_max = int(np.max(init_sizes))
 
-        parameters = np.array(["i", "j", "k"])[:len(node.shape)]
-        shape = np.array(node.shape)
+        parameters = np.array(["i", "j", "k"])[:len(shape)]
         iterator_mask = shape > 1  # Dimensions we need to iterate over
         iterators = make_iterators(
             shape[iterator_mask], parameters=parameters[iterator_mask])
@@ -142,6 +146,26 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         update_state = nested_sdfg.add_state(node.label + "_update")
 
         #######################################################################
+        # Tasklet code generation
+        #######################################################################
+
+        code = node.code
+
+        # Replace relative indices with memlet names
+        converter = SubscriptConverter()
+
+        # Add copy boundary conditions
+        for field in node.boundary_conditions:
+            if node.boundary_conditions[field]["btype"] == "copy":
+                center_index = tuple(0 for _ in range(sum(accesses[field][0], 0)))
+                # This will register the renaming
+                converter.convert(field, center_index)
+
+        new_ast = converter.visit(ast.parse(code))
+        code = astunparse.unparse(new_ast)
+        code_memlet_names = converter.names
+
+        #######################################################################
         # Implement boundary conditions
         #######################################################################
 
@@ -150,8 +174,13 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         for (field_name, (accesses, accesses_buffer,
                           center)) in buffer_accesses.items():
             # Loop over each access to this data
-            for indices, offset_buffer in zip(accesses, accesses_buffer):
+            for indices in accesses:
                 # Loop over each index of this access
+                try:
+                    memlet_name = code_memlet_names[field_name][indices]
+                except KeyError:
+                    raise KeyError("Missing access in code: {}[{}]".format(
+                        field_name, ", ".join(map(str, indices))))
                 cond = []
                 for i, offset in enumerate(indices):
                     if offset < 0:
@@ -161,18 +190,19 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                     str(shape[i] - offset))
                 ctype = parent_sdfg.data(field_to_data[field_name]).dtype.ctype
                 if len(cond) == 0:
-                    boundary_code += "{}_{} = _{}_{}\n".format(
-                        field_name, offset_buffer, field_name, offset_buffer)
+                    boundary_code += "{} = _{}\n".format(
+                        memlet_name, memlet_name)
                 else:
                     if node.boundary_conditions[field_name]["btype"] == "copy":
-                        boundary_val = "_{}_{}".format(field_name, center)
+                        center_memlet = code_memlet_names[field_name][center]
+                        boundary_val = "_{}".format(center_memlet)
                     elif node.boundary_conditions[field_name][
                             "btype"] == "constant":
                         boundary_val = node.boundary_conditions[field_name][
                             "value"]
-                    boundary_code += ("{}_{} = {} if {} else _{}_{}\n".format(
-                        field_name, offset_buffer, boundary_val,
-                        " or ".join(cond), field_name, offset_buffer))
+                    boundary_code += ("{} = {} if {} else _{}\n".format(
+                        memlet_name, boundary_val, " or ".join(cond),
+                        memlet_name))
 
         #######################################################################
         # Only write if we're in bounds
@@ -181,35 +211,14 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         write_code = (
             ("if not {}:\n".format("".join(pipeline.init_condition()))
              if init_size_max > 0 else "") + ("\n".join([
-                 "{}{}_inner_out = {}_res\n".format(
-                     "\t" if init_size_max > 0 else "", output, output)
+                 "{}{}_inner_out = {}\n".format(
+                     "\t" if init_size_max > 0 else "", output,
+                     code_memlet_names[output][tuple(
+                         0 for _ in range(len(shape)))])
                  for output in node.output_fields
              ])))
 
-        #######################################################################
-        # Tasklet code generation
-        #######################################################################
-
-        code = boundary_code + "\n" + node.code
-
-        # Replace array accesses with memlet names
-        pattern = re.compile("(([a-zA-Z_][a-zA-Z0-9_]*)\[([^\]]+)\])")
-        relative_to_buffer_index = {
-            field: {relative_index: buffer_index
-                for relative_index, buffer_index in zip(ba[0], ba[1])}
-            for field, ba in buffer_accesses.items()
-        }
-        for full_str, field, index in re.findall(pattern, code):
-            if field in buffer_sizes:
-                relative = tuple(map(int, index.split(",")))
-                buffer_index = relative_to_buffer_index[field][relative]
-                code = code.replace(full_str, "{}_{}".format(
-                    field, buffer_index))
-            elif field in node.output_fields:
-                code = code.replace(full_str, "{}_res".format(field))
-            else:
-                ValueError("Unrecognized field: {}".format(field))
-        code += "\n" + write_code
+        code = boundary_code + "\n" + code + "\n" + write_code
 
         #######################################################################
         # Create DaCe compute state
@@ -220,8 +229,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         compute_state = nested_sdfg.add_state(node.label + "_compute")
         compute_inputs = list(
             itertools.chain.from_iterable(
-                [["_{}_{}".format(name, offset) for offset in offsets]
-                 for name, (_, offsets, _) in buffer_accesses.items()]))
+                [["_" + v for v in code_memlet_names[f].values()]
+                 for f in node.accesses]))
         compute_tasklet = compute_state.add_tasklet(
             node.label + "_compute",
             compute_inputs,
@@ -378,11 +387,13 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
             # Make compute state
             compute_read = compute_state.add_read(buffer_name_inner_read)
-            for offset in buffer_accesses[field_name][1]:
+            for relative, offset in zip(node.accesses[field_name][1],
+                                        buffer_accesses[field_name][1]):
+                memlet_name = code_memlet_names[field_name][tuple(relative)]
                 compute_state.add_memlet_path(
                     compute_read,
                     compute_tasklet,
-                    dst_conn="_" + field_name + "_" + str(offset),
+                    dst_conn="_" + memlet_name,
                     memlet=dace.memlet.Memlet.simple(
                         compute_read.data, str(offset), num_accesses=1))
 
