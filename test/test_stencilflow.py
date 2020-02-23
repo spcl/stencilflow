@@ -391,4 +391,8 @@ if __name__ == '__main__':
     """
         Run all unit tests.
     """
-    unittest.main()
+    unittest.main(exit=False)
+
+    # Force exit 0 (if tests passed)
+    print('Exiting')
+    os._exit(0)
