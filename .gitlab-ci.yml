@@ -7,10 +7,7 @@ stages:
 test:
   stage: test
   script:
-    - export PATH=/opt/Xilinx/SDx/2018.2/bin:$PATH
-    - export DACE_compiler_xilinx_executable=xocc
-    - export DACE_compiler_xilinx_platform=xilinx_vcu1525_dynamic_5_1
-    - export XILINXD_LICENSE_FILE=2100@sgv-license-01
+    - source /opt/intelFPGA_pro/19.1/hld/init_opencl.sh
     - source /opt/rh/devtoolset-6/enable
     - pip3 install --user -r requirements.txt
     - pip3 install --user --upgrade ./stencilflow/dace
