@@ -40,7 +40,7 @@ class NestK(Transformation):
             return False
         if sd.has_dynamic_map_inputs(graph, map_entry):
             return False
-        pname = map_entry.map.params[0]  # Usually k
+        pname = map_entry.map.params[0]  # Usually "k"
         dim_index = None
 
         for edge in graph.all_edges(stencil):
