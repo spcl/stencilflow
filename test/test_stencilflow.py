@@ -391,8 +391,9 @@ if __name__ == '__main__':
     """
         Run all unit tests.
     """
-    unittest.main(exit=False)
-
-    # Force exit 0 (if tests passed)
-    print('Exiting')
-    os._exit(0)
+    try:
+        unittest.main()
+    except SystemExit as ex:
+        print('\n', flush=True)
+        # Skip all teardown to avoid crashes affecting exit code
+        os._exit(ex.code)
