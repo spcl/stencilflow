@@ -6,5 +6,5 @@ test:
   script:
   - source /opt/rh/devtoolset-6/enable
   - pip3 install --user -r requirements.txt
-  - export PYTHONPATH=$PYTHONPATH:`pwd`:`pwd`/stencilflow/dace
+  - pip3 install --user --upgrade ./stencilflow/dace
   - python3 test/testing.py
