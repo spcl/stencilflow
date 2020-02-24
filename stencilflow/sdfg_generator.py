@@ -458,10 +458,18 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
     sdfg.data(write_node.data).location["port"] = port
 
     # Now duplicate the SDFG, and remove all nodes that don't belong in the
-    # respectively side of the split
+    # respectively side of the split. We change the name to favor compilation phase
     name = sdfg.name
     sdfg_before = copy.deepcopy(sdfg)
+    as_json = sdfg_before.to_json()
+    as_json["attributes"]["name"] = name + "_0"
+    sdfg_before = dace.SDFG.from_json(as_json)
+
     sdfg_after = copy.deepcopy(sdfg)
+    as_json = sdfg_after.to_json()
+    as_json["attributes"]["name"] = name + "_1"
+    sdfg_after = dace.SDFG.from_json(as_json)
+
     # TODO: this is a huge hack, find a better way
     nodes_before = set(
         (sdfg.node_id(s), s.node_id(n)) for s, n in nodes_before)
@@ -473,5 +481,4 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
 
     sdfg_before.validate()
     sdfg_after.validate()
-
     return sdfg_before, sdfg_after
