@@ -19,7 +19,6 @@ from stencilflow.sdfg_generator import split_sdfg
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from stencilflow.run_program import run_program
 
 if __name__ == "__main__":
 
@@ -43,6 +42,7 @@ if __name__ == "__main__":
 
     # The splitter starts from the generated sdfg, which  contains copies to/from host
     # Load program file
+
     program_description = helper.parse_json(stencil_file)
     name = os.path.basename(stencil_file)
     name = re.match("[^\.]+", name).group(0)
@@ -52,9 +52,8 @@ if __name__ == "__main__":
                              plot_graph=False,
                              log_level=int(LogLevel.BASIC.value))
 
-    # do simulation
 
-    print("Generating SDFG...")
+    print("Splitting SDFG...")
     sdfg = generate_sdfg(name, chain)
 
     sdfg_before, sdfg_after = split_sdfg(sdfg, args.split_stream,
@@ -75,6 +74,8 @@ if __name__ == "__main__":
     dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
     # dace.config.Config.set("compiler", "use_cache", value=True)
     dace.config.Config.set("optimizer", "interface", value="")
+
+    use_cache = dace.config.Config.get_bool("compiler", "use_cache")
     if mode == "emulation":
         dace.config.Config.set("compiler",
                                "intel_fpga",
@@ -94,25 +95,29 @@ if __name__ == "__main__":
         sdfg_before_name = sdfg_before.name
         sdfg_before.expand_library_nodes()
         try:
+            sdfg_before.specialize(dict(smi_rank=0, smi_num_ranks=2))
             program = sdfg_before.compile()
         except dace.codegen.compiler.CompilationError as ex:
             print("Captured Compilation Error exception")
 
-        #build
-        build_folder = os.path.join(".dacecache", sdfg_before_name, "build")
+        if not use_cache:
+            #build
+            build_folder = os.path.join(".dacecache", sdfg_before_name, "build")
 
-        #codegen host
-        sp.run(["make", "intelfpga_smi_" + sdfg_before_name + "_codegen_host", "-j"],
-               cwd=build_folder,
-               check=True)
-        # make host program
-        sp.run(["make"],
-               cwd=build_folder,
-               check=True)
-        # emulated bitstream
-        sp.run(["make", "intelfpga_smi_compile_" + sdfg_before_name + "_emulator"],
-               cwd=build_folder,
-               check=True)
+            #codegen host
+            sp.run(["make", "intelfpga_smi_" + sdfg_before_name + "_codegen_host", "-j"],
+                   cwd=build_folder,
+                   check=True)
+            # make host program
+            sp.run(["make"],
+                   cwd=build_folder,
+                   check=True)
+            # emulated bitstream
+            sp.run(["make", "intelfpga_smi_compile_" + sdfg_before_name + "_emulator"],
+                   cwd=build_folder,
+                   check=True)
+        else:
+            print("Using cached compilations")
 
         #load the data
         # Load data from disk
@@ -130,25 +135,29 @@ if __name__ == "__main__":
         sdfg_after.expand_library_nodes()
 
         try:
+            sdfg_after.specialize(dict(smi_rank=1, smi_num_ranks=2))
+
             program = sdfg_after.compile()
         except dace.codegen.compiler.CompilationError as ex:
             print("Captured Compilation Error exception")
+        if not use_cache:
+            # build
+            build_folder = os.path.join(".dacecache", sdfg_after_name, "build")
 
-        # build
-        build_folder = os.path.join(".dacecache", sdfg_after_name, "build")
-
-        # codegen host
-        sp.run(["make", "intelfpga_smi_" + sdfg_after_name + "_codegen_host", "-j"],
-               cwd=build_folder,
-               check=True)
-        # make host program
-        sp.run(["make"],
-               cwd=build_folder,
-               check=True)
-        # emulated bitstream
-        sp.run(["make", "intelfpga_smi_compile_" + sdfg_after_name + "_emulator"],
-               cwd=build_folder,
-               check=True)
+            # codegen host
+            sp.run(["make", "intelfpga_smi_" + sdfg_after_name + "_codegen_host", "-j"],
+                   cwd=build_folder,
+                   check=True)
+            # make host program
+            sp.run(["make"],
+                   cwd=build_folder,
+                   check=True)
+            # emulated bitstream
+            sp.run(["make", "intelfpga_smi_compile_" + sdfg_after_name + "_emulator"],
+                   cwd=build_folder,
+                   check=True)
+        else:
+            print("Using cached compilations")
 
         print("Initializing output arrays...")
         output_arrays = {
@@ -162,11 +171,20 @@ if __name__ == "__main__":
             key + "_host": val
             for key, val in output_arrays.items()
         }
+        import pdb
+        pdb.set_trace()
 
     print(dace_args)
 
     print("Executing DaCe program...")
     program(**dace_args)
     print("Finished running program.")
+
+    if args.which_to_execute == "after":
+        output_folder = os.path.join("results", name)
+        os.makedirs(output_folder, exist_ok=True)
+        helper.save_output_arrays(output_arrays, output_folder)
+        print("Results saved to " + output_folder)
+
 
 
