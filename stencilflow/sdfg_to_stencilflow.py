@@ -3,16 +3,31 @@ import json
 
 import dace
 from stencilflow.stencil import stencil
+from stencilflow.stencil.nestk import NestK
+from dace.transformation.pattern_matching import Transformation
+from dace.transformation.dataflow import MapFission
+
+def _canonicalize_sdfg(sdfg):
+    strict = [
+        k for k, v in Transformation.extensions().items()
+        if v.get('strict', False)
+    ]
+    extra = [NestK, MapFission]
+    return sdfg.apply_transformations_repeated(strict + extra, validate=False)
 
 def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
+
+    if not isinstance(sdfg, dace.SDFG):
+        sdfg = dace.SDFG.from_file(sdfg)
+
+    _canonicalize_sdfg(sdfg)
+
+    sdfg.save("canonical.sdfg")
 
     reads = {}
     writes = set()
 
     result = {"inputs": {}, "outputs": [], "dimensions": None, "program": {}}
-
-    if not isinstance(sdfg, dace.SDFG):
-        sdfg = dace.SDFG.from_file(sdfg)
 
     for node, parent in sdfg.all_nodes_recursive():
 
@@ -29,14 +44,15 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
             out_edges = {e.src_conn: e for e in parent.out_edges(node)}
 
             for field, accesses in node.accesses.items():
-                if field in reads:
-                    raise KeyError(
-                        "Multiple reads from field: {}".format(field))
-
                 dtype = sdfg.data(
                     dace.sdfg.find_input_arraynode(
                         parent, in_edges[field]).data).dtype.ctype
-                reads[field] = dtype
+                if field in reads:
+                    if reads[field] != dtype:
+                        raise ValueError("Type mismatch: {} vs. {}".format(
+                            reads[field], dtype))
+                else:
+                    reads[field] = dtype
 
             if len(node.output_fields) != 1:
                 raise ValueError("Only 1 output per stencil is supported, "
@@ -55,31 +71,21 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
             result["program"][node.label] = stencil_json
 
-        elif isinstance(node, dace.graph.nodes.AccessNode):
-            pass
-
-        elif isinstance(node, dace.graph.nodes.Tasklet):
-            print("Skipping tasklet {}.".format(node.label))
-
-        elif isinstance(node, dace.graph.nodes.MapEntry) or isinstance(
-                node, dace.graph.nodes.MapExit):
-
-            # Extract stencil shape from map entry/exit
-            shape = []
-            for begin, end, step in node.map.range:
-                if begin != 0:
-                    raise ValueError("Ranges must start at 0.")
-                if step != 1:
-                    raise ValueError("Step size must be 1.")
-                shape.append(str(end + 1))
-
+            # Extract stencil shape from stencil
+            shape = tuple(map(str, node.shape))
             if result["dimensions"] is None:
-                result["dimensions"] = shape
+                result["dimensions"] = node.shape
             else:
-                if shape != result["dimensions"]:
+                if node.shape != result["dimensions"]:
                     raise ValueError(
                         "Conflicting shapes found: {} vs. {}".format(
                             shape, result["dimensions"]))
+
+        elif isinstance(node, dace.graph.nodes.AccessNode):
+            pass
+
+        elif isinstance(node, dace.graph.nodes.NestedSDFG):
+            pass
 
         elif isinstance(node, dace.sdfg.SDFGState):
             pass
