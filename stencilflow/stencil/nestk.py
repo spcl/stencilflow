@@ -43,6 +43,10 @@ class NestK(Transformation):
         pname = map_entry.map.params[0]  # Usually "k"
         dim_index = None
 
+        for edge in graph.out_edges(map_entry):
+            if edge.dst != stencil:
+                return False
+
         for edge in graph.all_edges(stencil):
             # TODO: Use bitmap to verify lower-dimensional arrays
             if len(edge.data.subset) == 3:
@@ -118,12 +122,6 @@ class NestK(Transformation):
 
 if __name__ == '__main__':
     sdfg = dace.SDFG.from_file(sys.argv[1])
-
-    # WORKAROUND for incorrectly saved SDFGs: Add K dimension to stencil shape
-    J, I = [dace.symbol(s) for s in 'JI']
-    for node, parent in sdfg.all_nodes_recursive():
-        if isinstance(node, Stencil):
-            node.shape = [J, 1, I]
 
     sdfg.apply_transformations_repeated([MapFission, NestK])
     dace.propagate_labels_sdfg(sdfg)
