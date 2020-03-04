@@ -1,9 +1,15 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 stages:
   - test
 
 test:
   stage: test
   script:
-  - source /opt/rh/devtoolset-6/enable
-  - pip3 install --user -r requirements.txt
-  - python3 test/testing.py
+    - source /opt/intelFPGA_pro/19.1/hld/init_opencl.sh
+    - source /opt/rh/devtoolset-6/enable
+    - pip3 install --user -r requirements.txt
+    - pip3 install --user --upgrade ./stencilflow/dace
+    - pip3 install --user pytest
+    - python3 test/test_stencilflow.py

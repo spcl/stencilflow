@@ -227,8 +227,10 @@ def generate_sdfg(name, chain):
         input_to_connector = collections.OrderedDict(
             (k, "_" + k) for k in node.graph.accesses)
         accesses = collections.OrderedDict(
-            (k, [x[dimensions_to_skip:] for x in v]) for k, v in zip(
-                input_to_connector.values(), node.graph.accesses.values()))
+            (k, ([True] * len(shape),
+                 [tuple(x[dimensions_to_skip:]) for x in v]))
+            for k, v in zip(input_to_connector.values(),
+                            node.graph.accesses.values()))
 
         # Map output field to output connector
         output_field = [e[1].name for e in chain.graph.out_edges(node)]
@@ -481,4 +483,5 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
 
     sdfg_before.validate()
     sdfg_after.validate()
+
     return sdfg_before, sdfg_after

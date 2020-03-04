@@ -8,3 +8,4 @@ _dotgraphs
 *.xml
 *.sdfg
 *.sdfg.html
+/.idea/

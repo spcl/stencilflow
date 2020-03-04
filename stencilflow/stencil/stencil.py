@@ -16,8 +16,14 @@ class Stencil(dace.library.LibraryNode):
     # Definition of stencil computation
     shape = dace.properties.ListProperty(
         dace.symbolic.pystr_to_symbolic, desc="Shape of stencil dimensions")
+    # Example:
+    # accesses = {
+    #   "a": ((True, True, True), [(0, 0, -1), (0, -1, 0), (1, 0, 0)]),
+    #   "b": ((True, False, True), [(0, 1), (1, 0), (-1, 0), (0, -1)])
+    # }
     accesses = dace.properties.OrderedDictProperty(
-        desc=("Dictionary mapping input fields to lists of offsets"),
+        desc=("Dictionary mapping input fields to lists of offsets "
+              "and index mapping"),
         default=collections.OrderedDict())
     output_fields = dace.properties.OrderedDictProperty(
         desc="Dictionary mapping output fields to their offsets",
