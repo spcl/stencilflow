@@ -2,7 +2,7 @@
 """
     Utility program for splitting, code generation and execution of a stencil program.
 
-    Note: the program is splitted in two components around a given stream (it relies on split_sdfg)
+    Note: the program is split in two components around a given stream (it relies on split_sdfg)
 
     Command line arguments:
     - stencil_file: JSON file containing stencil description
