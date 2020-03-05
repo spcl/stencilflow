@@ -18,7 +18,7 @@
 	"program": {
 		"kernelA": {
 			"computation_string": "res = arrA[i,j,k] + arrA[i,j,k] + arrB[i,j,k-1] + arrB[i,j,k] + arrB[i,j+1,k+1]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0
@@ -32,7 +32,7 @@
 		},
 		"kernelB": {
 			"computation_string": "res = arrA[i,j,k] if arrA[i,j,k] > 0.0 else (kernelA[i,j,k] + kernelA[i,j,k+1] + kernelA[i,j,k+2] + kernelA[i,j+1,k] + kernelA[i,j+1,k+1] + kernelA[i,j,k-1] + kernelA[i,j-1,k])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0
@@ -46,7 +46,7 @@
 		},
 		"kernelC": {
 			"computation_string": "res = arrC[i,j,k] + (2.25 * kernelB[i,j,k]) + kernelB[i,j+1,k] + kernelB[i,j+1,k] + kernelB[i,j+1,k+1] + kernelB[i,j+1,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrC": {
 					"type": "constant",
 					"value": 0.0
@@ -60,7 +60,7 @@
 		},
         "kernelD": {
 			"computation_string": "res = kernelA[i,j,k] + kernelB[i,j,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
 					"value": 0.0
@@ -74,7 +74,7 @@
 		},
 		"kernelE": {
 			"computation_string": "res = kernelD[i,j,k] + arrB[i,j,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrB": {
 					"type": "constant",
 					"value": 0.0
@@ -88,7 +88,7 @@
 		},
 		"res": {
 			"computation_string": "res = kernelC[i,j,k] + kernelD[i,j,k] + kernelE[i,j,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"kernelC": {
 					"type": "constant",
 					"value": 0.0

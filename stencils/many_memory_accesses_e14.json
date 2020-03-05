@@ -16,7 +16,7 @@
   "program": {
     "out": {
       "computation_string": "res = 0.5 * (inA[i,j,k] + inA[i,j+16,k])",
-      "boundary_condition": {
+      "boundary_conditions": {
         "inA": {
           "type": "constant",
           "value": 1.0

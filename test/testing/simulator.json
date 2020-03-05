@@ -10,7 +10,7 @@
 	"program": {
 		"res": {
 			"computation_string": "res = (arrA[i,j,k] + arrA[i,j,k+2]) + 3.14",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0

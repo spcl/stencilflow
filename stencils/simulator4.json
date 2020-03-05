@@ -10,7 +10,7 @@
 	"program": {
 		"inter": {
 			"computation_string": "res = arrA[i,j,k] + 1.0",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0
@@ -20,7 +20,7 @@
 		},
 		"res": {
 			"computation_string": "res = inter[i,j,k] + 1.0",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"inter": {
 					"type": "constant",
 					"value": 0.0

@@ -10,7 +10,7 @@
 	"program": {
 		"kA": {
 			"computation_string": "res = arrA[i,j,k] + 1.0",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0
@@ -20,7 +20,7 @@
 		},
       "kB": {
 			"computation_string": "res = kA[i,j,k-100] + kA[i,j,k+2]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"kA": {
 					"type": "constant",
 					"value": 0.0
@@ -30,7 +30,7 @@
 		},
       "res": {
 			"computation_string": "res = kA[i,j,k] + kB[i,j,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"kA": {
 					"type": "constant",
 					"value": 0.0

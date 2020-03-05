@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
+import ast
+import astunparse
 import json
+import re
+import warnings
 
 import dace
 from stencilflow.stencil import stencil
@@ -15,14 +19,31 @@ def _canonicalize_sdfg(sdfg):
     extra = [NestK, MapFission]
     return sdfg.apply_transformations_repeated(strict + extra, validate=False)
 
-def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
+class _RemoveOutputSubscript(ast.NodeTransformer):
+
+    def visit_Assign(self, node: ast.Assign):
+        for i, subscript_node in enumerate(node.targets):
+            indices = ast.literal_eval(subscript_node.slice.value)
+            if any(indices):
+                raise ValueError("Output offset not yet supported.")
+            # Remove subscript
+            node.targets[i] = subscript_node.value
+        return node
+
+
+def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
     if not isinstance(sdfg, dace.SDFG):
         sdfg = dace.SDFG.from_file(sdfg)
 
     _canonicalize_sdfg(sdfg)
 
-    sdfg.save("canonical.sdfg")
+    sdfg.specialize(symbols)
+
+    undefined_symbols = sdfg.undefined_symbols(False)
+    if len(undefined_symbols) != 0:
+        raise ValueError("Undefined symbols in SDFG: {}".format(
+            ", ".join(undefined_symbols)))
 
     reads = {}
     writes = set()
@@ -36,17 +57,24 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
             if node.label in result["program"]:
                 raise KeyError("Duplicate stencil: " + node.label)
 
+            remover = _RemoveOutputSubscript()
+            old_ast = ast.parse(node.code)
+            new_ast = remover.visit(old_ast)
+            code = astunparse.unparse(new_ast)
+
             stencil_json = {}
-            stencil_json["computation_string"] = node.code
+            stencil_json["computation_string"] = code
             stencil_json["boundary_conditions"] = node.boundary_conditions
 
             in_edges = {e.dst_conn: e for e in parent.in_edges(node)}
             out_edges = {e.src_conn: e for e in parent.out_edges(node)}
 
+            current_sdfg = parent.parent
+
             for field, accesses in node.accesses.items():
-                dtype = sdfg.data(
+                dtype = current_sdfg.data(
                     dace.sdfg.find_input_arraynode(
-                        parent, in_edges[field]).data).dtype.ctype
+                        parent, in_edges[field]).data).dtype.type.__name__
                 if field in reads:
                     if reads[field] != dtype:
                         raise ValueError("Type mismatch: {} vs. {}".format(
@@ -65,21 +93,27 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                 raise KeyError("Multiple writes to field: {}".format(field))
             writes.add(output)
 
-            stencil_json["data_type"] = sdfg.data(
+            stencil_json["data_type"] = current_sdfg.data(
                 dace.sdfg.find_output_arraynode(
-                    parent, out_edges[output]).data).dtype.ctype
+                    parent, out_edges[output]).data).dtype.type.__name__
 
             result["program"][node.label] = stencil_json
 
             # Extract stencil shape from stencil
-            shape = tuple(map(str, node.shape))
+            shape = " ".join(map(str, node.shape))
+            for k, v in symbols.items():
+                shape = re.sub(r"\b{}\b".format(k), str(v), shape)
+            shape = tuple(int(v) for v in shape.split(" "))
             if result["dimensions"] is None:
-                result["dimensions"] = node.shape
+                result["dimensions"] = shape
             else:
-                if node.shape != result["dimensions"]:
+                if shape != result["dimensions"]:
                     raise ValueError(
                         "Conflicting shapes found: {} vs. {}".format(
                             shape, result["dimensions"]))
+
+        elif isinstance(node, dace.graph.nodes.Tasklet):
+            warnings.warn("Ignored tasklet {}".format(node.label))
 
         elif isinstance(node, dace.graph.nodes.AccessNode):
             pass

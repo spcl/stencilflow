@@ -10,7 +10,7 @@
 	"program": {
 		"kernelA": {
 			"computation_string": "res = arrA[i,j-1,k] + arrA[i,j,k-1] + arrA[i,j,k] + arrA[i,j,k+1] + arrA[i,j+1,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0
@@ -20,7 +20,7 @@
 		},
 		"kernelB": {
 			"computation_string": "res = kernelA[i,j,k] + 1.0",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
 					"value": 0.0
@@ -30,7 +30,7 @@
 		},
 		"res": {
 			"computation_string": "res = kernelA[i,j,k] + kernelB[i,j,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
 					"value": 0.0
