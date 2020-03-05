@@ -1,3 +1,0 @@
-[submodule "stencilflow/dace"]
-	path = stencilflow/dace
-	url = https://github.com/spcl/dace.git
