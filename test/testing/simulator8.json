@@ -10,16 +10,12 @@
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [1, 3, 3],
+	"dimensions": [3, 3],
 	"program": {
 		"kernelA": {
-			"computation_string": "res = arrA[i,j,k]",
+			"computation_string": "res = arrA[j,k]",
 			"boundary_conditions": {
 				"arrA": {
-					"type": "constant",
-					"value": 0.0
-				},
-				"arrB": {
 					"type": "constant",
 					"value": 0.0
 				}
@@ -27,7 +23,7 @@
 			"data_type": "float64"
 		},
 		"kernelB": {
-			"computation_string": "res = arrA[i,j,k] +  arrB[i,j,k]",
+			"computation_string": "res = arrA[j,k] +  arrB[j,k]",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -41,12 +37,8 @@
 			"data_type": "float64"
 		},
 		"kernelC": {
-			"computation_string": "res = arrB[i,j,k]",
+			"computation_string": "res = arrB[j,k]",
 			"boundary_conditions": {
-				"arrA": {
-					"type": "constant",
-					"value": 0.0
-				},
 				"arrB": {
 					"type": "constant",
 					"value": 0.0
@@ -55,7 +47,7 @@
 			"data_type": "float64"
 		},
 		"res": {
-			"computation_string": "res = kernelA[i,j,k] + kernelB[i,j,k] + kernelC[i,j,k]",
+			"computation_string": "res = kernelA[j,k] + kernelB[j,k] + kernelC[j,k]",
 			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",

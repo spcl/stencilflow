@@ -6,10 +6,10 @@
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [1, 3, 3],
+	"dimensions": [3, 3],
 	"program": {
 		"kernelA": {
-			"computation_string": "res = arrA[i,j-1,k] + arrA[i,j,k-1] + arrA[i,j,k] + arrA[i,j,k+1] + arrA[i,j+1,k]",
+			"computation_string": "res = arrA[j-1,k] + arrA[j,k-1] + arrA[j,k] + arrA[j,k+1] + arrA[j+1,k]",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -19,7 +19,7 @@
 			"data_type": "float64"
 		},
 		"kernelB": {
-			"computation_string": "res = kernelA[i,j,k] + 1.0",
+			"computation_string": "res = kernelA[j,k] + 1.0",
 			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
@@ -29,7 +29,7 @@
 			"data_type": "float64"
 		},
 		"res": {
-			"computation_string": "res = kernelA[i,j,k] + kernelB[i,j,k]",
+			"computation_string": "res = kernelA[j,k] + kernelB[j,k]",
 			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
