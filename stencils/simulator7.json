@@ -14,10 +14,10 @@
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [1, 3, 3],
+	"dimensions": [3, 3],
 	"program": {
 		"kernelA": {
-			"computation_string": "res = arrA[i,j,k] + arrA[i,j,k] + arrB[i,j,k-1] + arrB[i,j,k] + arrB[i,j+1,k+1]",
+			"computation_string": "res = arrA[j,k] + arrA[j,k] + arrB[j,k-1] + arrB[j,k] + arrB[j+1,k+1]",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -31,7 +31,7 @@
 			"data_type": "float64"
 		},
 		"kernelB": {
-			"computation_string": "res = arrA[i,j,k] if arrA[i,j,k] > 0.0 else (kernelA[i,j,k] + kernelA[i,j,k+1] + kernelA[i,j,k+2] + kernelA[i,j+1,k] + kernelA[i,j+1,k+1] + kernelA[i,j,k-1] + kernelA[i,j-1,k])",
+			"computation_string": "res = arrA[j,k] if arrA[j,k] > 0.0 else (kernelA[j,k] + kernelA[j,k+1] + kernelA[j,k+2] + kernelA[j+1,k] + kernelA[j+1,k+1] + kernelA[j,k-1] + kernelA[j-1,k])",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -45,7 +45,7 @@
 			"data_type": "float64"
 		},
 		"kernelC": {
-			"computation_string": "res = arrC[i,j,k] + (2.25 * kernelB[i,j,k]) + kernelB[i,j+1,k] + kernelB[i,j+1,k] + kernelB[i,j+1,k+1] + kernelB[i,j+1,k]",
+			"computation_string": "res = arrC[j,k] + (2.25 * kernelB[j,k]) + kernelB[j+1,k] + kernelB[j+1,k] + kernelB[j+1,k+1] + kernelB[j+1,k]",
 			"boundary_conditions": {
 				"arrC": {
 					"type": "constant",
@@ -59,7 +59,7 @@
 			"data_type": "float64"
 		},
         "kernelD": {
-			"computation_string": "res = kernelA[i,j,k] + kernelB[i,j,k]",
+			"computation_string": "res = kernelA[j,k] + kernelB[j,k]",
 			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
@@ -73,7 +73,7 @@
 			"data_type": "float64"
 		},
 		"kernelE": {
-			"computation_string": "res = kernelD[i,j,k] + arrB[i,j,k]",
+			"computation_string": "res = kernelD[j,k] + arrB[j,k]",
 			"boundary_conditions": {
 				"arrB": {
 					"type": "constant",
@@ -87,7 +87,7 @@
 			"data_type": "float64"
 		},
 		"res": {
-			"computation_string": "res = kernelC[i,j,k] + kernelD[i,j,k] + kernelE[i,j,k]",
+			"computation_string": "res = kernelC[j,k] + kernelD[j,k] + kernelE[j,k]",
 			"boundary_conditions": {
 				"kernelC": {
 					"type": "constant",

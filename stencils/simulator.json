@@ -6,10 +6,10 @@
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [1, 2, 3],
+	"dimensions": [2, 3],
 	"program": {
 		"res": {
-			"computation_string": "res = (arrA[i,j,k] + arrA[i,j,k+2]) + 3.14",
+			"computation_string": "res = (arrA[j,k] + arrA[j,k+2]) + 3.14",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",

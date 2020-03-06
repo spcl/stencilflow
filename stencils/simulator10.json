@@ -6,10 +6,10 @@
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [1, 2, 3],
+	"dimensions": [2, 3],
 	"program": {
 		"kA": {
-			"computation_string": "res = arrA[i,j,k]",
+			"computation_string": "res = arrA[j,k]",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -19,7 +19,7 @@
 			"data_type": "float64"
 		},
       		"kB": {
-			"computation_string": "res = kA[i,j,k]",
+			"computation_string": "res = kA[j,k]",
 			"boundary_conditions": {
 				"kA": {
 					"type": "constant",
@@ -29,7 +29,7 @@
 			"data_type": "float64"
 		},
       		"kC": {
-			"computation_string": "res = kB[i,j,k]",
+			"computation_string": "res = kB[j,k]",
 			"boundary_conditions": {
 				"kB": {
 					"type": "constant",
@@ -39,7 +39,7 @@
 			"data_type": "float64"
 		},
             		"kD": {
-			"computation_string": "res = kC[i,j,k] + 1.0",
+			"computation_string": "res = kC[j,k] + 1.0",
 			"boundary_conditions": {
 				"kC": {
 					"type": "constant",
@@ -49,7 +49,7 @@
 			"data_type": "float64"
 		},
       		"res": {
-			"computation_string": "res = kD[i,j,k] + kA[i,j,k] + kB[i,j,k] + kC[i,j,k] + arrA[i,j,k]",
+			"computation_string": "res = kD[j,k] + kA[j,k] + kB[j,k] + kC[j,k] + arrA[j,k]",
 			"boundary_conditions": {
 				"kD": {
 					"type": "constant",
