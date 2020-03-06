@@ -10,7 +10,7 @@
 	"program": {
 		"field_out": {
 			"computation_string": "res = 0.25 * (field_in[i, j-1, k] + field_in[i, j+1, k] + field_in[i, j, k-1] + field_in[i, j, k+1])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"field_in": {
 					"type": "constant",
 					"value": 1.0

@@ -10,7 +10,7 @@
 	"program": {
 		"b0": {
 			"computation_string": "res = 0.16666666 * (a[i-1,j,k] + a[i+1,j,k] + a[i,j-1,k] + a[i,j+1,k] + a[i,j,k-1] + a[i,j,k+1])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"a": {
 					"type": "constant",
 					"value": 1.0
@@ -20,7 +20,7 @@
 		},
 		"b1": {
 			"computation_string": "res = 0.16666666 * (b0[i-1,j,k] + b0[i+1,j,k] + b0[i,j-1,k] + b0[i,j+1,k] + b0[i,j,k-1] + b0[i,j,k+1])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"b0": {
 					"type": "constant",
 					"value": 1.0
@@ -30,7 +30,7 @@
 		},
 		"b2": {
 			"computation_string": "res = 0.16666666 * (b1[i-1,j,k] + b1[i+1,j,k] + b1[i,j-1,k] + b1[i,j+1,k] + b1[i,j,k-1] + b1[i,j,k+1])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"b1": {
 					"type": "constant",
 					"value": 1.0
@@ -40,7 +40,7 @@
 		},
 		"b3": {
 			"computation_string": "res = 0.16666666 * (b2[i-1,j,k] + b2[i+1,j,k] + b2[i,j-1,k] + b2[i,j+1,k] + b2[i,j,k-1] + b2[i,j,k+1])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"b2": {
 					"type": "constant",
 					"value": 1.0

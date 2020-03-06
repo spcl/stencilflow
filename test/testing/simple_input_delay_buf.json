@@ -10,7 +10,7 @@
 	"program": {
 		"vdc": {
 			"computation_string": "res = 0.25 * (wtgfac[i,j,k+1] + wtgfac[i,j,k-1] + wtgfac[i,j+1,k] + wtgfac[i,j-1,k]) + vout[i,j,k]",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"wtgfac": {
 					"type": "constant",
 					"value": 0.0
@@ -24,7 +24,7 @@
 		},
 		"ppgk": {
 			"computation_string": "res = 0.25 * (wtgfac[i,j,k+1] + wtgfac[i,j,k-1] + wtgfac[i,j+1,k] + wtgfac[i,j-1,k])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"wtgfac": {
 					"type": "constant",
 					"value": 0.0
@@ -34,7 +34,7 @@
 		},
 		"ppgc": {
 			"computation_string": "res = 0.25 * (ppgk[i,j,k+1] + ppgk[i,j,k-1] + ppgk[i,j+1,k] + ppgk[i,j-1,k])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"ppgk": {
 					"type": "constant",
 					"value": 0.0
@@ -44,7 +44,7 @@
 		},
 		"ppgv": {
 			"computation_string": "res = 0.25 * (ppgc[i,j,k+1] + ppgc[i,j,k-1] + ppgc[i,j+1,k] + ppgc[i,j-1,k])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"ppgc": {
 					"type": "constant",
 					"value": 0.0
@@ -54,7 +54,7 @@
 		},
 		"vout": {
 			"computation_string": "res = 0.25 * (ppgv[i,j,k+1] + ppgv[i,j,k-1] + ppgv[i,j+1,k] + ppgv[i,j-1,k])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"ppgv": {
 					"type": "constant",
 					"value": 0.0
@@ -64,7 +64,7 @@
 		},
 		"div": {
 			"computation_string": "OUT = vdc[i,j,k] + vout[i,j,k]; res = OUT if ppgk[i,j,k] < wtgfac[i,j,k] else wtgfac[i,j,k];",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"vdc": {
 					"type": "constant",
 					"value": 0.0

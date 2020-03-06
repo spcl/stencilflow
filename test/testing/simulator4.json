@@ -6,11 +6,11 @@
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [1, 3, 3],
+	"dimensions": [3, 3],
 	"program": {
 		"inter": {
-			"computation_string": "res = arrA[i,j,k] + 1.0",
-			"boundary_condition": {
+			"computation_string": "res = arrA[j,k] + 1.0",
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0
@@ -19,8 +19,8 @@
 			"data_type": "float64"
 		},
 		"res": {
-			"computation_string": "res = inter[i,j,k] + 1.0",
-			"boundary_condition": {
+			"computation_string": "res = inter[j,k] + 1.0",
+			"boundary_conditions": {
 				"inter": {
 					"type": "constant",
 					"value": 0.0

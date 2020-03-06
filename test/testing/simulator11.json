@@ -6,11 +6,11 @@
 		}
 	},
 	"outputs": ["res"],
-	"dimensions": [1, 3, 3],
+	"dimensions": [3, 3],
 	"program": {
 		"kA": {
-			"computation_string": "res = arrA[i,j,k] + 1.0",
-			"boundary_condition": {
+			"computation_string": "res = arrA[j,k] + 1.0",
+			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
 					"value": 0.0
@@ -19,8 +19,8 @@
 			"data_type": "float64"
 		},
       "kB": {
-			"computation_string": "res = kA[i,j,k-100] + kA[i,j,k+2]",
-			"boundary_condition": {
+			"computation_string": "res = kA[j,k-100] + kA[j,k+2]",
+			"boundary_conditions": {
 				"kA": {
 					"type": "constant",
 					"value": 0.0
@@ -29,8 +29,8 @@
 			"data_type": "float64"
 		},
       "res": {
-			"computation_string": "res = kA[i,j,k] + kB[i,j,k]",
-			"boundary_condition": {
+			"computation_string": "res = kA[j,k] + kB[j,k]",
+			"boundary_conditions": {
 				"kA": {
 					"type": "constant",
 					"value": 0.0

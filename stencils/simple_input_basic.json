@@ -18,7 +18,7 @@
 	"program": {
 		"res1": {
 			"computation_string": "res = (inA[i,j,k] + out) * cos(out);out = 3.14 * (inB[i,j,k]-inB[i,j-1,k])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"inA": {
 					"type": "constant",
 					"value": 0.0
@@ -32,7 +32,7 @@
 		},
 		"res2": {
 			"computation_string": "res = res1[i,j,k] + inC[i,j,k];",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"res1": {
 					"type": "constant",
 					"value": 0.0

@@ -173,9 +173,9 @@ def run_program(stencil_file,
         all_match = True
         for outp in output_arrays:
             print("FPGA result:")
-            print("\t" + np.ravel(output_arrays[outp]))
+            print("\t{}".format(np.ravel(output_arrays[outp])))
             print("Simulation result:")
-            print("\t" + np.ravel(simulation_result[outp]))
+            print("\t{}".format(np.ravel(simulation_result[outp])))
             if not helper.arrays_are_equal(np.ravel(output_arrays[outp]),
                                            np.ravel(simulation_result[outp])):
                 all_match = False

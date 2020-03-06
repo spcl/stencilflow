@@ -37,6 +37,8 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import argparse
+import ast
+import astunparse
 import collections
 import copy
 import functools
@@ -233,28 +235,41 @@ def generate_sdfg(name, chain):
                             node.graph.accesses.values()))
 
         # Map output field to output connector
-        output_field = [e[1].name for e in chain.graph.out_edges(node)]
-        if len(output_field) != 1:
-            raise ValueError(
-                "Expected single output edge, got: {}".format(output_field))
-        output_field = output_field[0]
-        output_connector = "_" + node.name
-        output_dict = collections.OrderedDict([(output_connector,
-                                                [0] * len(shape))])
+        output_to_connector = collections.OrderedDict(
+            (e[1].name, "_" + e[1].name) for e in chain.graph.out_edges(node))
+        output_dict = collections.OrderedDict(
+            [(oc, [0] * len(shape)) for oc in output_to_connector.values()])
 
-        code = "\n".join([
-            re.sub(
-                r"\b{}\b".format(node.name), "{}[{}]".format(
-                    output_connector, ", ".join("0" for _ in shape)),
-                expr.strip()) + ";"
-            for expr in node.generate_relative_access_kernel_string(
-                relative_to_center=True,
-                flatten_index=False,
-                output_dimensions=len(shape)).split(";")
-        ])
-        # Replace input fields with the connector name.
-        for f, c in input_to_connector.items():
-            code = re.sub(r"\b{}\b".format(f), c, code)
+        # Grab code from StencilFlow
+        code = node.generate_relative_access_kernel_string(
+            relative_to_center=True,
+            flatten_index=False,
+            python_syntax=True,
+            output_dimensions=len(shape))
+
+        # Add writes to each output
+        code += "\n" + "\n".join(
+            "{}[{}] = {}".format(oc, ", ".join(["0"] * len(shape)), node.name)
+            for oc in output_to_connector.values())
+
+        # We need to rename field accesses to their input connectors
+        class _StencilFlowVisitor(ast.NodeTransformer):
+
+            def __init__(self, input_to_connector):
+                self.input_to_connector = input_to_connector
+
+            def visit_Subscript(self, node: ast.Subscript):
+                field = node.value.id
+                if field in self.input_to_connector:
+                    # Rename to connector name
+                    node.value.id = input_to_connector[field]
+                return node
+
+        # Transform the code using the visitor above
+        ast_visitor = _StencilFlowVisitor(input_to_connector)
+        old_ast = ast.parse(code)
+        new_ast = ast_visitor.visit(old_ast)
+        code = astunparse.unparse(new_ast)
 
         # Replace input fields with the connector name.
         boundary_conditions = {
@@ -287,17 +302,20 @@ def generate_sdfg(name, chain):
                 memlet=Memlet.simple(
                     stream_name, "0", num_accesses=memcopy_accesses))
 
-        # Add write node and memlet
-        stream_name = make_stream_name(node.name, output_field)
+        # Add read nodes and memlets
+        for output_name, connector in output_to_connector.items():
 
-        # Outer write
-        write_node = state.add_write(stream_name)
-        state.add_memlet_path(
-            stencil_node,
-            write_node,
-            src_conn=output_connector,
-            memlet=Memlet.simple(
-                stream_name, "0", num_accesses=memcopy_accesses))
+            # Add write node and memlet
+            stream_name = make_stream_name(node.name, output_name)
+
+            # Outer write
+            write_node = state.add_write(stream_name)
+            state.add_memlet_path(
+                stencil_node,
+                write_node,
+                src_conn=connector,
+                memlet=Memlet.simple(
+                    stream_name, "0", num_accesses=memcopy_accesses))
 
     # First generate all connections between kernels and memories
     for link in chain.graph.edges(data=True):

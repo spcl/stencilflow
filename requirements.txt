@@ -4,3 +4,4 @@ networkx
 h5py
 pydot
 matplotlib
+pytest

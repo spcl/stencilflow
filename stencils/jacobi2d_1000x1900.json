@@ -10,7 +10,7 @@
 	"program": {
 		"b": {
 			"computation_string": "res = 0.25 * (a[j-1,k] + a[j+1,k] + a[j,k-1] + a[j,k+1])",
-			"boundary_condition": {
+			"boundary_conditions": {
 				"a": {
 					"type": "constant",
 					"value": 1.0
