@@ -36,50 +36,30 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("sdfg_file")
     parser.add_argument("stencil_file")
     parser.add_argument("mode", choices=["emulation", "hardware"])
-    parser.add_argument("split_stream")
-    parser.add_argument("send_rank")
-    parser.add_argument("receive_rank")
-    parser.add_argument("port", type=int)
-    parser.add_argument("which_to_execute", choices=["before", "after"])
+    parser.add_argument("rank")
+    parser.add_argument("num_ranks")
 
     args = parser.parse_args()
     stencil_file = args.stencil_file
+    sdfg_file = args.sdfg_file
     mode = args.mode
+    my_rank = int(args.rank)
+    num_ranks = int(args.num_ranks)
 
-    ## Borrowed from run_program
-
-    # The splitter starts from the generated sdfg, which  contains copies to/from host
-    # Load program file
-    print("Creating original SDFG...")
-
+    # Load program description
     program_description = helper.parse_json(stencil_file)
-    name = os.path.basename(stencil_file)
-    name = re.match("[^\.]+", name).group(0)
+    stencil_name = os.path.basename(stencil_file)
+    stencil_name = re.match("[^\.]+", stencil_name).group(0)
 
-    # Create SDFG
-    chain = KernelChainGraph(
-        path=stencil_file,
-        plot_graph=False,
-        log_level=int(LogLevel.BASIC.value))
+    # Load SDFG
+    sdfg = dace.SDFG.from_file(sdfg_file)
 
-    sdfg = generate_sdfg(name, chain)
-
-    # Split the SDFG (borrowed from split_sdfg)
-    print("Splitting SDFG...")
-    sdfg_before, sdfg_after = split_sdfg(
-        sdfg, args.split_stream, args.send_rank, args.receive_rank, args.port)
-
-    input_file = os.path.splitext(stencil_file)[0]
-    sdfg.save("original.sdfg")
-    before_path = "before.sdfg"
-    after_path = "after.sdfg"
-    sdfg_before.save(before_path)
-    sdfg_after.save(after_path)
-    print("Split SDFGs saved to:\n\t{}\n\t{}".format(before_path, after_path))
-
-    # Configure and compile SDFG
+    # ----------------------------------------------
+    # Configure
+    # ----------------------------------------------
     dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
     dace.config.Config.set("optimizer", "interface", value="")
 
@@ -93,120 +73,122 @@ if __name__ == "__main__":
     else:
         raise ValueError("Unrecognized execution mode: {}".format(mode))
 
-    # At this point we should decide which one we would like to run
-    if args.which_to_execute == "before":
-        print("Compiling SDFG (before)...")
-        sdfg_before_name = sdfg_before.name
-        sdfg_before.expand_library_nodes()
+    # ----------------------------------------------
+    # Specialize and compile the program
+    # ----------------------------------------------
 
-        # Specialize SDFG indicating current rank and total number of ranks
-        sdfg_before.specialize(dict(smi_rank=0, smi_num_ranks=2))
-        try:
-            program = sdfg_before.compile()
-        except dace.codegen.compiler.CompilationError as ex:
-            print("Captured Compilation Error exception")
 
-            #build
-            build_folder = os.path.join(".dacecache", sdfg_before_name,
-                                        "build")
+    # Specialize SDFG
 
-            #codegen host
+    sdfg_name = sdfg.name
+    sdfg.expand_library_nodes()
+    sdfg.specialize(dict(smi_rank=my_rank, smi_num_ranks=num_ranks))
+
+    # Compile
+    try:
+        program = sdfg.compile()
+    except dace.codegen.compiler.CompilationError as ex:
+        # Fresh new...we need to build everythin
+        print("Captured Compilation Error exception")
+
+        # build
+        build_folder = os.path.join(".dacecache", sdfg_name,
+                                    "build")
+
+        # codegen host
+        sp.run(
+            [
+                "make",
+                "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j"
+            ],
+            cwd=build_folder,
+            check=True)
+        # make host program
+        sp.run(["make"], cwd=build_folder, check=True)
+        if mode == "emulation":
+            # emulated bitstream
             sp.run(
                 [
-                    "make",
-                    "intelfpga_smi_" + sdfg_before_name + "_codegen_host", "-j"
+                    "make", "intelfpga_smi_compile_" + sdfg_name +
+                            "_emulator"
                 ],
                 cwd=build_folder,
                 check=True)
-            # make host program
-            sp.run(["make"], cwd=build_folder, check=True)
-            if mode == "emulation":
-                # emulated bitstream
-                sp.run(
-                    [
-                        "make", "intelfpga_smi_compile_" + sdfg_before_name +
-                        "_emulator"
-                    ],
-                    cwd=build_folder,
-                    check=True)
-            elif mode == "hardware":
-                if not os.path.exists(
-                        os.path.join(build_folder, name + "_hardware.aocx")):
-                    raise FileNotFoundError(
-                        "Hardware kernel has not been built (" + os.path.join(
-                            build_folder, name + "_hardware.aocx") + ").")
+        elif mode == "hardware":
+            if not os.path.exists(
+                    os.path.join(build_folder, name + "_hardware.aocx")):
+                raise FileNotFoundError(
+                    "Hardware kernel has not been built (" + os.path.join(
+                        build_folder, name + "_hardware.aocx") + ").")
 
-            # reload the program
-            program = sdfg_before.compile()
+        # reload the program
+        program = sdfg.compile()
 
-        # Load data from disk
+    # ----------------------------------------------
+    # Create Input/Output data for this SDFG
+    # ----------------------------------------------
+
+    dace_args = {}
+
+    # Create inputs
+    input_data = sdfg.source_nodes()[0].source_nodes()
+    sdfg_input_data = {}
+    for n in input_data:
+        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[n.data].storage == dace.dtypes.StorageType.Default:
+            # remove trailing "_host" and get the input parameters from program description
+            if n.data.endswith("_host"):
+                data_name = n.data[:-5]
+                if data_name in program_description["inputs"]:
+                    sdfg_input_data[data_name] = program_description["inputs"][data_name]
+            else:
+                raise ValueError("Uhm...strange, what kind of data is " + n.data + "?")
+
+
+    # Load data from disk (if any)
+    if sdfg_input_data:
         print("Loading input arrays...")
         input_directory = os.path.dirname(stencil_file)
         input_arrays = helper.load_input_arrays(
-            program_description["inputs"], prefix=input_directory)
-        dace_args = {key + "_host": val for key, val in input_arrays.items()}
-    else:
-        print("Compiling SDFG (after)...")
-        sdfg_after_name = sdfg_after.name
-        sdfg_after.expand_library_nodes()
+            sdfg_input_data, prefix=input_directory)
+        for key,val in input_arrays.items():
+            dace_args[key+"_host"] = val
 
-        # Specialize the SDFG
-        sdfg_after.specialize(dict(smi_rank=1, smi_num_ranks=2))
-        try:
-            program = sdfg_after.compile()
-        except dace.codegen.compiler.CompilationError as ex:
-            print("Captured Compilation Error exception")
+    # Create outputs
 
-            # build
-            build_folder = os.path.join(".dacecache", sdfg_after_name, "build")
-
-            # codegen host
-            sp.run(
-                [
-                    "make",
-                    "intelfpga_smi_" + sdfg_after_name + "_codegen_host", "-j"
-                ],
-                cwd=build_folder,
-                check=True)
-            # make host program
-            sp.run(["make"], cwd=build_folder, check=True)
-            if mode == "emulation":
-                # emulated bitstream
-                sp.run(
-                    [
-                        "make", "intelfpga_smi_compile_" + sdfg_after_name +
-                        "_emulator"
-                    ],
-                    cwd=build_folder,
-                    check=True)
-            elif mode == "hardware":
-                if not os.path.exists(
-                        os.path.join(build_folder, name + "_hardware.aocx")):
-                    raise FileNotFoundError(
-                        "Hardware kernel has not been built (" + os.path.join(
-                            build_folder, name + "_hardware.aocx") + ").")
-
-            # Reload the program
-            program = sdfg_after.compile()
-
+    save_outputs = False
+    output_data = sdfg.sink_nodes()[0].sink_nodes()
+    sdfg_output_data = []
+    for n in output_data:
+        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[n.data].storage == dace.dtypes.StorageType.Default:
+            #remove trailing "_host" and check if this is an output parameter
+            if n.data.endswith("_host"):
+                data_name = n.data[:-5]
+                if data_name in program_description["outputs"]:
+                    sdfg_output_data += [data_name]
+            else:
+                raise ValueError("Uhm...strange, what kind of data is " + n.data +"?")
+    if sdfg_output_data:
+        save_outputs = True
         print("Initializing output arrays...")
         output_arrays = {
             arr_name: helper.aligned(
                 np.zeros(
                     program_description["dimensions"],
                     dtype=program_description["program"][arr_name]["data_type"]
-                    .type), 64)
-            for arr_name in program_description["outputs"]
+                        .type), 64)
+            for arr_name in sdfg_output_data
         }
-        dace_args = {key + "_host": val for key, val in output_arrays.items()}
+        for key, val in output_arrays.items():
+            dace_args[key+"_host"] = val
+
 
     print("Executing DaCe program...")
     program(**dace_args)
     print("Finished running program.")
 
-    if args.which_to_execute == "after":
+    if save_outputs:
         # Save output
-        output_folder = os.path.join("results", name)
+        output_folder = os.path.join("results", stencil_name)
         os.makedirs(output_folder, exist_ok=True)
         helper.save_output_arrays(output_arrays, output_folder)
         print("Results saved to " + output_folder)
