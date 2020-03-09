@@ -81,6 +81,10 @@ if __name__ == "__main__":
     # Specialize SDFG
 
     sdfg_name = sdfg.name
+    as_json = sdfg.to_json()
+    as_json["attributes"]["name"] = sdfg_name + "_" +str(my_rank)
+    sdfg_name = sdfg_name + "_" +str(my_rank)
+    sdfg = dace.SDFG.from_json(as_json)
     sdfg.expand_library_nodes()
     sdfg.specialize(dict(smi_rank=my_rank, smi_num_ranks=num_ranks))
 

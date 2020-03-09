@@ -2,12 +2,22 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
+  - build
   - test
+
+
+setup_dace:
+  stage: build
+  script:
+    - git clone --recursive --single-branch --branch smi_integration https://github.com/spcl/dace.git
 
 test:
   stage: test
   script:
-    - source /opt/intelFPGA_pro/19.1/hld/init_opencl.sh
+    - export PYTHONPATH=$(pwd)/dace:$PYTHONPATH
+    - source /opt/intelFPGA_pro/19.1/hld/init_stratix.sh
     - source /opt/rh/devtoolset-6/enable
     - pip3 install --user -r requirements.txt
     - python3 test/test_stencilflow.py
+    - source /opt/rh/llvm-toolset-7.0/enable
+    - test/test_distributed_program.sh
