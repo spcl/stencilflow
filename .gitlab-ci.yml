@@ -15,10 +15,17 @@ test:
   stage: test
   script:
     - export PYTHONPATH=$(pwd)/dace:$PYTHONPATH
-    - source /opt/intelFPGA_pro/19.1/hld/init_stratix.sh
-    - export DACE_compiler_intel_fpga_board = "p520_max_sg280l"
+    - source /opt/intelFPGA_pro/19.1/hld/init_opencl.sh
     - source /opt/rh/devtoolset-6/enable
     - pip3 install --user -r requirements.txt
     - python3 test/test_stencilflow.py
+
+test_distributed:
+  stage: test
+  script:
+    - export PYTHONPATH=$(pwd)/dace:$PYTHONPATH
+    - export DACE_compiler_intel_fpga_board = "p520_max_sg280l"
+    - export AOCL_BOARD_PACKAGE_ROOT="$INTELFPGAOCLSDKROOT/board/bittware_pcie"
     - source /opt/rh/llvm-toolset-7.0/enable
     - test/test_distributed_program.sh
+
