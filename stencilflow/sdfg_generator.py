@@ -62,6 +62,8 @@ from .kernel_chain_graph import Input, Output
 import stencilflow.stencil as stencil
 from stencilflow.stencil.fpga import make_iterators
 
+import networkx as nx
+
 ITERATORS = ["i", "j", "k"]
 
 
@@ -69,15 +71,7 @@ def make_stream_name(src_name, dst_name):
     return src_name + "_to_" + dst_name
 
 
-def generate_sdfg(name, chain):
-    sdfg = SDFG(name)
-
-    pre_state = sdfg.add_state("initialize")
-    state = sdfg.add_state("compute")
-    post_state = sdfg.add_state("finalize")
-
-    sdfg.add_edge(pre_state, state, InterstateEdge())
-    sdfg.add_edge(state, post_state, InterstateEdge())
+def _generate_init(chain):
 
     # TODO: For some reason, we put fake entries into the shape when the
     # dimensions in less than 3. Have to remove them here.
@@ -95,6 +89,87 @@ def generate_sdfg(name, chain):
     ]
     memcopy_accesses = str(
         functools.reduce(operator.mul, shape[iterator_mask], 1))
+
+    return (dimensions_to_skip, shape, parameters, iterators, memlet_indices,
+            memcopy_accesses)
+
+
+def _generate_stencil(node, chain, shape, dimensions_to_skip):
+
+    # Enrich accesses with the names of the corresponding input connectors
+    input_to_connector = collections.OrderedDict(
+        (k, "_" + k) for k in node.graph.accesses)
+    accesses = collections.OrderedDict(
+        (k, ([True] * len(shape), [tuple(x[dimensions_to_skip:]) for x in v]))
+        for k, v in zip(input_to_connector.values(),
+                        node.graph.accesses.values()))
+
+    # Map output field to output connector
+    output_to_connector = collections.OrderedDict(
+        (e[1].name, "_" + e[1].name) for e in chain.graph.out_edges(node))
+    output_dict = collections.OrderedDict(
+        [(oc, [0] * len(shape)) for oc in output_to_connector.values()])
+
+    # Grab code from StencilFlow
+    code = node.generate_relative_access_kernel_string(
+        relative_to_center=True,
+        flatten_index=False,
+        python_syntax=True,
+        output_dimensions=len(shape))
+
+    # Add writes to each output
+    code += "\n" + "\n".join(
+        "{}[{}] = {}".format(oc, ", ".join(["0"] * len(shape)), node.name)
+        for oc in output_to_connector.values())
+
+    # We need to rename field accesses to their input connectors
+    class _StencilFlowVisitor(ast.NodeTransformer):
+        def __init__(self, input_to_connector):
+            self.input_to_connector = input_to_connector
+
+        def visit_Subscript(self, node: ast.Subscript):
+            field = node.value.id
+            if field in self.input_to_connector:
+                # Rename to connector name
+                node.value.id = input_to_connector[field]
+            return node
+
+    # Transform the code using the visitor above
+    ast_visitor = _StencilFlowVisitor(input_to_connector)
+    old_ast = ast.parse(code)
+    new_ast = ast_visitor.visit(old_ast)
+    code = astunparse.unparse(new_ast)
+
+    # Replace input fields with the connector name.
+    boundary_conditions = {
+        input_to_connector[f]: bc
+        for f, bc in node.boundary_conditions.items()
+    }
+
+    # Replace "type" with "btype" to avoid problems with DaCe deserialize
+    for field, bc in boundary_conditions.items():
+        if "type" in bc:
+            bc["btype"] = bc["type"]
+            del bc["type"]
+
+    stencil_node = stencil.Stencil(node.name, tuple(shape), accesses,
+                                   output_dict, boundary_conditions, code)
+
+    return stencil_node, input_to_connector, output_to_connector
+
+
+def generate_sdfg(name, chain):
+    sdfg = SDFG(name)
+
+    pre_state = sdfg.add_state("initialize")
+    state = sdfg.add_state("compute")
+    post_state = sdfg.add_state("finalize")
+
+    sdfg.add_edge(pre_state, state, InterstateEdge())
+    sdfg.add_edge(state, post_state, InterstateEdge())
+
+    (dimensions_to_skip, shape, parameters, iterators, memlet_indices,
+     memcopy_accesses) = _generate_init(chain)
 
     def add_pipe(sdfg, edge):
 
@@ -225,66 +300,9 @@ def generate_sdfg(name, chain):
 
     def add_kernel(node):
 
-        # Enrich accesses with the names of the corresponding input connectors
-        input_to_connector = collections.OrderedDict(
-            (k, "_" + k) for k in node.graph.accesses)
-        accesses = collections.OrderedDict(
-            (k, ([True] * len(shape),
-                 [tuple(x[dimensions_to_skip:]) for x in v]))
-            for k, v in zip(input_to_connector.values(),
-                            node.graph.accesses.values()))
-
-        # Map output field to output connector
-        output_to_connector = collections.OrderedDict(
-            (e[1].name, "_" + e[1].name) for e in chain.graph.out_edges(node))
-        output_dict = collections.OrderedDict(
-            [(oc, [0] * len(shape)) for oc in output_to_connector.values()])
-
-        # Grab code from StencilFlow
-        code = node.generate_relative_access_kernel_string(
-            relative_to_center=True,
-            flatten_index=False,
-            python_syntax=True,
-            output_dimensions=len(shape))
-
-        # Add writes to each output
-        code += "\n" + "\n".join(
-            "{}[{}] = {}".format(oc, ", ".join(["0"] * len(shape)), node.name)
-            for oc in output_to_connector.values())
-
-        # We need to rename field accesses to their input connectors
-        class _StencilFlowVisitor(ast.NodeTransformer):
-
-            def __init__(self, input_to_connector):
-                self.input_to_connector = input_to_connector
-
-            def visit_Subscript(self, node: ast.Subscript):
-                field = node.value.id
-                if field in self.input_to_connector:
-                    # Rename to connector name
-                    node.value.id = input_to_connector[field]
-                return node
-
-        # Transform the code using the visitor above
-        ast_visitor = _StencilFlowVisitor(input_to_connector)
-        old_ast = ast.parse(code)
-        new_ast = ast_visitor.visit(old_ast)
-        code = astunparse.unparse(new_ast)
-
-        # Replace input fields with the connector name.
-        boundary_conditions = {
-            input_to_connector[f]: bc
-            for f, bc in node.boundary_conditions.items()
-        }
-
-        # Replace "type" with "btype" to avoid problems with DaCe deserialize
-        for field, bc in boundary_conditions.items():
-            if "type" in bc:
-                bc["btype"] = bc["type"]
-                del bc["type"]
-
-        stencil_node = stencil.Stencil(node.name, tuple(shape), accesses,
-                                       output_dict, boundary_conditions, code)
+        (stencil_node,
+         input_to_connector, output_to_connector) = _generate_stencil(
+             node, chain, shape, dimensions_to_skip)
         stencil_node.implementation = "FPGA"
         state.add_node(stencil_node)
 
@@ -338,6 +356,74 @@ def generate_sdfg(name, chain):
     for node in chain.graph.nodes():
         if isinstance(node, Kernel):
             add_kernel(node)
+
+    return sdfg
+
+
+def generate_reference(name, chain):
+    """Generates a simple, unoptimized SDFG to run on the CPU, for verification
+       purposes."""
+
+    sdfg = SDFG(name)
+
+    (dimensions_to_skip, shape, parameters, iterators, memlet_indices,
+     memcopy_accesses) = _generate_init(chain)
+
+    prev_state = sdfg.add_state("init")
+
+    shape = tuple(map(int, shape))
+
+    for node in chain.graph.nodes():
+        if isinstance(node, Input) or isinstance(node, Output):
+            sdfg.add_array(node.name, shape, node.data_type)
+
+    for link in chain.graph.edges(data=True):
+        if link[0].name not in sdfg.arrays:
+            sdfg.add_array(
+                link[0].name,
+                shape,
+                link[0].data_type,
+                transient=True)
+
+    # Enforce dependencies via topological sort
+    for node in nx.topological_sort(chain.graph):
+
+        if not isinstance(node, Kernel):
+            continue
+
+        state = sdfg.add_state(node.name)
+        sdfg.add_edge(prev_state, state, dace.InterstateEdge())
+
+        (stencil_node,
+         input_to_connector, output_to_connector) = _generate_stencil(
+             node, chain, shape, dimensions_to_skip)
+        stencil_node.implementation = "CPU"
+
+        for field, connector in input_to_connector.items():
+
+            # Outer memory read
+            read_node = state.add_read(field)
+            state.add_memlet_path(
+                read_node,
+                stencil_node,
+                dst_conn=connector,
+                memlet=Memlet.simple(
+                    field, ", ".join(
+                        "0:{}".format(s) for s in sdfg.data(field).shape)))
+
+        for _, connector in output_to_connector.items():
+
+            # Outer write
+            write_node = state.add_write(node.name)
+            state.add_memlet_path(
+                stencil_node,
+                write_node,
+                src_conn=connector,
+                memlet=Memlet.simple(
+                    node.name, ", ".join(
+                        "0:{}".format(s) for s in sdfg.data(field).shape)))
+
+        prev_state = state
 
     return sdfg
 

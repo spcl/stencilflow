@@ -37,6 +37,7 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import argparse
+import copy
 import itertools
 import os
 import re
@@ -47,6 +48,7 @@ import dace
 import numpy as np
 
 from stencilflow import *
+from stencilflow.sdfg_generator import generate_sdfg, generate_reference
 from stencilflow.log_level import LogLevel
 import stencilflow.helper as helper
 
@@ -54,6 +56,7 @@ import stencilflow.helper as helper
 def run_program(stencil_file,
                 mode,
                 run_simulation=False,
+                compare_to_reference=False,
                 input_directory=None,
                 skip_execution=False,
                 plot=False,
@@ -92,6 +95,11 @@ def run_program(stencil_file,
         print("Generating SDFG...")
     sdfg = generate_sdfg(name, chain)
 
+    if compare_to_reference:
+        if log_level >= LogLevel.BASIC.value:
+            print("Generating reference SDFG...")
+        reference_sdfg = generate_reference(name + "_reference", chain)
+
     # Configure and compile SDFG
     dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
     # dace.config.Config.set("compiler", "use_cache", value=True)
@@ -112,6 +120,11 @@ def run_program(stencil_file,
         print("Compiling SDFG...")
     sdfg.expand_library_nodes()
     program = sdfg.compile()
+    if compare_to_reference:
+        if log_level >= LogLevel.BASIC.value:
+            print("Compiling reference SDFG...")
+        reference_sdfg.expand_library_nodes()
+        reference_program = reference_sdfg.compile()
 
     # Load data from disk
     if log_level >= LogLevel.BASIC.value:
@@ -131,6 +144,8 @@ def run_program(stencil_file,
                      ["data_type"].type), 64)
         for arr_name in program_description["outputs"]
     }
+    if compare_to_reference:
+        reference_output_arrays = copy.deepcopy(output_arrays)
 
     # Compile program (if running emulation)
     build_folder = os.path.join(".dacecache", name, "build")
@@ -161,11 +176,42 @@ def run_program(stencil_file,
         for key, val in output_arrays.items():
             print(key + ":", val)
 
+    # Run reference program
+    if compare_to_reference:
+        dace_args = {
+            key: val
+            for key, val in itertools.chain(input_arrays.items(),
+                                            reference_output_arrays.items())
+        }
+        print("Executing reference DaCe program...")
+        reference_program(**dace_args)
+        print("Finished running program.")
+
+    if print_result:
+        for key, val in reference_output_arrays.items():
+            print(key + ":", val)
+
     # Write results to file
     output_folder = os.path.join("results", name)
     os.makedirs(output_folder, exist_ok=True)
     helper.save_output_arrays(output_arrays, output_folder)
     print("Results saved to " + output_folder)
+    if compare_to_reference:
+        reference_folder = os.path.join(output_folder, "reference")
+        os.makedirs(reference_folder, exist_ok=True)
+        helper.save_output_arrays(reference_output_arrays, reference_folder)
+        print("Reference results saved to " + reference_folder)
+
+    if compare_to_reference:
+        print("Comparing to reference SDFG...")
+        for outp in output_arrays:
+            if not helper.arrays_are_equal(
+                    np.ravel(output_arrays[outp]),
+                    np.ravel(reference_output_arrays[outp])):
+                print("Result mismatch.")
+                return 1
+        print("Results verified.")
+        return 0
 
     # Compare simulation result to fpga result
     if run_simulation:

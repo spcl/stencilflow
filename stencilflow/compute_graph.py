@@ -341,7 +341,10 @@ class ComputeGraph:
         :param save_path: filename of the output image, if none: do not save to file
         """
         # create drawing area
+        import matplotlib as mpl
+        mpl.use('Agg')
         import matplotlib.pyplot as plt  # import matplotlib only if graph plotting is set to true
+
         # some point (for large graphs)
         plt.axis('off')
         # generate positions

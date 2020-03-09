@@ -36,6 +36,7 @@ __author__ = "Andreas Kuster"
 __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
+import multiprocessing as mp
 import os
 import sys
 import unittest
@@ -159,11 +160,11 @@ class HelperTest(unittest.TestCase):
                 "c": [0, 0, 1]
             }), "a")
         # check list_add_cwise
-        self.assertEqual(helper.list_add_cwise([1, 2, 3], [3, 2, 1]),
-                         [4, 4, 4])
+        self.assertEqual(
+            helper.list_add_cwise([1, 2, 3], [3, 2, 1]), [4, 4, 4])
         # check list_subtract_cwise
-        self.assertEqual(helper.list_subtract_cwise([1, 2, 3], [1, 2, 3]),
-                         [0, 0, 0])
+        self.assertEqual(
+            helper.list_subtract_cwise([1, 2, 3], [1, 2, 3]), [0, 0, 0])
         # check dim_to_abs_val
         self.assertEqual(helper.dim_to_abs_val([3, 2, 1], [10, 10, 10]), 321)
         # check convert_3d_to_1d
@@ -173,8 +174,9 @@ class HelperTest(unittest.TestCase):
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(os.path.dirname(__file__), "testing",
-                                 "helper_test.csv"),
+                    os.path.join(
+                        os.path.dirname(__file__), "testing",
+                        "helper_test.csv"),
                     "data_type":
                     "float64"
                 })), [7.0, 7.0])
@@ -182,8 +184,9 @@ class HelperTest(unittest.TestCase):
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(os.path.dirname(__file__), "testing",
-                                 "helper_test.dat"),
+                    os.path.join(
+                        os.path.dirname(__file__), "testing",
+                        "helper_test.dat"),
                     "data_type":
                     "float64"
                 })), [7.0, 7.0])
@@ -212,9 +215,9 @@ class ComputeGraphTest(unittest.TestCase):
         graph.calculate_latency()
         # load operation latency manually to compare result
         with open(
-                os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                             "stencilflow",
-                             'compute_graph.config')) as json_file:
+                os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)), "stencilflow",
+                    'compute_graph.config')) as json_file:
             op_latency = json.load(json_file)
         # check if latencies match
         self.assertEqual(
@@ -254,9 +257,9 @@ class KernelTest(unittest.TestCase):
 
 class KernelChainGraphTest(unittest.TestCase):
     def test(self):
-        chain = KernelChainGraph(path=os.path.join(
-            TEST_FOLDER, 'simple_input_delay_buf.json'),
-                                 plot_graph=False)
+        chain = KernelChainGraph(
+            path=os.path.join(TEST_FOLDER, 'simple_input_delay_buf.json'),
+            plot_graph=False)
         # Note: Since e.g. the delay buffer sizes get tested using different cases (e.g. through the simulator), we only
         # add a basic (no exception) case in here for the moment.
 
@@ -267,9 +270,9 @@ from stencilflow.optimizer import Optimizer
 class OptimizerTest(unittest.TestCase):
     def test(self):
         # instantiate example KernelChainGraph
-        chain = KernelChainGraph(path=os.path.join(
-            TEST_FOLDER, 'simple_input_delay_buf.json'),
-                                 plot_graph=False)
+        chain = KernelChainGraph(
+            path=os.path.join(TEST_FOLDER, 'simple_input_delay_buf.json'),
+            plot_graph=False)
         # instantiate the Optimizer
         opt = Optimizer(chain.kernel_nodes, chain.dimensions)
         # define bounds
@@ -279,8 +282,8 @@ class OptimizerTest(unittest.TestCase):
         ratio = 0.5
         # run all optimization strategies
         opt.minimize_fast_mem(communication_volume_bound=com_bound)
-        opt.minimize_comm_vol(fast_memory_bound=fast_mem_bound,
-                              slow_memory_bound=slow_mem_bound)
+        opt.minimize_comm_vol(
+            fast_memory_bound=fast_mem_bound, slow_memory_bound=slow_mem_bound)
         opt.optimize_to_ratio(ratio=ratio)
 
 
@@ -355,14 +358,15 @@ class SimulatorTest(unittest.TestCase):
             path = os.path.join(TEST_FOLDER, samples[sample]['file'])
             program_description = helper.parse_json(path)
             chain = KernelChainGraph(path=path, plot_graph=False)
-            sim = Simulator(input_nodes=chain.input_nodes,
-                            program_description=program_description,
-                            kernel_nodes=chain.kernel_nodes,
-                            output_nodes=chain.output_nodes,
-                            dimensions=chain.dimensions,
-                            program_name="test",
-                            write_output=False,
-                            log_level=0)
+            sim = Simulator(
+                input_nodes=chain.input_nodes,
+                program_description=program_description,
+                kernel_nodes=chain.kernel_nodes,
+                output_nodes=chain.output_nodes,
+                dimensions=chain.dimensions,
+                program_name="test",
+                write_output=False,
+                log_level=0)
             sim.simulate()
             # check if result matches
             self.assertTrue(
@@ -374,17 +378,53 @@ class SimulatorTest(unittest.TestCase):
 from stencilflow.run_program import run_program
 
 
+def _return_result(queue, *args, **kwargs):
+    ret = run_program(*args, **kwargs)
+    queue.put(ret)
+
+def _run_program(*args, **kwargs):
+    # We run each kernel with multiprocessing, because the Altera environment
+    # does not seem to properly tear down the environment when destroyed.
+    # This way, each kernel is run in a separate process, so that it is run
+    # with a clean environment.
+    queue = mp.Queue()
+    p = mp.Process(target=_return_result, args=(queue,) + args, kwargs=kwargs)
+    p.start()
+    p.join()
+    return queue.get()
+
 class ProgramTest(unittest.TestCase):
-    def test_program(program):
+
+    def test_and_simulate(self):
+        test_directory = os.path.join(os.path.dirname(__file__), "testing")
+        for stencil_file in [
+                "simulator", "simulator2", "simulator3", "simulator4",
+                "simulator5", "simulator6", "simulator8",
+                "simulator9", "simulator10", "simulator11"
+        ]:
+            print(
+                "Simulating and emulating program {}...".format(stencil_file))
+            stencil_file = os.path.join(test_directory, stencil_file + ".json")
+            _run_program(
+                stencil_file,
+                "emulation",
+                compare_to_reference=True,
+                run_simulation=True,
+                log_level=1,
+                input_directory=os.path.abspath(test_directory))
+
+    def test_program(self):
         test_directory = os.path.join(os.path.dirname(__file__), "testing")
         for stencil_file in ["jacobi2d_128x128", "jacobi3d_32x32x32_8itr"]:
             print("Testing program {}...".format(stencil_file))
             stencil_file = os.path.join(test_directory, stencil_file + ".json")
-            run_program(stencil_file,
-                        "emulation",
-                        run_simulation=False,
-                        log_level=1,
-                        input_directory=os.path.abspath(test_directory))
+            _run_program(
+                stencil_file,
+                "emulation",
+                compare_to_reference=True,
+                run_simulation=False,
+                log_level=1,
+                input_directory=os.path.abspath(test_directory))
 
 
 if __name__ == '__main__':
