@@ -16,6 +16,7 @@ test:
   script:
     - export PYTHONPATH=$(pwd)/dace:$PYTHONPATH
     - source /opt/intelFPGA_pro/19.1/hld/init_stratix.sh
+    - export DACE_compiler_intel_fpga_board = "p520_max_sg280l"
     - source /opt/rh/devtoolset-6/enable
     - pip3 install --user -r requirements.txt
     - python3 test/test_stencilflow.py
