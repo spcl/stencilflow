@@ -4,13 +4,14 @@ import dace
 import dace.library
 
 from .fpga import ExpandStencilFPGA
+from .cpu import ExpandStencilCPU
 
 
 @dace.library.node
 class Stencil(dace.library.LibraryNode):
     """Represents applying a stencil to a full input domain."""
 
-    implementations = {"FPGA": ExpandStencilFPGA}
+    implementations = {"FPGA": ExpandStencilFPGA, "CPU": ExpandStencilCPU}
     default_implementation = None
 
     # Definition of stencil computation

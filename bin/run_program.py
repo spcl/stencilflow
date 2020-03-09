@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("stencil_file")
     parser.add_argument("mode", choices=["emulation", "hardware"])
     parser.add_argument("-run-simulation", action="store_true")
+    parser.add_argument("-compare-to-reference", action="store_true")
     parser.add_argument("-input-directory")
     parser.add_argument("-skip-execution",
                         dest="skip_execution",

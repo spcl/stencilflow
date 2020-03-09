@@ -408,6 +408,7 @@ class ProgramTest(unittest.TestCase):
             _run_program(
                 stencil_file,
                 "emulation",
+                compare_to_reference=True,
                 run_simulation=True,
                 log_level=1,
                 input_directory=os.path.abspath(test_directory))
@@ -420,6 +421,7 @@ class ProgramTest(unittest.TestCase):
             _run_program(
                 stencil_file,
                 "emulation",
+                compare_to_reference=True,
                 run_simulation=False,
                 log_level=1,
                 input_directory=os.path.abspath(test_directory))

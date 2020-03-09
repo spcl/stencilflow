@@ -6,16 +6,20 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from stencilflow import generate_sdfg, KernelChainGraph
+import dace
+
+from stencilflow import KernelChainGraph
+from stencilflow.sdfg_generator import generate_sdfg, generate_sdfg_cpu
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("stencil_input",
-                        help="Stencil description file (.json)")
+    parser.add_argument(
+        "stencil_input", help="Stencil description file (.json)")
     parser.add_argument("sdfg_output", help="Output SDFG file (.sdfg)")
     parser.add_argument("--plot-graph", dest="plot-graph", action="store_true")
-    parser.add_argument("--plot-sdfg", dest="plot-sdfg", action="store_true")
+    parser.add_argument("--cpu-sdfg", dest="cpu-sdfg", action="store_true")
+    parser.add_argument("--expand", dest="expand", action="store_true")
     parser.add_argument(
         "--compile",
         dest="compile",
@@ -32,10 +36,13 @@ if __name__ == "__main__":
     if getattr(args, "plot-graph"):
         chain.plot_graph(name + ".pdf")
 
-    sdfg = generate_sdfg(name, chain)
+    if getattr(args, "cpu-sdfg"):
+        sdfg = generate_sdfg_cpu(name, chain)
+    else:
+        sdfg = generate_sdfg(name, chain)
 
-    if getattr(args, "plot-sdfg"):
-        chain.plot_graph(name + ".pdf")
+    if args.expand:
+        sdfg.expand_library_nodes()
 
     sdfg.save(args.sdfg_output)
     print("SDFG saved to: " + args.sdfg_output)
