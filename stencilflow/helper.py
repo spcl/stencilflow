@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # encoding: utf-8
 
@@ -255,7 +254,7 @@ def save_output_arrays(outputs: Dict, output_dir=str()):
         save_array(arr_data, path)
 
 
-def arrays_are_equal(reference, result, tolerance=1e-3):
+def arrays_are_equal(reference, result, tolerance=1e-5):
     """
     Check if two arrays are equal within a tolerance.
     :param reference: numpy array or path to file.
@@ -267,7 +266,8 @@ def arrays_are_equal(reference, result, tolerance=1e-3):
     if not isinstance(result, np.ndarray):
         result = load_array(result)
     # tolerate zeroes by adding epsilon to the divisor
-    relative_diff = (np.abs(reference - result) / (np.maximum.reduce([reference, result]) + np.finfo(np.float64).eps))
+    relative_diff = (np.abs(reference - result) / (np.maximum.reduce(
+        [reference, result]) + np.finfo(reference.dtype).eps))
     return np.all(relative_diff <= tolerance)
 
 
