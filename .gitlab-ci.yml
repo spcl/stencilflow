@@ -25,7 +25,6 @@ test_distributed:
   script:
     - export PYTHONPATH=$(pwd)/dace:$PYTHONPATH
     - export DACE_compiler_intel_fpga_board = "p520_max_sg280l"
-    - export AOCL_BOARD_PACKAGE_ROOT="$INTELFPGAOCLSDKROOT/board/bittware_pcie"
-    - source /opt/rh/llvm-toolset-7.0/enable
+    - source /opt/intelFPGA_pro/19.1/hld/init_stratix.sh
     - test/test_distributed_program.sh
 
