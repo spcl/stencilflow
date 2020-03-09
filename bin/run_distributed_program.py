@@ -103,7 +103,7 @@ if __name__ == "__main__":
         sp.run(
             [
                 "make",
-                "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j"
+                "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j4"
             ],
             cwd=build_folder,
             check=True)
