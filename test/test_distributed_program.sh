@@ -33,6 +33,7 @@ bail() {
     FAILED_TESTS="${FAILED_TESTS} $ERRORSTR\n"
 }
 
+# shellcheck disable=SC2120
 run_jacobi2d() {
     TEST_NAME=jacobi2d_128x128
     TESTS=`expr $TESTS + 1`
@@ -47,17 +48,13 @@ run_jacobi2d() {
     ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg b_to_b 0 1 0
 
     #2: Execute after part and then the before part
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 &
+    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 -compare-to-reference &
+    checker_pid=$!
     sleep 5;
     ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_before.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 0 2
 
-    #3: check
-    #Save created result
-    mv results/${TEST_NAME}/b.dat results/${TEST_NAME}/b_distributed.dat
-    # Execute non distributed test
-    ${BIN_DIR}/run_program.py ${STENCILS_DIR}/${TEST_NAME}.json emulation
-    # diff
-    diff results/${TEST_NAME}/b_distributed.dat results/${TEST_NAME}/b.dat
+    #3: wait for the result
+    wait $checker_pid
 
     if [ $? -ne 0 ]; then
         bail "$1 (${RED}Wrong emulation result${NC})"
@@ -87,17 +84,13 @@ run_jacobi3d() {
     ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg a_to_b 0 1 0
 
     #2: Execute after part and then the before part
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 &
+    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 -compare-to-reference &
+    checker_pid=$!
     sleep 5;
     ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_before.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 0 2
 
-    #3: check
-    #Save created result
-    mv results/${TEST_NAME}/b.dat results/${TEST_NAME}/b_distributed.dat
-    # Execute non distributed test
-    ${BIN_DIR}/run_program.py ${STENCILS_DIR}/${TEST_NAME}.json emulation
-    # diff
-    diff results/${TEST_NAME}/b_distributed.dat results/${TEST_NAME}/b.dat
+    #3: wait for the result
+    wait $checker_pid
 
     if [ $? -ne 0 ]; then
         bail "$1 (${RED}Wrong emulation result${NC})"
@@ -128,17 +121,13 @@ run_jacobi3d_8itr() {
     ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg b6_to_b7 0 1 0
 
     #2: Execute after part and then the before part
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 &
+    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 -compare-to-reference &
+    wait $checker_pid
     sleep 5;
     ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_before.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 0 2
 
-    #3: check
-    #Save created result
-    mv results/${TEST_NAME}/b7.dat results/${TEST_NAME}/b7_distributed.dat
-    # Execute non distributed test
-    ${BIN_DIR}/run_program.py ${STENCILS_DIR}/${TEST_NAME}.json emulation
-    # diff
-    diff results/${TEST_NAME}/b7_distributed.dat results/${TEST_NAME}/b7.dat
+    #3: wait for the result
+    wait $checker_pid
 
     if [ $? -ne 0 ]; then
         bail "$1 (${RED}Wrong emulation result${NC})"

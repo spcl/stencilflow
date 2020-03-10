@@ -68,11 +68,15 @@ if __name__ == "__main__":
 
     use_cache = dace.config.Config.get_bool("compiler", "use_cache")
     if mode == "emulation":
-        dace.config.Config.set(
-            "compiler", "intel_fpga", "mode", value="emulator")
+        dace.config.Config.set("compiler",
+                               "intel_fpga",
+                               "mode",
+                               value="emulator")
     elif mode == "hardware":
-        dace.config.Config.set(
-            "compiler", "intel_fpga", "mode", value="hardware")
+        dace.config.Config.set("compiler",
+                               "intel_fpga",
+                               "mode",
+                               value="hardware")
     else:
         raise ValueError("Unrecognized execution mode: {}".format(mode))
 
@@ -80,13 +84,12 @@ if __name__ == "__main__":
     # Specialize and compile the program
     # ----------------------------------------------
 
-
     # Specialize SDFG
 
     sdfg_name = sdfg.name
     as_json = sdfg.to_json()
-    as_json["attributes"]["name"] = sdfg_name + "_" +str(my_rank)
-    sdfg_name = sdfg_name + "_" +str(my_rank)
+    as_json["attributes"]["name"] = sdfg_name + "_" + str(my_rank)
+    sdfg_name = sdfg_name + "_" + str(my_rank)
     sdfg = dace.SDFG.from_json(as_json)
     sdfg.expand_library_nodes()
     sdfg.specialize(dict(smi_rank=my_rank, smi_num_ranks=num_ranks))
@@ -99,34 +102,26 @@ if __name__ == "__main__":
         print("Captured Compilation Error exception")
 
         # build
-        build_folder = os.path.join(".dacecache", sdfg_name,
-                                    "build")
+        build_folder = os.path.join(".dacecache", sdfg_name, "build")
 
         # codegen host
-        sp.run(
-            [
-                "make",
-                "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j4"
-            ],
-            cwd=build_folder,
-            check=True)
+        sp.run(["make", "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j4"],
+               cwd=build_folder,
+               check=True)
         # make host program
         sp.run(["make"], cwd=build_folder, check=True)
         if mode == "emulation":
             # emulated bitstream
             sp.run(
-                [
-                    "make", "intelfpga_smi_compile_" + sdfg_name +
-                            "_emulator"
-                ],
+                ["make", "intelfpga_smi_compile_" + sdfg_name + "_emulator"],
                 cwd=build_folder,
                 check=True)
         elif mode == "hardware":
             if not os.path.exists(
-                    os.path.join(build_folder, name + "_hardware.aocx")):
+                    os.path.join(build_folder, sdfg_name + "_hardware.aocx")):
                 raise FileNotFoundError(
-                    "Hardware kernel has not been built (" + os.path.join(
-                        build_folder, name + "_hardware.aocx") + ").")
+                    "Hardware kernel has not been built (" +
+                    os.path.join(build_folder, sdfg_name + "_hardware.aocx") + ").")
 
         # reload the program
         program = sdfg.compile()
@@ -141,24 +136,26 @@ if __name__ == "__main__":
     input_data = sdfg.source_nodes()[0].source_nodes()
     sdfg_input_data = {}
     for n in input_data:
-        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[n.data].storage == dace.dtypes.StorageType.Default:
+        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[
+                n.data].storage == dace.dtypes.StorageType.Default:
             # remove trailing "_host" and get the input parameters from program description
             if n.data.endswith("_host"):
                 data_name = n.data[:-5]
                 if data_name in program_description["inputs"]:
-                    sdfg_input_data[data_name] = program_description["inputs"][data_name]
+                    sdfg_input_data[data_name] = program_description["inputs"][
+                        data_name]
             else:
-                raise ValueError("Uhm...strange, what kind of data is " + n.data + "?")
-
+                raise ValueError("Uhm...strange, what kind of data is " +
+                                 n.data + "?")
 
     # Load data from disk (if any)
     if sdfg_input_data:
         print("Loading input arrays...")
         input_directory = os.path.dirname(stencil_file)
-        input_arrays = helper.load_input_arrays(
-            sdfg_input_data, prefix=input_directory)
-        for key,val in input_arrays.items():
-            dace_args[key+"_host"] = val
+        input_arrays = helper.load_input_arrays(sdfg_input_data,
+                                                prefix=input_directory)
+        for key, val in input_arrays.items():
+            dace_args[key + "_host"] = val
 
     # Create outputs
 
@@ -166,28 +163,28 @@ if __name__ == "__main__":
     output_data = sdfg.sink_nodes()[0].sink_nodes()
     sdfg_output_data = []
     for n in output_data:
-        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[n.data].storage == dace.dtypes.StorageType.Default:
+        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[
+                n.data].storage == dace.dtypes.StorageType.Default:
             #remove trailing "_host" and check if this is an output parameter
             if n.data.endswith("_host"):
                 data_name = n.data[:-5]
                 if data_name in program_description["outputs"]:
                     sdfg_output_data += [data_name]
             else:
-                raise ValueError("Uhm...strange, what kind of data is " + n.data +"?")
+                raise ValueError("Uhm...strange, what kind of data is " +
+                                 n.data + "?")
     if sdfg_output_data:
         save_outputs = True
         print("Initializing output arrays...")
         output_arrays = {
             arr_name: helper.aligned(
-                np.zeros(
-                    program_description["dimensions"],
-                    dtype=program_description["program"][arr_name]["data_type"]
-                        .type), 64)
+                np.zeros(program_description["dimensions"],
+                         dtype=program_description["program"][arr_name]
+                         ["data_type"].type), 64)
             for arr_name in sdfg_output_data
         }
         for key, val in output_arrays.items():
-            dace_args[key+"_host"] = val
-
+            dace_args[key + "_host"] = val
 
     print("Executing DaCe program...")
     program(**dace_args)
@@ -213,8 +210,8 @@ if __name__ == "__main__":
 
         # Load input data
         input_directory = os.path.dirname(stencil_file)
-        reference_input_arrays = helper.load_input_arrays(program_description["inputs"],
-                                                prefix=input_directory)
+        reference_input_arrays = helper.load_input_arrays(
+            program_description["inputs"], prefix=input_directory)
         reference_output_arrays = copy.deepcopy(output_arrays)
 
         dace_args = {
@@ -240,5 +237,3 @@ if __name__ == "__main__":
         print("Results verified.")
         exit(0)
     exit(0)
-
-
