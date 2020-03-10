@@ -5,13 +5,14 @@
     Note: the program is split in two components around a given stream (it relies on split_sdfg)
 
     Command line arguments:
-    - stencil_file: JSON file containing stencil description
-    - mode: emulation or hardware. The former triggers code generation and compilation for the emulation toolchain
-    - split_stream: the stream around which the original stencil SDFG is partitioned
-    - send_rank, receive_rank, port: SMI needed parameters
-    - which_to_execute: which part of the program execute, before/after
+    - sdfg_file: file containing the SDFG to execute
+    - stencil_file: JSON file containing the entire stencil description
+    - mode: emulation/hardware
+    - rank: the rank id (used for routing)
+    - num_ranks: total number of ranks (used by SMI for routing)
+    - -compare_to_reference: if you want to run the CPU reference implementation
 
-    If DACE_compiler_use_cache is set to 1, the code is not generated/recompiled
+
 """
 import argparse
 import os
@@ -22,14 +23,14 @@ import os
 import re
 import subprocess as sp
 import sys
-
+import copy
 import dace
 import numpy as np
 
 from stencilflow import *
 from stencilflow.log_level import LogLevel
+from stencilflow.sdfg_generator import generate_sdfg, generate_reference
 import stencilflow.helper as helper
-from stencilflow.sdfg_generator import split_sdfg
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -41,6 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("mode", choices=["emulation", "hardware"])
     parser.add_argument("rank")
     parser.add_argument("num_ranks")
+    parser.add_argument("-compare-to-reference", action="store_true")
 
     args = parser.parse_args()
     stencil_file = args.stencil_file
@@ -48,6 +50,7 @@ if __name__ == "__main__":
     mode = args.mode
     my_rank = int(args.rank)
     num_ranks = int(args.num_ranks)
+    compare_to_reference = args.compare_to_reference
 
     # Load program description
     program_description = helper.parse_json(stencil_file)
@@ -196,3 +199,46 @@ if __name__ == "__main__":
         os.makedirs(output_folder, exist_ok=True)
         helper.save_output_arrays(output_arrays, output_folder)
         print("Results saved to " + output_folder)
+
+    # ----------------------------------------------
+    # Compare to reference (only meaningful on ranks that output something)
+    # ----------------------------------------------
+    # TODO: this is currently done on the last node only. Fix this
+
+    if compare_to_reference and my_rank == num_ranks - 1:
+        chain = KernelChainGraph(path=stencil_file)
+        reference_sdfg = generate_reference(stencil_name + "_reference", chain)
+        reference_sdfg.expand_library_nodes()
+        reference_program = reference_sdfg.compile()
+
+        # Load input data
+        input_directory = os.path.dirname(stencil_file)
+        reference_input_arrays = helper.load_input_arrays(program_description["inputs"],
+                                                prefix=input_directory)
+        reference_output_arrays = copy.deepcopy(output_arrays)
+
+        dace_args = {
+            key: val
+            for key, val in itertools.chain(reference_input_arrays.items(),
+                                            reference_output_arrays.items())
+        }
+        print("Executing reference DaCe program...")
+        reference_program(**dace_args)
+        print("Finished running program.")
+
+        reference_folder = os.path.join(output_folder, "reference")
+        os.makedirs(reference_folder, exist_ok=True)
+        helper.save_output_arrays(reference_output_arrays, reference_folder)
+        print("Reference results saved to " + reference_folder)
+        print("Comparing to reference SDFG...")
+        for outp in output_arrays:
+            if not helper.arrays_are_equal(
+                    np.ravel(output_arrays[outp]),
+                    np.ravel(reference_output_arrays[outp])):
+                print("Result mismatch.")
+                exit(1)
+        print("Results verified.")
+        exit(0)
+    exit(0)
+
+
