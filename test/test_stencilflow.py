@@ -178,7 +178,7 @@ class HelperTest(unittest.TestCase):
                         os.path.dirname(__file__), "testing",
                         "helper_test.csv"),
                     "data_type":
-                    "float64"
+                    helper.str_to_dtype("float64")
                 })), [7.0, 7.0])
         self.assertListEqual(
             list(
@@ -188,11 +188,14 @@ class HelperTest(unittest.TestCase):
                         os.path.dirname(__file__), "testing",
                         "helper_test.dat"),
                     "data_type":
-                    "float64"
+                    helper.str_to_dtype("float64")
                 })), [7.0, 7.0])
         # check save_array / load_array
         out_data = np.array([1.0, 2.0, 3.0])
-        file = {"data": "test.dat", "data_type": "float64"}
+        file = {
+            "data": "test.dat",
+            "data_type": helper.str_to_dtype("float64")
+        }
         helper.save_array(out_data, file["data"])
         in_data = helper.load_array(file)
         self.assertTrue(helper.arrays_are_equal(out_data, in_data))
