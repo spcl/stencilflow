@@ -120,19 +120,14 @@ spatial_to_insert = 0
 
 # Add first field
 name = "a"
-program["inputs"][name] = {"data": "constant:0.5", "data_type": args.data_type}
+program["inputs"][name] = {"data": "constant:1", "data_type": args.data_type}
 field_counter += 1
 
 def insert_stencil(prev_name, name, fork_ends):
 
     stencil_json = {}
     stencil_json["data_type"] = args.data_type
-    stencil_json["boundary_conditions"] = {
-        prev_name: {
-            "type": "constant",
-            "value": 0
-        }
-    }
+    stencil_json["boundary_conditions"] = {}
 
     stage_spatials = []
 
@@ -147,10 +142,6 @@ def insert_stencil(prev_name, name, fork_ends):
             "data": "constant:0.5",
             "data_type": args.data_type
         }
-        stencil_json["boundary_conditions"][field] = {
-            "type": "constant",
-            "value": 0
-        }
         field_counter += 1
         spatial_to_insert -= 1
 
@@ -158,6 +149,12 @@ def insert_stencil(prev_name, name, fork_ends):
         inputs = fork_ends + stage_spatials
     else:
         inputs = [prev_name] + stage_spatials
+
+    for i in inputs:
+        stencil_json["boundary_conditions"][i] = {
+            "type": "constant",
+            "value": 0
+        }
 
     stencil_json["computation_string"] = make_code(name, inputs)
 
@@ -175,7 +172,7 @@ for stage in range(args.num_stages):
     fork_ends = []
 
     fork_to_insert += args.fork_frequency
-    if fork_to_insert >= 1:
+    if stage < args.num_stages - 1 and fork_to_insert >= 1:
 
         prev_name_fork = name
         index_fork = 0
