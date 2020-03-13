@@ -20,37 +20,62 @@ import sys
 import argparse
 import itertools
 import os
+import glob
 import re
 import subprocess as sp
 import sys
 import copy
 import dace
 import numpy as np
-
+from mpi4py import MPI
 from stencilflow import *
 from stencilflow.log_level import LogLevel
 from stencilflow.sdfg_generator import generate_sdfg, generate_reference
 import stencilflow.helper as helper
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def print_with_rank(rank, message, color = bcolors.HEADER):
+    # Utility functions: print a message indicating the rank
+    # By default, the message is printed using purple color
+    print(color + "[Rank {}] {}".format(rank,message) +bcolors.ENDC)
+
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("sdfg_file")
-    parser.add_argument("stencil_file")
-    parser.add_argument("mode", choices=["emulation", "hardware"])
-    parser.add_argument("rank")
-    parser.add_argument("num_ranks")
-    parser.add_argument("-compare-to-reference", action="store_true")
+    parser.add_argument("sdfgs_dir", help = "Directory containing the SDFG to execute")
+    parser.add_argument("stencil_file", help = "JSON description of the stencil")
+    parser.add_argument("mode", choices=["emulation", "hardware"], help = "Execution mode")
+    parser.add_argument("-compare-to-reference", action="store_true", help = "Flag for comparing the result with reference")
+    parser.add_argument("-recompute-routes", action="store", help = "Recompute routes by using a topology file (meaningful for hardware execution mode)")
+
 
     args = parser.parse_args()
     stencil_file = args.stencil_file
-    sdfg_file = args.sdfg_file
+    sdfgs_dir = args.sdfgs_dir
     mode = args.mode
-    my_rank = int(args.rank)
-    num_ranks = int(args.num_ranks)
     compare_to_reference = args.compare_to_reference
+    topology_file = args.recompute_routes
+
+    if topology_file:
+        print("Recompute routes using " + topology_file)
+
+    # MPI: get current size, rank and name
+    num_ranks = MPI.COMM_WORLD.Get_size()
+    my_rank = MPI.COMM_WORLD.Get_rank()
+    name = MPI.Get_processor_name()
+
 
     # Load program description
     program_description = helper.parse_json(stencil_file)
@@ -58,7 +83,15 @@ if __name__ == "__main__":
     stencil_name = re.match("[^\.]+", stencil_name).group(0)
 
     # Load SDFG
-    sdfg = dace.SDFG.from_file(sdfg_file)
+    # Load the corresponding SDFG. Please note that it will look to a file with name "*_<rank>.sdfg"
+    sdfg_file = glob.glob("{}*{}.sdfg".format(sdfgs_dir, my_rank))
+    if len(sdfg_file) != 1:
+        print("[Rank {}] SDFG not found ".format(my_rank))
+        exit(-1)
+    sdfg = dace.SDFG.from_file(sdfg_file[0])
+
+#    print("[Rank {}] executing SDFG {} on {}".format(my_rank,sdfg_file,name))
+    print_with_rank(my_rank, "executing SDFG {} on {}".format(sdfg_file,name))
 
     # ----------------------------------------------
     # Configure
@@ -98,8 +131,8 @@ if __name__ == "__main__":
     try:
         program = sdfg.compile()
     except dace.codegen.compiler.CompilationError as ex:
-        # Fresh new...we need to build everythin
-        print("Captured Compilation Error exception")
+        # Fresh new...we need to build everything
+        print_with_rank(my_rank, "Captured Compilation Error exception", bcolors.WARNING)
 
         # build
         build_folder = os.path.join(".dacecache", sdfg_name, "build")
@@ -116,15 +149,17 @@ if __name__ == "__main__":
                 ["make", "intelfpga_smi_compile_" + sdfg_name + "_emulator"],
                 cwd=build_folder,
                 check=True)
-        elif mode == "hardware":
-            if not os.path.exists(
-                    os.path.join(build_folder, sdfg_name + "_hardware.aocx")):
-                raise FileNotFoundError(
-                    "Hardware kernel has not been built (" +
-                    os.path.join(build_folder, sdfg_name + "_hardware.aocx") + ").")
 
         # reload the program
         program = sdfg.compile()
+
+    if mode == "hardware":
+        build_folder = os.path.join(".dacecache", sdfg_name, "build")
+        if not os.path.exists(
+                os.path.join(build_folder, sdfg_name + "_hardware.aocx")):
+            raise FileNotFoundError(
+                "Hardware kernel has not been built (" +
+                os.path.join(build_folder, sdfg_name + "_hardware.aocx") + ").")
 
     # ----------------------------------------------
     # Create Input/Output data for this SDFG
@@ -150,7 +185,7 @@ if __name__ == "__main__":
 
     # Load data from disk (if any)
     if sdfg_input_data:
-        print("Loading input arrays...")
+        print_with_rank(my_rank, "Loading input arrays...")
         input_directory = os.path.dirname(stencil_file)
         input_arrays = helper.load_input_arrays(sdfg_input_data,
                                                 prefix=input_directory)
@@ -175,7 +210,7 @@ if __name__ == "__main__":
                                  n.data + "?")
     if sdfg_output_data:
         save_outputs = True
-        print("Initializing output arrays...")
+        print_with_rank(my_rank,"Initializing output arrays...")
         output_arrays = {
             arr_name: helper.aligned(
                 np.zeros(program_description["dimensions"],
@@ -186,22 +221,29 @@ if __name__ == "__main__":
         for key, val in output_arrays.items():
             dace_args[key + "_host"] = val
 
-    print("Executing DaCe program...")
+
+
+    # ----------------------------------------------
+    # Execute
+    # ----------------------------------------------
+
+    MPI.COMM_WORLD.Barrier()
+    print_with_rank(my_rank, "Executing DaCe program...")
     program(**dace_args)
-    print("Finished running program.")
+    print(my_rank, "Finished running program.")
 
     if save_outputs:
         # Save output
         output_folder = os.path.join("results", stencil_name)
         os.makedirs(output_folder, exist_ok=True)
         helper.save_output_arrays(output_arrays, output_folder)
-        print("Results saved to " + output_folder)
+        print_with_rank(my_rank, "Results saved to " + output_folder)
 
+    MPI.COMM_WORLD.Barrier()
     # ----------------------------------------------
     # Compare to reference (only meaningful on ranks that output something)
     # ----------------------------------------------
     # TODO: this is currently done on the last node only. Fix this
-
     if compare_to_reference and my_rank == num_ranks - 1:
         chain = KernelChainGraph(path=stencil_file)
         reference_sdfg = generate_reference(stencil_name + "_reference", chain)
@@ -232,8 +274,8 @@ if __name__ == "__main__":
             if not helper.arrays_are_equal(
                     np.ravel(output_arrays[outp]),
                     np.ravel(reference_output_arrays[outp])):
-                print("Result mismatch.")
+                print(bcolors.FAIL + bcolors.BOLD + "Result mismatch." + bcolors.ENDC)
                 exit(1)
-        print("Results verified.")
+        print(bcolors.OKGREEN + bcolors.BOLD + "Results verified." + bcolors.ENDC)
         exit(0)
     exit(0)
