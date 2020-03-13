@@ -20,8 +20,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     symbols = {}
-    for m in re.finditer("(\w+)[\s\W]*=[\s\W]*(\d+)", args.symbols):
-        symbols[m.group(1)] = int(m.group(2))
+    if args.symbols:
+        for m in re.finditer("(\w+)[\s\W]*=[\s\W]*(\d+)", args.symbols):
+            symbols[m.group(1)] = int(m.group(2))
 
     sdfg_to_stencilflow(
         args.input_sdfg,
