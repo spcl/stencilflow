@@ -68,16 +68,13 @@ if __name__ == "__main__":
     compare_to_reference = args.compare_to_reference
     topology_file = args.recompute_routes
 
-    if topology_file:
-        print("Recompute routes using " + topology_file)
 
     # MPI: get current size, rank and name
     num_ranks = MPI.COMM_WORLD.Get_size()
     my_rank = MPI.COMM_WORLD.Get_rank()
     name = MPI.Get_processor_name()
 
-
-    # Load program description
+       # Load program description
     program_description = helper.parse_json(stencil_file)
     stencil_name = os.path.basename(stencil_file)
     stencil_name = re.match("[^\.]+", stencil_name).group(0)
@@ -117,7 +114,7 @@ if __name__ == "__main__":
     # Specialize and compile the program
     # ----------------------------------------------
 
-    # Specialize SDFG
+    # Change SDFG name to have different folder in `.dacecache`
 
     sdfg_name = sdfg.name
     as_json = sdfg.to_json()
@@ -125,7 +122,6 @@ if __name__ == "__main__":
     sdfg_name = sdfg_name + "_" + str(my_rank)
     sdfg = dace.SDFG.from_json(as_json)
     sdfg.expand_library_nodes()
-    sdfg.specialize(dict(smi_rank=my_rank, smi_num_ranks=num_ranks))
 
     # Compile
     try:
@@ -146,7 +142,7 @@ if __name__ == "__main__":
         if mode == "emulation":
             # emulated bitstream
             sp.run(
-                ["make", "intelfpga_smi_compile_" + sdfg_name + "_emulator"],
+                ["make", "intelfpga_smi_compile_" + sdfg_name + "_emulator_"+str(my_rank)],
                 cwd=build_folder,
                 check=True)
 
@@ -155,6 +151,15 @@ if __name__ == "__main__":
 
     if mode == "hardware":
         build_folder = os.path.join(".dacecache", sdfg_name, "build")
+        if topology_file:
+            print_with_rank(my_rank, "Recompute routes using " + topology_file)
+            #copy the topology file in the build folder
+            os.system("cp {} {}/topology.json".format(topology_file, build_folder)
+            sp.run(["make", "intelfpga_smi_recompute_table_" + sdfg_name],
+                   cwd=build_folder,
+                   check=True)
+
+
         if not os.path.exists(
                 os.path.join(build_folder, sdfg_name + "_hardware.aocx")):
             raise FileNotFoundError(
