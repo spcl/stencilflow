@@ -33,122 +33,51 @@ bail() {
     FAILED_TESTS="${FAILED_TESTS} $ERRORSTR\n"
 }
 
-# shellcheck disable=SC2120
-run_jacobi2d() {
-    TEST_NAME=jacobi2d_128x128
+
+run_test() {
+    #accept as arguments:
+    # - the name of a stencil
+    # - the stream around which perfrom the splitting
+    TEST_NAME=$1
+    STREAM_NAME=$2
+
     TESTS=`expr $TESTS + 1`
-    echo -e "${YELLOW}Running test Jacobi 2d...${NC}"
+    echo -e "${YELLOW}Running test ${TEST_NAME}..${NC}"
 
     #0: cleanup
     rm -fr .dacecache/${TEST_NAME}*
     rm *emulated_channel* 2> /dev/null
 
     #1: Generate the original SDFG and split it into two
+    mkdir ${TEST_NAME}
+    cd ${TEST_NAME}
     ${BIN_DIR}/sdfg_generator.py ${STENCILS_DIR}/${TEST_NAME}.json ${TEST_NAME}.sdfg
-    ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg b_to_b 0 1 0
+    ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg ${STREAM_NAME} 0 1 0
+    mv ${TEST_NAME}_before.sdfg  ${TEST_NAME}_0.sdfg
+    mv  ${TEST_NAME}_after.sdfg  ${TEST_NAME}_1.sdfg
+    cd -
 
-    #2: Execute after part and then the before part
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 -compare-to-reference &
-    checker_pid=$!
-    sleep 5;
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_before.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 0 2
+    #2: Execute
+    mpirun -n 2 ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}/ ${STENCILS_DIR}/${TEST_NAME}.json emulation -compare-to-reference
 
-    #3: wait for the result
-    wait $checker_pid
-
+    #check the result
     if [ $? -ne 0 ]; then
         bail "$1 (${RED}Wrong emulation result${NC})"
     fi
 
     # cleanup
-    rm ${TEST_NAME}.sdfg
-    rm ${TEST_NAME}_after.sdfg
-    rm ${TEST_NAME}_before.sdfg
+    rm ${TEST_NAME} -fr
     rm -fr results/${TEST_NAME}/
 
     cd -
     return 0
 }
-
-run_jacobi3d() {
-    TEST_NAME=jacobi3d_32x32x32
-    TESTS=`expr $TESTS + 1`
-    echo -e "${YELLOW}Running test Jacobi 3d...${NC}"
-
-    #0: cleanup
-    rm -fr .dacecache/${TEST_NAME}*
-    rm *emulated_channel* 2> /dev/null
-
-    #1: Generate the original SDFG and split it into two
-    ${BIN_DIR}/sdfg_generator.py ${STENCILS_DIR}/${TEST_NAME}.json ${TEST_NAME}.sdfg
-    ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg a_to_b 0 1 0
-
-    #2: Execute after part and then the before part
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 -compare-to-reference &
-    checker_pid=$!
-    sleep 5;
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_before.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 0 2
-
-    #3: wait for the result
-    wait $checker_pid
-
-    if [ $? -ne 0 ]; then
-        bail "$1 (${RED}Wrong emulation result${NC})"
-    fi
-
-    # cleanup
-    rm ${TEST_NAME}.sdfg
-    rm ${TEST_NAME}_after.sdfg
-    rm ${TEST_NAME}_before.sdfg
-    rm -fr results/${TEST_NAME}/
-
-    cd -
-    return 0
-}
-
-
-run_jacobi3d_8itr() {
-    TEST_NAME=jacobi3d_32x32x32_8itr
-    TESTS=`expr $TESTS + 1`
-    echo -e "${YELLOW}Running test Jacobi 3d_8itr...${NC}"
-
-    #0: cleanup
-    rm -fr .dacecache/${TEST_NAME}*
-    rm *emulated_channel* 2> /dev/null
-
-    #1: Generate the original SDFG and split it into two
-    ${BIN_DIR}/sdfg_generator.py ${STENCILS_DIR}/${TEST_NAME}.json ${TEST_NAME}.sdfg
-    ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg b6_to_b7 0 1 0
-
-    #2: Execute after part and then the before part
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_after.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 1 2 -compare-to-reference &
-    wait $checker_pid
-    sleep 5;
-    ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}_before.sdfg ${STENCILS_DIR}/${TEST_NAME}.json emulation 0 2
-
-    #3: wait for the result
-    wait $checker_pid
-
-    if [ $? -ne 0 ]; then
-        bail "$1 (${RED}Wrong emulation result${NC})"
-    fi
-
-    # cleanup
-    rm ${TEST_NAME}.sdfg
-    rm ${TEST_NAME}_after.sdfg
-    rm ${TEST_NAME}_before.sdfg
-    rm -fr results/${TEST_NAME}/
-
-    cd -
-    return 0
-}
-
 
 
 run_all() {
-    run_jacobi2d
-    run_jacobi3d
-    run_jacobi3d_8itr
+    run_test jacobi2d_128x128 b_to_b
+    run_test jacobi3d_32x32x32 b_to_b
+    run_test jacobi3d_32x32x32_8itr b6_to_b7
 }
 
 # Check if aoc is vailable

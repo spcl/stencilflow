@@ -48,7 +48,6 @@ def print_with_rank(rank, message, color = bcolors.HEADER):
     # By default, the message is printed using purple color
     print(color + "[Rank {}] {}".format(rank,message) +bcolors.ENDC)
 
-
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 if __name__ == "__main__":
@@ -154,7 +153,7 @@ if __name__ == "__main__":
         if topology_file:
             print_with_rank(my_rank, "Recompute routes using " + topology_file)
             #copy the topology file in the build folder
-            os.system("cp {} {}/topology.json".format(topology_file, build_folder)
+            os.system("cp {} {}/topology.json".format(topology_file, build_folder))
             sp.run(["make", "intelfpga_smi_recompute_table_" + sdfg_name],
                    cwd=build_folder,
                    check=True)
@@ -243,6 +242,10 @@ if __name__ == "__main__":
         os.makedirs(output_folder, exist_ok=True)
         helper.save_output_arrays(output_arrays, output_folder)
         print_with_rank(my_rank, "Results saved to " + output_folder)
+
+    # Clean up
+    if mode == "emulation" and my_rank == 0:
+        os.system("rm emulated_channel*")
 
     MPI.COMM_WORLD.Barrier()
     # ----------------------------------------------
