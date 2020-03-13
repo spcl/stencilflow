@@ -58,6 +58,7 @@ def run_program(stencil_file,
                 run_simulation=False,
                 compare_to_reference=False,
                 input_directory=None,
+                use_cached_sdfg=None,
                 skip_execution=False,
                 plot=False,
                 log_level=LogLevel.BASIC.value,
@@ -66,7 +67,7 @@ def run_program(stencil_file,
     # Load program file
     program_description = helper.parse_json(stencil_file)
     name = os.path.basename(stencil_file)
-    name = re.match("[^\.]+", name).group(0)
+    name = re.match("([^\.]+)\.[^\.]+", name).group(1)
 
     # Create SDFG
     if log_level >= LogLevel.BASIC.value:
@@ -79,8 +80,7 @@ def run_program(stencil_file,
     if run_simulation:
         if log_level >= LogLevel.BASIC.value:
             print("Running simulation...")
-        sim = Simulator(program_name=re.match(
-            "[^\.]+", os.path.basename(stencil_file)).group(0),
+        sim = Simulator(program_name=name,
                         program_description=program_description,
                         input_nodes=chain.input_nodes,
                         kernel_nodes=chain.kernel_nodes,
@@ -91,14 +91,27 @@ def run_program(stencil_file,
         sim.simulate()
         simulation_result = sim.get_result()
 
-    if log_level >= LogLevel.BASIC.value:
-        print("Generating SDFG...")
-    sdfg = generate_sdfg(name, chain)
+    if use_cached_sdfg:
+        if log_level >= LogLevel.BASIC.value:
+            print("Loading cached SDFG...")
+        sdfg_path = os.path.join(".dacecache", name, "program.sdfg")
+        sdfg = dace.SDFG.from_file(sdfg_path)
+    else:
+        if log_level >= LogLevel.BASIC.value:
+            print("Generating SDFG...")
+        sdfg = generate_sdfg(name, chain)
 
     if compare_to_reference:
-        if log_level >= LogLevel.BASIC.value:
-            print("Generating reference SDFG...")
-        reference_sdfg = generate_reference(name + "_reference", chain)
+        if use_cached_sdfg:
+            if log_level >= LogLevel.BASIC.value:
+                print("Loading cached reference SDFG...")
+            sdfg_path = os.path.join(".dacecache", name + "_reference",
+                                     "program.sdfg")
+            reference_sdfg = dace.SDFG.from_file(sdfg_path)
+        else:
+            if log_level >= LogLevel.BASIC.value:
+                print("Generating reference SDFG...")
+            reference_sdfg = generate_reference(name + "_reference", chain)
 
     # Configure and compile SDFG
     dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
@@ -117,8 +130,10 @@ def run_program(stencil_file,
     else:
         raise ValueError("Unrecognized execution mode: {}".format(mode))
     if log_level >= LogLevel.BASIC.value:
-        print("Compiling SDFG...")
+        print("Expanding library nodes...")
     sdfg.expand_library_nodes()
+    if log_level >= LogLevel.BASIC.value:
+        print("Compiling SDFG...")
     program = sdfg.compile()
     if compare_to_reference:
         if log_level >= LogLevel.BASIC.value:

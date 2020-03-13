@@ -14,6 +14,9 @@ if __name__ == "__main__":
     parser.add_argument("-run-simulation", action="store_true")
     parser.add_argument("-compare-to-reference", action="store_true")
     parser.add_argument("-input-directory")
+    parser.add_argument("-use-cached-sdfg",
+                        dest="use_cached_sdfg",
+                        action="store_true")
     parser.add_argument("-skip-execution",
                         dest="skip_execution",
                         action="store_true")
