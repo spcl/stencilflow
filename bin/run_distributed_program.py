@@ -58,6 +58,8 @@ if __name__ == "__main__":
     parser.add_argument("mode", choices=["emulation", "hardware"], help = "Execution mode")
     parser.add_argument("-compare-to-reference", action="store_true", help = "Flag for comparing the result with reference")
     parser.add_argument("-recompute-routes", action="store", help = "Recompute routes by using a topology file (meaningful for hardware execution mode)")
+    parser.add_argument("-sequential-compile", action="store_true", help = "If specified compile everything sequential. Useful for CI to not overload Pauli")
+
 
 
     args = parser.parse_args()
@@ -66,6 +68,7 @@ if __name__ == "__main__":
     mode = args.mode
     compare_to_reference = args.compare_to_reference
     topology_file = args.recompute_routes
+    sequential_compile=args.sequential_compile
 
 
     # MPI: get current size, rank and name
@@ -86,21 +89,25 @@ if __name__ == "__main__":
         exit(-1)
     sdfg = dace.SDFG.from_file(sdfg_file[0])
 
-#    print("[Rank {}] executing SDFG {} on {}".format(my_rank,sdfg_file,name))
     print_with_rank(my_rank, "executing SDFG {} on {}".format(sdfg_file,name))
 
     # ----------------------------------------------
     # Configure
     # ----------------------------------------------
+
     dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
     dace.config.Config.set("optimizer", "interface", value="")
-
+    dace.config.Config.set("compiler",
+                          "intel_fpga",
+                          "smi_ranks",
+                          value=num_ranks)
     use_cache = dace.config.Config.get_bool("compiler", "use_cache")
     if mode == "emulation":
         dace.config.Config.set("compiler",
                                "intel_fpga",
                                "mode",
                                value="emulator")
+
     elif mode == "hardware":
         dace.config.Config.set("compiler",
                                "intel_fpga",
@@ -133,7 +140,13 @@ if __name__ == "__main__":
         build_folder = os.path.join(".dacecache", sdfg_name, "build")
 
         # codegen host
-        sp.run(["make", "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j4"],
+        if sequential_compile:
+            # Otherwise Pauli explodes
+            sp.run(["make", "intelfpga_smi_" + sdfg_name + "_codegen_host"],
+                   cwd=build_folder,
+                   check=True)
+        else:
+            sp.run(["make", "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j4"],
                cwd=build_folder,
                check=True)
         # make host program

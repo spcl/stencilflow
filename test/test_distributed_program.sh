@@ -58,7 +58,7 @@ run_test() {
     cd -
 
     #2: Execute
-    mpirun -n 2 ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}/ ${STENCILS_DIR}/${TEST_NAME}.json emulation -compare-to-reference
+    mpirun -n 2 ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}/ ${STENCILS_DIR}/${TEST_NAME}.json emulation -compare-to-reference -sequential-compile
 
     #check the result
     if [ $? -ne 0 ]; then
