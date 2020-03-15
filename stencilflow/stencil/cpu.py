@@ -34,7 +34,8 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
             field = e.src_connector
             if field in node.output_fields:
                 field_dtype[field] = parent_sdfg.data(
-                    dace.sdfg.find_output_arraynode(parent_state, e).data).dtype
+                    dace.sdfg.find_output_arraynode(parent_state,
+                                                    e).data).dtype
 
         #######################################################################
         # Tasklet code generation
@@ -75,14 +76,23 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
                     boundary_code += "{} = {}_in\n".format(
                         memlet_name, memlet_name)
                 else:
-                    if node.boundary_conditions[field_name]["btype"] == "copy":
+                    bc = node.boundary_conditions[field_name]
+                    btype = bc["btype"]
+                    if btype == "copy":
                         center_memlet = code_memlet_names[field_name][center]
-                        boundary_val = "{}_in".format(center_memlet)
-                    elif node.boundary_conditions[field_name][
-                            "btype"] == "constant":
-                        boundary_val = node.boundary_conditions[field_name][
-                            "value"]
-                    boundary_code += ("{} = {} if {} else {}_in\n".format(
+                        boundary_val = "_{}".format(center_memlet)
+                    elif btype == "constant":
+                        boundary_val = bc["value"]
+                    elif btype == "shrink":
+                        # We don't need to do anything here, it's up to the
+                        # user to not use the junk output
+                        boundary_val = JUNK_VAL
+                        pass
+                    else:
+                        raise ValueError(
+                            "Unsupported boundary condition type: {}".format(
+                                node.boundary_conditions[field_name]["btype"]))
+                    boundary_code += ("{} = {} if {} else _{}\n".format(
                         memlet_name, boundary_val, " or ".join(cond),
                         memlet_name))
 
@@ -99,23 +109,23 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
 
         code = boundary_code + "\n" + code + "\n" + write_code
 
-        input_memlets = sum([["{}_in".format(c) for c in v.values()]
-                             for k, v in code_memlet_names.items()
-                             if k in node.accesses], [])
-        output_memlets = sum([["{}_out".format(c) for c in v.values()]
-                              for k, v in code_memlet_names.items()
-                              if k in node.output_fields], [])
+        input_memlets = sum(
+            [["{}_in".format(c) for c in v.values()]
+             for k, v in code_memlet_names.items() if k in node.accesses], [])
+        output_memlets = sum(
+            [["{}_out".format(c) for c in v.values()]
+             for k, v in code_memlet_names.items() if k in node.output_fields],
+            [])
 
         #######################################################################
         # Create tasklet
         #######################################################################
 
-        tasklet = state.add_tasklet(
-            node.label + "_compute",
-            input_memlets,
-            output_memlets,
-            code,
-            language=dace.dtypes.Language.Python)
+        tasklet = state.add_tasklet(node.label + "_compute",
+                                    input_memlets,
+                                    output_memlets,
+                                    code,
+                                    language=dace.dtypes.Language.Python)
 
         #######################################################################
         # Build dataflow state
@@ -138,25 +148,24 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
                     access_str = ", ".join(
                         "{} + ({})".format(p, i)
                         for p, i in zip(field_parameters, indices))
-                    memlet = dace.Memlet.simple(
-                        field, access_str, num_accesses=-1)
+                    memlet = dace.Memlet.simple(field,
+                                                access_str,
+                                                num_accesses=-1)
                     memlet.allow_oob = True
-                    state.add_memlet_path(
-                        read_node,
-                        entry,
-                        tasklet,
-                        dst_conn=connector + "_in",
-                        memlet=memlet)
+                    state.add_memlet_path(read_node,
+                                          entry,
+                                          tasklet,
+                                          dst_conn=connector + "_in",
+                                          memlet=memlet)
             else:
                 write_node = state.add_write(field)
                 for indices, connector in code_memlet_names[field].items():
-                    state.add_memlet_path(
-                        tasklet,
-                        exit,
-                        write_node,
-                        src_conn=connector + "_out",
-                        memlet=dace.Memlet.simple(field,
-                                                  ", ".join(parameters)))
+                    state.add_memlet_path(tasklet,
+                                          exit,
+                                          write_node,
+                                          src_conn=connector + "_out",
+                                          memlet=dace.Memlet.simple(
+                                              field, ", ".join(parameters)))
 
         #######################################################################
 

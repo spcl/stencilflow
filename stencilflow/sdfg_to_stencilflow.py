@@ -95,7 +95,9 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
     versions = {}  # {field: count}
 
-    def _visit(sdfg, reads, writes, result, versions):
+    shape = []
+
+    def _visit(sdfg, reads, writes, result, versions, shape):
 
         for state in dace.graph.nxutil.dfs_topological_sort(
                 sdfg, sdfg.source_nodes()):
@@ -128,6 +130,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
                             name = field
                         else:
                             name = "{}_{}".format(field, versions[field])
+                            print("Versioned {} to {}.".format(field, name))
                         rename_map[connector] = name
                         if name in reads:
                             if reads[name] != dtype:
@@ -155,6 +158,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
                         else:
                             versions[field] = versions[field] + 1
                             rename = "{}_{}".format(field, versions[field])
+                            print("Versioned {} to {}.".format(field, rename))
                         stencil_json["data_type"] = current_sdfg.data(
                             write_node.data).dtype.type.__name__
                         rename_map[connector] = rename
@@ -184,17 +188,14 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
                     result["program"][stencil_name] = stencil_json
 
                     # Extract stencil shape from stencil
-                    shape = " ".join(map(str, node.shape))
-                    for k, v in symbols.items():
-                        shape = re.sub(r"\b{}\b".format(k), str(v), shape)
-                    shape = tuple(int(v) for v in shape.split(" "))
-                    if result["dimensions"] is None:
-                        result["dimensions"] = shape
+                    s = list(node.shape)
+                    if len(shape) == 0:
+                        shape += s
                     else:
-                        if shape != result["dimensions"]:
+                        if s != shape:
                             raise ValueError(
-                                "Conflicting shapes found: {} vs. {}".format(
-                                    shape, result["dimensions"]))
+                                "Stencil shape mismatch: {} vs. {}".format(
+                                    shape, s))
 
                 elif isinstance(node, dace.graph.nodes.Tasklet):
                     warnings.warn("Ignored tasklet {}".format(node.label))
@@ -203,7 +204,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
                     pass
 
                 elif isinstance(node, dace.graph.nodes.NestedSDFG):
-                    _visit(node.sdfg, reads, writes, result, versions)
+                    _visit(node.sdfg, reads, writes, result, versions, shape)
 
                 elif isinstance(node, dace.sdfg.SDFGState):
                     pass
@@ -215,7 +216,18 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
                 # End node loop
 
-    _visit(sdfg, reads, writes, result, versions)
+    _visit(sdfg, reads, writes, result, versions, shape)
+
+    for k, v in symbols.items():
+        shape = re.sub(r"\b{}\b".format(k), str(v), shape)
+    shape = tuple(int(v) for v in shape.split(" "))
+    if result["dimensions"] is None:
+        result["dimensions"] = shape
+    else:
+        if shape != result["dimensions"]:
+            raise ValueError(
+                "Conflicting shapes found: {} vs. {}".format(
+                    shape, result["dimensions"]))
 
     inputs = reads.keys() - writes
     outputs = writes - reads.keys()

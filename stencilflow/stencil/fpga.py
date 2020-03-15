@@ -36,6 +36,9 @@ def make_iterators(dimensions, halo_sizes=None, parameters=None):
                                          "0:" + str(d) + add_halo(i))
                                         for i, d in enumerate(dimensions)])
 
+# Value inserted when the output is junk and should not be used
+JUNK_VAL = -1000
+
 
 @dace.library.expansion
 class ExpandStencilFPGA(dace.library.ExpandTransformation):
@@ -156,7 +159,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
         # Add copy boundary conditions
         for field in node.boundary_conditions:
-            if node.boundary_conditions[field]["btype"] == "copy":
+            btype = node.boundary_conditions[field]["btype"]
+            if btype == "copy":
                 center_index = tuple(0 for _ in range(sum(accesses[field][0], 0)))
                 # This will register the renaming
                 converter.convert(field, center_index)
@@ -193,13 +197,18 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     boundary_code += "{} = _{}\n".format(
                         memlet_name, memlet_name)
                 else:
-                    if node.boundary_conditions[field_name]["btype"] == "copy":
+                    bc = node.boundary_conditions[field_name]
+                    btype = bc["btype"]
+                    if btype == "copy":
                         center_memlet = code_memlet_names[field_name][center]
                         boundary_val = "_{}".format(center_memlet)
-                    elif node.boundary_conditions[field_name][
-                            "btype"] == "constant":
-                        boundary_val = node.boundary_conditions[field_name][
-                            "value"]
+                    elif btype == "constant":
+                        boundary_val = bc["value"]
+                    elif btype == "shrink":
+                        # We don't need to do anything here, it's up to the
+                        # user to not use the junk output
+                        boundary_val = JUNK_VAL
+                        pass
                     else:
                         raise ValueError(
                             "Unsupported boundary condition type: {}".format(
@@ -369,10 +378,11 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 "if {it} >= {begin} and {it} < {end}:\n"
                 "\tbuffer_out = wavefront_in\n"
                 "else:\n"
-                "\tbuffer_out = -1000\n".format(
+                "\tbuffer_out = {junk}\n".format(
                     it=pipeline.iterator_str(),
                     begin=begin_reading,
-                    end=end_reading),
+                    end=end_reading,
+                    junk=JUNK_VAL),
                 language=dace.dtypes.Language.Python)
             update_state.add_memlet_path(
                 update_read,
