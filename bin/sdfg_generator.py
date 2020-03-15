@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import dace
 
 from stencilflow import KernelChainGraph
-from stencilflow.sdfg_generator import generate_sdfg, generate_sdfg_cpu
+from stencilflow.sdfg_generator import generate_sdfg, generate_reference
 
 if __name__ == "__main__":
 

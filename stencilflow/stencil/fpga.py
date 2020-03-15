@@ -200,6 +200,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                             "btype"] == "constant":
                         boundary_val = node.boundary_conditions[field_name][
                             "value"]
+                    else:
+                        raise ValueError(
+                            "Unsupported boundary condition type: {}".format(
+                                node.boundary_conditions[field_name]["btype"]))
                     boundary_code += ("{} = {} if {} else _{}\n".format(
                         memlet_name, boundary_val, " or ".join(cond),
                         memlet_name))
