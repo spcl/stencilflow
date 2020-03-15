@@ -428,7 +428,11 @@ def generate_reference(name, chain):
     return sdfg
 
 
-def _nodes_reachable_from(graph, node, ancestors=True, descendants=True):
+def _nodes_reachable_from(graph,
+                          node,
+                          split_data,
+                          ancestors=True,
+                          descendants=True):
     q = [node]
     seen = set()
     while len(q) > 0:
@@ -436,11 +440,13 @@ def _nodes_reachable_from(graph, node, ancestors=True, descendants=True):
         if n in seen:
             continue
         seen.add(n)
-        if ancestors:
+        # Don't cross splitting point
+        is_split = hasattr(n, "data") and n.data == split_data
+        if not is_split or ancestors:
             for reachable in graph.predecessors(n):
                 if reachable not in seen:
                     q.append(reachable)
-        if descendants:
+        if not is_split or descendants:
             for reachable in graph.successors(n):
                 if reachable not in seen:
                     q.append(reachable)
@@ -452,34 +458,32 @@ def _nodes_before_or_after(sdfg, split_state, split_data, after):
     states = set()
     nodes = set()
     states_to_search = collections.deque([split_state])
-    seen = {}
+    seen = set()
     data_names = {split_data}
     while len(states_to_search) > 0:
         state = states_to_search.popleft()
         if state in seen:
             continue
+        seen.add(state)
         fixed_point = False
         while not fixed_point:
             num_names = len(data_names)
             for n in state.data_nodes():
                 if n.data in data_names:
                     states.add(state)
-                    # TODO: Should be all reachable components, but need to
-                    # filter out the split node after the first cluster.
-                    # local_nodes = _nodes_reachable_from(state, n, True, True)
                     if after:
                         local_nodes = _nodes_reachable_from(
-                            state, n, False, True)
+                            state, n, split_data, False, True)
                     else:
                         local_nodes = _nodes_reachable_from(
-                            state, n, True, False)
+                            state, n, split_data, True, False)
                     for la in local_nodes:
                         if isinstance(la, dace.graph.nodes.AccessNode):
                             data_names.add(la.data)
                     nodes |= set((state, ln) for ln in local_nodes)
             fixed_point = num_names == len(data_names)
-        next_states = (sdfg.successors(state)
-                       if after else sdfg.predecessors(state))
+        next_states = itertools.chain(sdfg.successors(state),
+                                      sdfg.predecessors(state))
         for state in next_states:
             if state not in seen:
                 states_to_search.append(state)

@@ -201,7 +201,7 @@ program["outputs"].append(name)
 vals = []
 for arg in vars(args):
     vals.append(getattr(args, arg))
-output_path = "_".join(map(str, vals)) + ".json"
+output_path = "_".join(map(str, vals)).replace(".", "p") + ".json"
 
 with open(output_path, "w") as out_file:
     out_file.write(json.dumps(program, indent=True))

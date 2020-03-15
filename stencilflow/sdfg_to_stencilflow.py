@@ -10,8 +10,17 @@ from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
 from dace.transformation.pattern_matching import Transformation
 from dace.transformation.dataflow import MapFission
+from dace.transformation.interstate import LoopUnroll
+
+PARAMETERS = ["i", "j", "k"]
+
 
 def _canonicalize_sdfg(sdfg):
+
+    # Unroll sequential K-loops
+    sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
+
+    # Fuse and nest parallel K-loops
     strict = [
         k for k, v in Transformation.extensions().items()
         if v.get('strict', False)
@@ -19,15 +28,49 @@ def _canonicalize_sdfg(sdfg):
     extra = [NestK, MapFission]
     return sdfg.apply_transformations_repeated(strict + extra, validate=False)
 
-class _RemoveOutputSubscript(ast.NodeTransformer):
+
+class _CodeVisitor(ast.NodeTransformer):
+    def __init__(self, rename_map):
+        self._rename_map = rename_map
+        self._stencil_name = None
+
+    @property
+    def stencil_name(self):
+        return self._stencil_name
 
     def visit_Assign(self, node: ast.Assign):
+        if len(node.targets) != 1:
+            raise ValueError  # Sanity check
         for i, subscript_node in enumerate(node.targets):
-            indices = ast.literal_eval(subscript_node.slice.value)
+            try:
+                indices = ast.literal_eval(subscript_node.slice.value)
+                self._stencil_name = subscript_node.value.id
+            except AttributeError:
+                # This is an unsubscripted Name node, just grab the name
+                self._stencil_name = subscript_node.id
+                break
             if any(indices):
-                raise ValueError("Output offset not yet supported.")
+                warnings.warn(
+                    'raise ValueError("Output offset not yet supported.")')
             # Remove subscript
             node.targets[i] = subscript_node.value
+        self.generic_visit(node)
+        return node
+
+    def visit_Index(self, node: ast.Subscript):
+        # Convert [0, 1, -1] to [i, j + 1, k - 1]
+        t = "(" + ", ".join(PARAMETERS[i] +
+                            (" + " + str(x.n) if x.n > 0 else
+                             (" - " + str(n) if x.n < 0 else ""))
+                            for i, x in enumerate(node.value.elts)) + ")"
+        node.value = ast.parse(t).body[0].value
+        self.generic_visit(node)
+        return node
+
+    def visit_Name(self, node: ast.Name):
+        if node.id in self._rename_map:
+            node.id = self._rename_map[node.id]
+        self.generic_visit(node)
         return node
 
 
@@ -36,9 +79,9 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
     if not isinstance(sdfg, dace.SDFG):
         sdfg = dace.SDFG.from_file(sdfg)
 
-    _canonicalize_sdfg(sdfg)
-
     sdfg.specialize(symbols)
+
+    _canonicalize_sdfg(sdfg)
 
     undefined_symbols = sdfg.undefined_symbols(False)
     if len(undefined_symbols) != 0:
@@ -50,86 +93,141 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
     result = {"inputs": {}, "outputs": [], "dimensions": None, "program": {}}
 
-    for node, parent in sdfg.all_nodes_recursive():
+    versions = {}  # {field: count}
 
-        if isinstance(node, stencil.Stencil):
+    shape = []
 
-            if node.label in result["program"]:
-                raise KeyError("Duplicate stencil: " + node.label)
+    def _visit(sdfg, reads, writes, result, versions, shape):
 
-            remover = _RemoveOutputSubscript()
-            old_ast = ast.parse(node.code)
-            new_ast = remover.visit(old_ast)
-            code = astunparse.unparse(new_ast)
+        for state in dace.graph.nxutil.dfs_topological_sort(
+                sdfg, sdfg.source_nodes()):
 
-            stencil_json = {}
-            stencil_json["computation_string"] = code
-            stencil_json["boundary_conditions"] = node.boundary_conditions
+            for node in dace.graph.nxutil.dfs_topological_sort(
+                    state, state.source_nodes()):
 
-            in_edges = {e.dst_conn: e for e in parent.in_edges(node)}
-            out_edges = {e.src_conn: e for e in parent.out_edges(node)}
+                if isinstance(node, stencil.Stencil):
 
-            current_sdfg = parent.parent
+                    stencil_json = {}
 
-            for field, accesses in node.accesses.items():
-                dtype = current_sdfg.data(
-                    dace.sdfg.find_input_arraynode(
-                        parent, in_edges[field]).data).dtype.type.__name__
-                if field in reads:
-                    if reads[field] != dtype:
-                        raise ValueError("Type mismatch: {} vs. {}".format(
-                            reads[field], dtype))
+                    in_edges = {e.dst_conn: e for e in state.in_edges(node)}
+                    out_edges = {e.src_conn: e for e in state.out_edges(node)}
+
+                    current_sdfg = sdfg
+
+                    rename_map = {}
+
+                    for connector, accesses in node.accesses.items():
+                        read_node = dace.sdfg.find_input_arraynode(
+                            state, in_edges[connector])
+                        # Use array node instead of connector name
+                        field = read_node.data
+                        dtype = current_sdfg.data(
+                            read_node.data).dtype.type.__name__
+                        # Do versioning
+                        if field not in versions:
+                            versions[field] = 0
+                        if versions[field] == 0:
+                            name = field
+                        else:
+                            name = "{}_{}".format(field, versions[field])
+                            print("Versioned {} to {}.".format(field, name))
+                        rename_map[connector] = name
+                        if name in reads:
+                            if reads[name] != dtype:
+                                raise ValueError(
+                                    "Type mismatch: {} vs. {}".format(
+                                        reads[name], dtype))
+                        else:
+                            reads[name] = dtype
+
+                    if len(node.output_fields) != 1:
+                        raise ValueError(
+                            "Only 1 output per stencil is supported, "
+                            "but {} has {} outputs.".format(
+                                node.label, len(node.output_fields)))
+
+                    for connector in node.output_fields:
+                        write_node = dace.sdfg.find_output_arraynode(
+                            state, out_edges[connector])
+                        # Rename to array node
+                        field = write_node.data
+                        # Add new version
+                        if field not in versions:
+                            versions[field] = 0
+                            rename = field
+                        else:
+                            versions[field] = versions[field] + 1
+                            rename = "{}_{}".format(field, versions[field])
+                            print("Versioned {} to {}.".format(field, rename))
+                        stencil_json["data_type"] = current_sdfg.data(
+                            write_node.data).dtype.type.__name__
+                        rename_map[connector] = rename
+                        output = rename
+                        break  # Grab first and only element
+
+                    if output in writes:
+                        raise KeyError(
+                            "Multiple writes to field: {}".format(field))
+                    writes.add(output)
+
+                    # Now we need to go rename versioned variables in the
+                    # stencil code
+                    visitor = _CodeVisitor(rename_map)
+                    old_ast = ast.parse(node.code)
+                    new_ast = visitor.visit(old_ast)
+                    code = astunparse.unparse(new_ast)
+                    stencil_name = output
+                    stencil_json["computation_string"] = code
+
+                    # Also rename boundary conditions
+                    stencil_json["boundary_conditions"] = {
+                        rename_map[k]: v
+                        for k, v in node.boundary_conditions.items()
+                    }
+
+                    result["program"][stencil_name] = stencil_json
+
+                    # Extract stencil shape from stencil
+                    s = list(node.shape)
+                    if len(shape) == 0:
+                        shape += s
+                    else:
+                        if s != shape:
+                            raise ValueError(
+                                "Stencil shape mismatch: {} vs. {}".format(
+                                    shape, s))
+
+                elif isinstance(node, dace.graph.nodes.Tasklet):
+                    warnings.warn("Ignored tasklet {}".format(node.label))
+
+                elif isinstance(node, dace.graph.nodes.AccessNode):
+                    pass
+
+                elif isinstance(node, dace.graph.nodes.NestedSDFG):
+                    _visit(node.sdfg, reads, writes, result, versions, shape)
+
+                elif isinstance(node, dace.sdfg.SDFGState):
+                    pass
+
                 else:
-                    reads[field] = dtype
+                    raise TypeError("Unsupported node type in {}: {}".format(
+                        state.label,
+                        type(node).__name__))
 
-            if len(node.output_fields) != 1:
-                raise ValueError("Only 1 output per stencil is supported, "
-                                 "but {} has {} outputs.".format(
-                                     node.label, len(node.output_fields)))
+                # End node loop
 
-            for output in node.output_fields:
-                break  # Grab first and only element
-            if output in writes:
-                raise KeyError("Multiple writes to field: {}".format(field))
-            writes.add(output)
+    _visit(sdfg, reads, writes, result, versions, shape)
 
-            stencil_json["data_type"] = current_sdfg.data(
-                dace.sdfg.find_output_arraynode(
-                    parent, out_edges[output]).data).dtype.type.__name__
-
-            result["program"][node.label] = stencil_json
-
-            # Extract stencil shape from stencil
-            shape = " ".join(map(str, node.shape))
-            for k, v in symbols.items():
-                shape = re.sub(r"\b{}\b".format(k), str(v), shape)
-            shape = tuple(int(v) for v in shape.split(" "))
-            if result["dimensions"] is None:
-                result["dimensions"] = shape
-            else:
-                if shape != result["dimensions"]:
-                    raise ValueError(
-                        "Conflicting shapes found: {} vs. {}".format(
-                            shape, result["dimensions"]))
-
-        elif isinstance(node, dace.graph.nodes.Tasklet):
-            warnings.warn("Ignored tasklet {}".format(node.label))
-
-        elif isinstance(node, dace.graph.nodes.AccessNode):
-            pass
-
-        elif isinstance(node, dace.graph.nodes.NestedSDFG):
-            pass
-
-        elif isinstance(node, dace.sdfg.SDFGState):
-            pass
-
-        else:
-            raise TypeError("Unsupported node type in {}: {}".format(
-                parent.label,
-                type(node).__name__))
-
-        # End node loop
+    for k, v in symbols.items():
+        shape = re.sub(r"\b{}\b".format(k), str(v), shape)
+    shape = tuple(int(v) for v in shape.split(" "))
+    if result["dimensions"] is None:
+        result["dimensions"] = shape
+    else:
+        if shape != result["dimensions"]:
+            raise ValueError(
+                "Conflicting shapes found: {} vs. {}".format(
+                    shape, result["dimensions"]))
 
     inputs = reads.keys() - writes
     outputs = writes - reads.keys()
@@ -137,8 +235,9 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
     result["outputs"] = list(sorted(outputs))
     for field in inputs:
         dtype = reads[field]
-        path = "{}_{}_{}.dat".format(field, "x".join(
-            map(str, result["dimensions"])), dtype)
+        path = "{}_{}_{}.dat".format(field,
+                                     "x".join(map(str, result["dimensions"])),
+                                     dtype)
         if data_directory is not None:
             path = os.path.join(data_directory, path)
         result["inputs"][field] = {"data": path, "data_type": dtype}

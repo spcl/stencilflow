@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import dace
 
 from stencilflow import KernelChainGraph
-from stencilflow.sdfg_generator import generate_sdfg
+from stencilflow.sdfg_generator import generate_sdfg, generate_reference
 
 if __name__ == "__main__":
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     name = os.path.basename(args.stencil_input)
-    name = re.match("[^\.]+", name).group(0)
+    name = re.match("(.+)\.[^\.]+", name).group(1)
 
     chain = KernelChainGraph(args.stencil_input)
 
