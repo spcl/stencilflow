@@ -92,7 +92,7 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
                         raise ValueError(
                             "Unsupported boundary condition type: {}".format(
                                 node.boundary_conditions[field_name]["btype"]))
-                    boundary_code += ("{} = {} if {} else _{}\n".format(
+                    boundary_code += ("{} = {} if {} else {}_in\n".format(
                         memlet_name, boundary_val, " or ".join(cond),
                         memlet_name))
 
