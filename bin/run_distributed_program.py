@@ -188,8 +188,9 @@ if __name__ == "__main__":
     input_data = sdfg.source_nodes()[0].source_nodes()
     sdfg_input_data = {}
     for n in input_data:
-        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[
-                n.data].storage == dace.dtypes.StorageType.Default:
+        if isinstance(n, dace.graph.nodes.AccessNode) and (sdfg.arrays[
+                n.data].storage == dace.dtypes.StorageType.Default or sdfg.arrays[
+                n.data].storage == dace.dtypes.StorageType.CPU_Heap):
             # remove trailing "_host" and get the input parameters from program description
             if n.data.endswith("_host"):
                 data_name = n.data[:-5]
@@ -200,23 +201,29 @@ if __name__ == "__main__":
                 raise ValueError("Uhm...strange, what kind of data is " +
                                  n.data + "?")
 
+    print("===========================")
+    print(input_data)
+    print("===========================")
+
+
     # Load data from disk (if any)
     if sdfg_input_data:
         print_with_rank(my_rank, "Loading input arrays...")
         input_directory = os.path.dirname(stencil_file)
         input_arrays = helper.load_input_arrays(sdfg_input_data,
-                                                prefix=input_directory)
+                                                prefix=input_directory,
+                                                shape = program_description["dimensions"])
         for key, val in input_arrays.items():
             dace_args[key + "_host"] = val
-
     # Create outputs
 
     save_outputs = False
     output_data = sdfg.sink_nodes()[0].sink_nodes()
     sdfg_output_data = []
     for n in output_data:
-        if isinstance(n, dace.graph.nodes.AccessNode) and sdfg.arrays[
-                n.data].storage == dace.dtypes.StorageType.Default:
+        if isinstance(n, dace.graph.nodes.AccessNode) and (sdfg.arrays[
+                n.data].storage == dace.dtypes.StorageType.Default or sdfg.arrays[
+                n.data].storage == dace.dtypes.StorageType.CPU_Heap):
             #remove trailing "_host" and check if this is an output parameter
             if n.data.endswith("_host"):
                 data_name = n.data[:-5]
@@ -274,7 +281,7 @@ if __name__ == "__main__":
         # Load input data
         input_directory = os.path.dirname(stencil_file)
         reference_input_arrays = helper.load_input_arrays(
-            program_description["inputs"], prefix=input_directory)
+            program_description["inputs"], prefix=input_directory, shape=program_description["dimensions"])
         reference_output_arrays = copy.deepcopy(output_arrays)
 
         dace_args = {
