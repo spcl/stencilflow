@@ -29,14 +29,18 @@ def _canonicalize_sdfg(sdfg):
     return sdfg.apply_transformations_repeated(strict + extra, validate=False)
 
 
-class _CodeVisitor(ast.NodeTransformer):
-    def __init__(self, rename_map):
-        self._rename_map = rename_map
+class _OutputTransformer(ast.NodeTransformer):
+    def __init__(self):
+        self._offset = (0, 0, 0)
         self._stencil_name = None
 
     @property
     def stencil_name(self):
         return self._stencil_name
+
+    @property
+    def offset(self):
+        return self._offset
 
     def visit_Assign(self, node: ast.Assign):
         if len(node.targets) != 1:
@@ -50,19 +54,26 @@ class _CodeVisitor(ast.NodeTransformer):
                 self._stencil_name = subscript_node.id
                 break
             if any(indices):
-                warnings.warn(
-                    'raise ValueError("Output offset not yet supported.")')
+                self._offset = indices
             # Remove subscript
             node.targets[i] = subscript_node.value
         self.generic_visit(node)
         return node
 
+
+class _RenameTransformer(ast.NodeTransformer):
+    def __init__(self, rename_map, offset):
+        self._rename_map = rename_map
+        self._offset = offset
+
     def visit_Index(self, node: ast.Subscript):
         # Convert [0, 1, -1] to [i, j + 1, k - 1]
+        offsets = tuple(x.n - self._offset[i]
+                        for i, x in enumerate(node.value.elts))
         t = "(" + ", ".join(PARAMETERS[i] +
-                            (" + " + str(x.n) if x.n > 0 else
-                             (" - " + str(n) if x.n < 0 else ""))
-                            for i, x in enumerate(node.value.elts)) + ")"
+                            (" + " + str(o) if o > 0 else
+                             (" - " + str(o) if o < 0 else ""))
+                            for i, o in enumerate(offsets)) + ")"
         node.value = ast.parse(t).body[0].value
         self.generic_visit(node)
         return node
@@ -172,9 +183,13 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
                     # Now we need to go rename versioned variables in the
                     # stencil code
-                    visitor = _CodeVisitor(rename_map)
+                    output_transformer = _OutputTransformer()
                     old_ast = ast.parse(node.code)
-                    new_ast = visitor.visit(old_ast)
+                    new_ast = output_transformer.visit(old_ast)
+                    output_offset = output_transformer.offset
+                    rename_transformer = _RenameTransformer(
+                        rename_map, output_offset)
+                    new_ast = rename_transformer.visit(new_ast)
                     code = astunparse.unparse(new_ast)
                     stencil_name = output
                     stencil_json["computation_string"] = code
@@ -218,9 +233,15 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
     _visit(sdfg, reads, writes, result, versions, shape)
 
+    unroll_factor = 1
+    for count in versions.values():
+        if count > unroll_factor:
+            unroll_factor = count
+
+    shape = ", ".join(map(str, shape))
     for k, v in symbols.items():
         shape = re.sub(r"\b{}\b".format(k), str(v), shape)
-    shape = tuple(int(v) for v in shape.split(" "))
+    shape = tuple(int(v) for v in shape.split(", "))
     if result["dimensions"] is None:
         result["dimensions"] = shape
     else:
