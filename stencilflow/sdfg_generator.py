@@ -545,6 +545,8 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
             else:
                 raise ValueError("Unsupported access type: {}".format(
                     node.access))
+    if read_node is None or write_node is None:
+        raise ValueError("Remote stream {} not found.".format(remote_stream))
 
     # Classify nodes into whether they appear before or after the split
     states_before, nodes_before = (_nodes_before_or_after(
@@ -572,6 +574,8 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
     name = sdfg.name
     sdfg_before = copy.deepcopy(sdfg)
     sdfg_after = copy.deepcopy(sdfg)
+    sdfg_before._name = name + "_before"
+    sdfg_after._name = name + "_after"
     nodes_before = set(
         (sdfg.node_id(s), s.node_id(n)) for s, n in nodes_before)
     nodes_after = set((sdfg.node_id(s), s.node_id(n)) for s, n in nodes_after)
