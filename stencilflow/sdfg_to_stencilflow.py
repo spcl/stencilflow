@@ -15,7 +15,14 @@ from dace.transformation.interstate import LoopUnroll
 PARAMETERS = ["i", "j", "k"]
 
 
-def _canonicalize_sdfg(sdfg):
+def canonicalize_sdfg(sdfg, symbols={}):
+
+    # Specialize symbols
+    sdfg.specialize(symbols)
+    undefined_symbols = sdfg.undefined_symbols(False)
+    if len(undefined_symbols) != 0:
+        raise ValueError("Missing symbols: {}".format(
+            ", ".join(undefined_symbols)))
 
     # Unroll sequential K-loops
     sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
@@ -26,6 +33,7 @@ def _canonicalize_sdfg(sdfg):
         if v.get('strict', False)
     ]
     extra = [NestK, MapFission]
+
     return sdfg.apply_transformations_repeated(strict + extra, validate=False)
 
 
@@ -65,6 +73,7 @@ class _RenameTransformer(ast.NodeTransformer):
     def __init__(self, rename_map, offset):
         self._rename_map = rename_map
         self._offset = offset
+        self._output_count = 0
 
     def visit_Index(self, node: ast.Subscript):
         # Convert [0, 1, -1] to [i, j + 1, k - 1]
@@ -85,14 +94,10 @@ class _RenameTransformer(ast.NodeTransformer):
         return node
 
 
-def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
+def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
     if not isinstance(sdfg, dace.SDFG):
         sdfg = dace.SDFG.from_file(sdfg)
-
-    sdfg.specialize(symbols)
-
-    _canonicalize_sdfg(sdfg)
 
     undefined_symbols = sdfg.undefined_symbols(False)
     if len(undefined_symbols) != 0:
