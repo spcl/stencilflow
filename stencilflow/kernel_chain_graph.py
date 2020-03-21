@@ -52,6 +52,7 @@ class KernelChainGraph:
     The KernelChainGraph class represents the whole pipelined data flow graph consisting of input nodes (real data input
     arrays, kernel nodes and output nodes (storing the result of the computation).
     """
+
     def __init__(self,
                  path: str,
                  plot_graph: bool = False,
@@ -123,9 +124,9 @@ class KernelChainGraph:
         # print sin/cos/tan latency warning
         for kernel in self.program:
             if "sin" in self.program[kernel][
-                    'computation_string'] or "cos" in self.program[kernel][
-                        'computation_string'] or "tan" in self.program[kernel][
-                            'computation_string']:
+                'computation_string'] or "cos" in self.program[kernel][
+                'computation_string'] or "tan" in self.program[kernel][
+                'computation_string']:
                 print(
                     "Warning: Computation contains sinusoidal functions with experimental latency values."
                 )
@@ -261,14 +262,14 @@ class KernelChainGraph:
                                 name = src.name + "_" + dest.name
                                 channel = {
                                     "name":
-                                    name,
+                                        name,
                                     "delay_buffer":
-                                    self.kernel_nodes[dest.name].delay_buffer[
-                                        src.name],
+                                        self.kernel_nodes[dest.name].delay_buffer[
+                                            src.name],
                                     "internal_buffer":
-                                    dest.internal_buffer[src.name],
+                                        dest.internal_buffer[src.name],
                                     "data_type":
-                                    src.data_type
+                                        src.data_type
                                 }
                                 # add channel reference to global channel dictionary
                                 self.channels[name] = channel
@@ -286,14 +287,14 @@ class KernelChainGraph:
                                 name = src.name + "_" + dest.name
                                 channel = {
                                     "name":
-                                    name,
+                                        name,
                                     "delay_buffer":
-                                    self.kernel_nodes[dest.name].delay_buffer[
-                                        src.name],
+                                        self.kernel_nodes[dest.name].delay_buffer[
+                                            src.name],
                                     "internal_buffer":
-                                    dest.internal_buffer[src.name],
+                                        dest.internal_buffer[src.name],
                                     "data_type":
-                                    src.data_type
+                                        src.data_type
                                 }
                                 # add channel reference to global channel dictionary
                                 self.channels[name] = channel
@@ -310,13 +311,13 @@ class KernelChainGraph:
                             name = src.name + "_" + dest.name
                             channel = {
                                 "name":
-                                name,
+                                    name,
                                 "delay_buffer":
-                                self.output_nodes[dest.name].delay_buffer[
-                                    src.name],
+                                    self.output_nodes[dest.name].delay_buffer[
+                                        src.name],
                                 "internal_buffer": {},
                                 "data_type":
-                                src.data_type
+                                    src.data_type
                             }
                             # add channel reference to global channel dictionary
                             self.channels[name] = channel
@@ -340,14 +341,12 @@ class KernelChainGraph:
         self.program = inp["program"]
         self.inputs = inp["inputs"]
         self.outputs = inp["outputs"]
-        
+        # handle stencil program output dimensions
         if self.kernel_dimensions == 1:  # 1D
             for entry in self.program:
                 self.program[entry]["computation_string"] = \
                     self.program[entry]["computation_string"].replace("[", "[i,j,")  # add two extra indices
-            self.dimensions = [
-                1, 1
-            ] + inp["dimensions"]  # add two extra dimensions
+            self.dimensions = [1, 1] + inp["dimensions"]  # add two extra dimensions
         elif self.kernel_dimensions == 2:  # 2D
             for entry in self.program:
                 self.program[entry]["computation_string"] = self.program[entry]["computation_string"] \
@@ -355,14 +354,15 @@ class KernelChainGraph:
             self.dimensions = [1] + inp["dimensions"]  # add extra dimension
         else:  # 3D
             self.dimensions = inp["dimensions"]
+        # handle input array dimension
+        # TODO: implement
 
     def total_elements(self) -> int:
         """
         Reduction of the global problem size to a single scalar.
         :return: the global problem size as a scalar value
         """
-        return functools.reduce(operator.mul, self.dimensions,
-                                1)  # foldl (*) 1 [...]
+        return functools.reduce(operator.mul, self.dimensions, 1)  # foldl (*) 1 [...]
 
     def create_kernels(self) -> None:
         """
@@ -477,8 +477,8 @@ class KernelChainGraph:
                     for item in node.graph.accesses:
                         internal_buffer = max(
                             node.graph.accesses[item]) if max(
-                                node.graph.accesses[item]
-                            ) > internal_buffer else internal_buffer
+                            node.graph.accesses[item]
+                        ) > internal_buffer else internal_buffer
                     # latency
                     latency = self.kernel_nodes[node.name].graph.max_latency
                     # compute delay buffer and create entry
