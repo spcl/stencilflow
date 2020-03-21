@@ -336,28 +336,24 @@ class KernelChainGraph:
         inp = helper.parse_json(self.path)
         # get dimensions
         self.kernel_dimensions = len(inp["dimensions"])
+        # import program, inputs and outputs
+        self.program = inp["program"]
+        self.inputs = inp["inputs"]
+        self.outputs = inp["outputs"]
+        
         if self.kernel_dimensions == 1:  # 1D
-            self.program = inp["program"]
             for entry in self.program:
                 self.program[entry]["computation_string"] = \
                     self.program[entry]["computation_string"].replace("[", "[i,j,")  # add two extra indices
-            self.inputs = inp["inputs"]
-            self.outputs = inp["outputs"]
             self.dimensions = [
                 1, 1
             ] + inp["dimensions"]  # add two extra dimensions
         elif self.kernel_dimensions == 2:  # 2D
-            self.program = inp["program"]
             for entry in self.program:
                 self.program[entry]["computation_string"] = self.program[entry]["computation_string"] \
                     .replace("[", "[i,")  # add extra index
-            self.inputs = inp["inputs"]
-            self.outputs = inp["outputs"]
             self.dimensions = [1] + inp["dimensions"]  # add extra dimension
         else:  # 3D
-            self.program = inp["program"]
-            self.inputs = inp["inputs"]
-            self.outputs = inp["outputs"]
             self.dimensions = inp["dimensions"]
 
     def total_elements(self) -> int:
