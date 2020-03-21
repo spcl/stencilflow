@@ -673,8 +673,6 @@ if __name__ == "__main__":
                              log_level=int(args.log_level))
     # simulate the design if argument -simulate is true
     if args.simulate:
-        from simulator import Simulator
-
         sim = Simulator(program_name=re.match(
             "[^\.]+", os.path.basename(args.stencil_file)).group(0),
                         program_description=program_description,
