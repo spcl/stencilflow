@@ -39,18 +39,12 @@ __license__ = "BSD-3-Clause"
 import argparse
 import functools
 import operator
-import os
 import re
 from typing import List, Dict
 
 import networkx as nx
 
-import stencilflow.helper as helper
-from .log_level import LogLevel
-from .kernel import Kernel
-from .bounded_queue import BoundedQueue
-from .input import Input
-from .output import Output
+from stencilflow import *
 
 
 class KernelChainGraph:
