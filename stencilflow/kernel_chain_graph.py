@@ -450,15 +450,12 @@ class KernelChainGraph:
                     max_size = helper.convert_3d_to_1d(
                         self.dimensions,
                         helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
-                    node.delay_buffer[name] = BoundedQueue(name=name,
-                                                           maxsize=max_size)
+                    node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
                     node.delay_buffer[name].import_data(
                         [None] * node.delay_buffer[name].maxsize)
             # set input node delay buffers to 1
             if isinstance(node, Input):
-                node.delay_buffer = BoundedQueue(name=node.name,
-                                                 maxsize=1,
-                                                 collection=[None])
+                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1, collection=[None])
             # propagate the path lengths (from input arrays over all ways) to the successors
             for succ in self.graph.successors(node):
                 # add input node to all as direct input (=0 delay buffer)
@@ -471,7 +468,6 @@ class KernelChainGraph:
                     succ.input_paths[node.name].append(successor)
                 # add kernel node to all, but calculate the length first (predecessor + delay + internal, ..)
                 elif isinstance(node, Kernel):  # add KERNEL
-
                     # add latency, internal_buffer, delay_buffer
                     internal_buffer = [0] * 3
                     for item in node.graph.accesses:
@@ -498,7 +494,6 @@ class KernelChainGraph:
                         total.append(node.name)
                         # add entry to paths
                         succ.input_paths[entry].append(total)
-
                 else:  # NodeType.OUTPUT: do nothing
                     continue
 
