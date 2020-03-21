@@ -3,12 +3,12 @@
     "in2d": {
       "data": "stencils/data/zeros_16x16_fp64.dat",
       "data_type": "float64",
-      "dimensions": 2
+      "dimensions": "[j, k]"
     },
     "in3d": {
       "data": "stencils/data/zeros_16x16x16_fp64.dat",
       "data_type": "float64",
-      "dimensions": 3
+      "dimensions": "[i, j, k]"
     }
   },
   "outputs": [
