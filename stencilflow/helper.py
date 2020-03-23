@@ -37,6 +37,7 @@ __author__ = "Andreas Kuster"
 __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
+import ast
 import collections
 import functools
 import json
@@ -331,6 +332,49 @@ def aligned(a, alignment=16):
     np.copyto(aa, a)
     assert (aa.ctypes.data % alignment) == 0
     return aa
+
+class _OpCounter(ast.NodeVisitor):
+    def __init__(self):
+        self._operation_count = {}
+
+    @property
+    def operation_count(self):
+        return self._operation_count
+
+    def visit_BinOp(self, node: ast.BinOp):
+        if isinstance(node.left, ast.Subscript) or isinstance(
+                node.left, ast.BinOp) or isinstance(
+                    node.right, ast.Subscript) or isinstance(
+                        node.right, ast.BinOp):
+            op_name = type(node.op).__name__
+            if op_name not in self._operation_count:
+                  self._operation_count[op_name] = 0
+            self._operation_count[op_name] += 1
+        self.generic_visit(node)
+
+def operation_count(program):
+    try:
+        with open(program, "r") as in_file:
+            program = json.loads(in_file.read())
+    except TypeError:
+        pass  # Assume this is already a loaded dictionary
+
+    operations = {}
+
+    for name, stencil in program["program"].items():
+
+        stencil_ast = ast.parse(stencil["computation_string"])
+
+        counter = _OpCounter()
+        counter.visit(stencil_ast)
+        num_ops = counter.operation_count
+        for name, count in num_ops.items():
+            if name not in operations:
+                operations[name] = count
+            else:
+                operations[name] += count
+
+    return operations
 
 
 if __name__ == "__main__":
