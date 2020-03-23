@@ -40,11 +40,18 @@ import argparse
 import functools
 import operator
 import re
+import os
+
 from typing import List, Dict
 
 import networkx as nx
 
-from stencilflow import *
+from .helper import helper
+from .log_level import LogLevel
+from .kernel import Kernel
+from .bounded_queue import BoundedQueue
+from .input import Input
+from .output import Output
 
 
 class KernelChainGraph:

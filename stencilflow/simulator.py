@@ -41,9 +41,8 @@ import operator
 import os
 from typing import List, Dict
 
-import stencilflow.helper as helper
-from stencilflow import *
-
+from .helper import helper
+from .log_level import LogLevel
 
 class Simulator:
     """

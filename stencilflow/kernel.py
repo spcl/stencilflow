@@ -43,7 +43,7 @@ from typing import List, Dict
 
 import dace.dtypes
 
-import stencilflow.helper as helper
+from .helper import helper
 from .base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
 from .bounded_queue import BoundedQueue
 from .calculator import Calculator

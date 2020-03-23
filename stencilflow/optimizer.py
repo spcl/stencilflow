@@ -40,10 +40,9 @@ import operator
 from functools import reduce
 from typing import List, Dict
 
-import stencilflow.helper as helper
-from stencilflow import *
+from .helper import helper
 from .kernel import Kernel
-
+from .log_level import LogLevel
 
 class Optimizer:
     """

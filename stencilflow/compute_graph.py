@@ -41,7 +41,7 @@ from typing import List, Dict, Set
 
 import networkx as nx
 
-import stencilflow.helper as helper
+from .helper import helper
 from .base_node_class import BaseOperationNodeClass
 from .compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 
