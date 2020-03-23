@@ -10,7 +10,7 @@ from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
 from dace.transformation.pattern_matching import Transformation
 from dace.transformation.dataflow import MapFission
-from dace.transformation.interstate import LoopUnroll
+from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
 PARAMETERS = ["i", "j", "k"]
 
@@ -44,13 +44,9 @@ def canonicalize_sdfg(sdfg, symbols={}):
     sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
 
     # Fuse and nest parallel K-loops
-    strict = [
-        k for k, v in Transformation.extensions().items()
-        if v.get('strict', False)
-    ]
-    extra = [NestK, MapFission]
+    transformations = [NestK, MapFission, InlineSDFG]
 
-    return sdfg.apply_transformations_repeated(strict + extra, validate=False)
+    return sdfg.apply_transformations_repeated(transformations, validate=False)
 
 
 class _OutputTransformer(ast.NodeTransformer):
@@ -101,7 +97,7 @@ class _RenameTransformer(ast.NodeTransformer):
                         for i, x in enumerate(node.value.elts))
         t = "(" + ", ".join(
             PARAMETERS[i] +
-            (" + " + str(o) if o > 0 else (" - " + str(o) if o < 0 else ""))
+            (" + " + str(o) if o > 0 else (" - " + str(-o) if o < 0 else ""))
             for i, o in enumerate(offsets)) + ")"
         node.value = ast.parse(t).body[0].value
         self.generic_visit(node)
