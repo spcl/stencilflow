@@ -39,16 +39,16 @@ __license__ = "BSD-3-Clause"
 import multiprocessing as mp
 import os
 import sys
+import json
 import unittest
+
+import dace.dtypes
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from stencilflow import *
-from stencilflow.log_level import LogLevel
-from stencilflow.bounded_queue import BoundedQueue
-from stencilflow.compute_graph import ComputeGraph
-
 TEST_FOLDER = os.path.join(os.path.dirname(__file__), "testing")
+
+from stencilflow import BoundedQueue
 
 
 class BoundedQueueTest(unittest.TestCase):
@@ -122,7 +122,7 @@ class BoundedQueueTest(unittest.TestCase):
         self.assertFalse(queue.try_peek_last())
 
 
-from stencilflow.calculator import Calculator
+from stencilflow import Calculator
 from numpy import cos
 
 
@@ -146,7 +146,7 @@ class RunProgramTest(unittest.TestCase):
         pass  # not a general test case, since dace and intel fgpa opencl sdk has to be installed and configured
 
 
-import stencilflow.helper as helper
+from stencilflow import helper
 import numpy as np
 
 
@@ -204,8 +204,7 @@ class HelperTest(unittest.TestCase):
         not_unique = [1.0, 2.0, 1.0]
         self.assertListEqual(sorted(helper.unique(not_unique)), [1.0, 2.0])
 
-
-import json
+from stencilflow import ComputeGraph
 
 
 class ComputeGraphTest(unittest.TestCase):
@@ -232,8 +231,7 @@ class ComputeGraphTest(unittest.TestCase):
         # delete plot
         os.remove(filename)
 
-
-import dace.dtypes
+from stencilflow import Kernel
 
 
 class KernelTest(unittest.TestCase):
@@ -257,6 +255,8 @@ class KernelTest(unittest.TestCase):
             "SUBST = (((a[0] + a[-1]) + a[-100]) + a[-10000]); dummy = (SUBST + a[0])"
         )
 
+from stencilflow import KernelChainGraph
+
 
 class KernelChainGraphTest(unittest.TestCase):
     def test(self):
@@ -267,7 +267,7 @@ class KernelChainGraphTest(unittest.TestCase):
         # add a basic (no exception) case in here for the moment.
 
 
-from stencilflow.optimizer import Optimizer
+from stencilflow import Optimizer
 
 
 class OptimizerTest(unittest.TestCase):
@@ -290,7 +290,7 @@ class OptimizerTest(unittest.TestCase):
         opt.optimize_to_ratio(ratio=ratio)
 
 
-from stencilflow.simulator import Simulator
+from stencilflow import Simulator
 
 
 class SimulatorTest(unittest.TestCase):
@@ -378,12 +378,13 @@ class SimulatorTest(unittest.TestCase):
                     np.array(sim.get_result()['res']).ravel(), 0.01))
 
 
-from stencilflow.run_program import run_program
+from stencilflow import run_program
 
 
 def _return_result(queue, *args, **kwargs):
     ret = run_program(*args, **kwargs)
     queue.put(ret)
+
 
 def _run_program(*args, **kwargs):
     # We run each kernel with multiprocessing, because the Altera environment
@@ -395,6 +396,7 @@ def _run_program(*args, **kwargs):
     p.start()
     p.join()
     return queue.get()
+
 
 class ProgramTest(unittest.TestCase):
 
