@@ -55,9 +55,9 @@ from dace.memlet import Memlet
 from dace.sdfg import SDFG
 from dace.dtypes import ScheduleType, StorageType, Language
 
-import stencilflow.helper as helper
 from .kernel import Kernel
-from .kernel_chain_graph import Input, Output
+from .input import Input
+from .output import Output
 
 import stencilflow.stencil as stencil
 from stencilflow.stencil.fpga import make_iterators
