@@ -15,7 +15,30 @@ from dace.transformation.interstate import LoopUnroll
 PARAMETERS = ["i", "j", "k"]
 
 
-def _canonicalize_sdfg(sdfg):
+def _specialize_symbols(iterable, symbols):
+    specialized = ", ".join(map(str, iterable))
+    for k, v in symbols.items():
+        specialized = re.sub(r"\b{}\b".format(k), str(v), specialized)
+    return type(iterable)(int(dace.sympy.sympify(v))
+                          for v in specialized.split(", "))
+
+
+def canonicalize_sdfg(sdfg, symbols={}):
+
+    # Specialize symbols
+    sdfg.specialize(symbols)
+    undefined_symbols = sdfg.undefined_symbols(False)
+    if len(undefined_symbols) != 0:
+        raise ValueError("Missing symbols: {}".format(
+            ", ".join(undefined_symbols)))
+    for node, _ in sdfg.all_nodes_recursive():
+        if isinstance(node, stencil.Stencil):
+            node.shape = _specialize_symbols(node.shape, symbols)
+        if isinstance(node, dace.graph.nodes.MapEntry):
+            ranges = []
+            for r in node.map.range:
+                ranges.append(_specialize_symbols(r, symbols))
+            node.map.range = ranges
 
     # Unroll sequential K-loops
     sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
@@ -26,17 +49,22 @@ def _canonicalize_sdfg(sdfg):
         if v.get('strict', False)
     ]
     extra = [NestK, MapFission]
+
     return sdfg.apply_transformations_repeated(strict + extra, validate=False)
 
 
-class _CodeVisitor(ast.NodeTransformer):
-    def __init__(self, rename_map):
-        self._rename_map = rename_map
+class _OutputTransformer(ast.NodeTransformer):
+    def __init__(self):
+        self._offset = (0, 0, 0)
         self._stencil_name = None
 
     @property
     def stencil_name(self):
         return self._stencil_name
+
+    @property
+    def offset(self):
+        return self._offset
 
     def visit_Assign(self, node: ast.Assign):
         if len(node.targets) != 1:
@@ -50,20 +78,41 @@ class _CodeVisitor(ast.NodeTransformer):
                 self._stencil_name = subscript_node.id
                 break
             if any(indices):
-                warnings.warn(
-                    'raise ValueError("Output offset not yet supported.")')
+                self._offset = indices
             # Remove subscript
             node.targets[i] = subscript_node.value
         self.generic_visit(node)
         return node
 
+
+class _RenameTransformer(ast.NodeTransformer):
+    def __init__(self, rename_map, offset):
+        self._rename_map = rename_map
+        self._offset = offset
+        self._operation_count = 0
+
+    @property
+    def operation_count(self):
+        return self._operation_count
+
     def visit_Index(self, node: ast.Subscript):
         # Convert [0, 1, -1] to [i, j + 1, k - 1]
-        t = "(" + ", ".join(PARAMETERS[i] +
-                            (" + " + str(x.n) if x.n > 0 else
-                             (" - " + str(n) if x.n < 0 else ""))
-                            for i, x in enumerate(node.value.elts)) + ")"
+        offsets = tuple(x.n - self._offset[i]
+                        for i, x in enumerate(node.value.elts))
+        t = "(" + ", ".join(
+            PARAMETERS[i] +
+            (" + " + str(o) if o > 0 else (" - " + str(o) if o < 0 else ""))
+            for i, o in enumerate(offsets)) + ")"
         node.value = ast.parse(t).body[0].value
+        self.generic_visit(node)
+        return node
+
+    def visit_BinOp(self, node: ast.BinOp):
+        if isinstance(node.left, ast.Subscript) or isinstance(
+                node.left, ast.BinOp) or isinstance(
+                    node.right, ast.Subscript) or isinstance(
+                        node.right, ast.BinOp):
+            self._operation_count += 1
         self.generic_visit(node)
         return node
 
@@ -74,14 +123,10 @@ class _CodeVisitor(ast.NodeTransformer):
         return node
 
 
-def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
+def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
     if not isinstance(sdfg, dace.SDFG):
         sdfg = dace.SDFG.from_file(sdfg)
-
-    sdfg.specialize(symbols)
-
-    _canonicalize_sdfg(sdfg)
 
     undefined_symbols = sdfg.undefined_symbols(False)
     if len(undefined_symbols) != 0:
@@ -97,7 +142,10 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
     shape = []
 
-    def _visit(sdfg, reads, writes, result, versions, shape):
+    # Has to be a list so we can pass by reference
+    operation_count = [0]
+
+    def _visit(sdfg, reads, writes, result, versions, shape, operation_count):
 
         for state in dace.graph.nxutil.dfs_topological_sort(
                 sdfg, sdfg.source_nodes()):
@@ -172,18 +220,26 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
                     # Now we need to go rename versioned variables in the
                     # stencil code
-                    visitor = _CodeVisitor(rename_map)
+                    output_transformer = _OutputTransformer()
                     old_ast = ast.parse(node.code)
-                    new_ast = visitor.visit(old_ast)
+                    new_ast = output_transformer.visit(old_ast)
+                    output_offset = output_transformer.offset
+                    rename_transformer = _RenameTransformer(
+                        rename_map, output_offset)
+                    new_ast = rename_transformer.visit(new_ast)
+                    operation_count[0] += rename_transformer.operation_count
                     code = astunparse.unparse(new_ast)
                     stencil_name = output
                     stencil_json["computation_string"] = code
 
                     # Also rename boundary conditions
-                    stencil_json["boundary_conditions"] = {
-                        rename_map[k]: v
-                        for k, v in node.boundary_conditions.items()
-                    }
+                    # TODO: remove workaround due to wrongly named BCs
+                    stencil_json["boundary_conditions"] = {}
+                    for k, v in node.boundary_conditions.items():
+                        if k not in rename_map:
+                            k += "_in"
+                        k = rename_map[k]
+                        stencil_json["boundary_conditions"][k] = v
 
                     result["program"][stencil_name] = stencil_json
 
@@ -198,13 +254,17 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
                                     shape, s))
 
                 elif isinstance(node, dace.graph.nodes.Tasklet):
+                    print(node.__dict__)
+                    import pdb
+                    pdb.set_trace()
                     warnings.warn("Ignored tasklet {}".format(node.label))
 
                 elif isinstance(node, dace.graph.nodes.AccessNode):
                     pass
 
                 elif isinstance(node, dace.graph.nodes.NestedSDFG):
-                    _visit(node.sdfg, reads, writes, result, versions, shape)
+                    _visit(node.sdfg, reads, writes, result, versions, shape,
+                           operation_count)
 
                 elif isinstance(node, dace.sdfg.SDFGState):
                     pass
@@ -216,18 +276,17 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None, symbols={}):
 
                 # End node loop
 
-    _visit(sdfg, reads, writes, result, versions, shape)
+    _visit(sdfg, reads, writes, result, versions, shape, operation_count)
 
-    for k, v in symbols.items():
-        shape = re.sub(r"\b{}\b".format(k), str(v), shape)
-    shape = tuple(int(v) for v in shape.split(" "))
-    if result["dimensions"] is None:
-        result["dimensions"] = shape
-    else:
-        if shape != result["dimensions"]:
-            raise ValueError(
-                "Conflicting shapes found: {} vs. {}".format(
-                    shape, result["dimensions"]))
+    print("Found {} arithmetic operations.".format(operation_count[0]))
+
+    unroll_factor = 1
+    for count in versions.values():
+        if count > unroll_factor:
+            unroll_factor = count
+
+    shape = tuple(map(int, shape))
+    result["dimensions"] = shape
 
     inputs = reads.keys() - writes
     outputs = writes - reads.keys()

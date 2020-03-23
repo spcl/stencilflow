@@ -12,43 +12,41 @@ parser.add_argument(
           "that are read from external memory (i.e., not shared with others)."
           "Fractional numbers are allowed."),
     type=float)
-parser.add_argument(
-    "size_x",
-    help="Size of domain in first dimension (can be zero).",
-    type=int)
-parser.add_argument(
-    "size_y",
-    help="Size of domain in second dimension (can be zero).",
-    type=int)
-parser.add_argument(
-    "size_z",
-    help="Size of domain in third dimension (can be zero).",
-    type=int)
-parser.add_argument(
-    "extent_x", help="Extent of stencil in the x-dimension.", type=int)
+parser.add_argument("size_x",
+                    help="Size of domain in first dimension (can be zero).",
+                    type=int)
+parser.add_argument("size_y",
+                    help="Size of domain in second dimension (can be zero).",
+                    type=int)
+parser.add_argument("size_z",
+                    help="Size of domain in third dimension (can be zero).",
+                    type=int)
+parser.add_argument("extent_x",
+                    help="Extent of stencil in the x-dimension.",
+                    type=int)
 parser.add_argument(
     "extent_y",
     help="Extent of stencil in the y-dimension (2D and 3D only).",
     type=int)
-parser.add_argument(
-    "extent_z",
-    help="Extent of stencil in the z-dimension (3D only).",
-    type=int)
-parser.add_argument(
-    "-fork_frequency",
-    help="At what rate forks should be generated.",
-    type=float,
-    default=0)
-parser.add_argument(
-    "-fork_length_left",
-    help="Number of stencils in left branch of each fork.",
-    type=int,
-    default=2)
-parser.add_argument(
-    "-fork_length_right",
-    help="Number of stencils in right branch of each fork.",
-    type=int,
-    default=2)
+parser.add_argument("extent_z",
+                    help="Extent of stencil in the z-dimension (3D only).",
+                    type=int)
+parser.add_argument("-fork_frequency",
+                    help="At what rate forks should be generated.",
+                    type=float,
+                    default=0)
+parser.add_argument("-fork_length_left",
+                    help="Number of stencils in left branch of each fork.",
+                    type=int,
+                    default=2)
+parser.add_argument("-fork_length_right",
+                    help="Number of stencils in right branch of each fork.",
+                    type=int,
+                    default=2)
+parser.add_argument("-stencil_shape",
+                    type=str,
+                    default="cross",
+                    choices=["cross", "box"])
 args = parser.parse_args()
 
 shape = []
@@ -74,36 +72,32 @@ def make_stage_name(index):
     return "b{}".format(index)
 
 
+def make_extent_accesses(size, extent, stencil_shape):
+    if size > 0:
+        if extent != 0:
+            if stencil_shape == "cross":
+                indices = np.hstack((np.arange(-extent,
+                                               0), np.arange(1, extent + 1)))
+            elif stencil_shape == "box":
+                indices = np.arange(-extent, extent + 1)
+        else:
+            indices = [0]
+    return indices
+
+
 # Generate all indices that each field is accessed with
-dimensions = []
-if args.size_x > 0:
-    if args.extent_x != 0:
-        xs = np.hstack((np.arange(-args.extent_x, 0),
-                        np.arange(1, args.extent_x + 1)))
-    else:
-        xs = [0]
-    dimensions.append(xs)
-if args.size_y > 0:
-    if args.extent_y != 0:
-        ys = np.hstack((np.arange(-args.extent_y, 0),
-                        np.arange(1, args.extent_y + 1)))
-    else:
-        ys = [0]
-    dimensions.append(ys)
-if args.size_z > 0:
-    if args.extent_z != 0:
-        zs = np.hstack((np.arange(-args.extent_z, 0),
-                        np.arange(1, args.extent_z + 1)))
-    else:
-        zs = [0]
-    dimensions.append(zs)
+dimensions = [
+    make_extent_accesses(args.size_x, args.extent_x, args.stencil_shape),
+    make_extent_accesses(args.size_y, args.extent_y, args.stencil_shape),
+    make_extent_accesses(args.size_z, args.extent_x, args.stencil_shape)
+]
 indices = itertools.product(*dimensions)
 indices = [
     "i{}, j{}, k{}".format(
         ("+" + str(i) if i > 0 else "-" + str(abs(i)) if i < 0 else ""),
-        ("+" + str(j) if j > 0 else "-" + str(abs(j))
-         if j < 0 else ""), ("+" + str(k) if k > 0 else "-" + str(abs(k))
-                             if k < 0 else "")) for (i, j, k) in indices
+        ("+" + str(j) if j > 0 else "-" + str(abs(j)) if j < 0 else ""),
+        ("+" + str(k) if k > 0 else "-" + str(abs(k)) if k < 0 else ""))
+    for (i, j, k) in indices
 ]
 
 
@@ -122,6 +116,7 @@ spatial_to_insert = 0
 name = "a"
 program["inputs"][name] = {"data": "constant:1", "data_type": args.data_type}
 field_counter += 1
+
 
 def insert_stencil(prev_name, name, fork_ends):
 
@@ -159,6 +154,7 @@ def insert_stencil(prev_name, name, fork_ends):
     stencil_json["computation_string"] = make_code(name, inputs)
 
     program["program"][name] = stencil_json
+
 
 fork_ends = []
 fork_to_insert = 0

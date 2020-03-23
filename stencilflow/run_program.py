@@ -117,6 +117,12 @@ def run_program(stencil_file,
     dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
     # dace.config.Config.set("compiler", "use_cache", value=True)
     dace.config.Config.set("optimizer", "interface", value="")
+    dace.config.Config.set(
+        "compiler",
+        "intel_fpga",
+        "kernel_flags",
+        value="-fp-relaxed -cl-no-signed-zeros "
+        "-cl-fast-relaxed-math -cl-single-precision-constant -profile")
     if mode == "emulation":
         dace.config.Config.set("compiler",
                                "intel_fpga",
