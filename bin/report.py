@@ -9,7 +9,7 @@ from stencilflow.log_level import LogLevel
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input_file")
-parser.add_argument("-frequency", default=200)
+parser.add_argument("-frequency", default=200, type=float)
 args = parser.parse_args()
 
 chain = KernelChainGraph(path=args.input_file, log_level=LogLevel.NO_LOG)
