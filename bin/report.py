@@ -29,6 +29,9 @@ print("Lower bound on runtime: {} cycles ({} seconds at {} MHz)".format(
     min_runtime, min_runtime / (args.frequency * 1e6), args.frequency))
 print("Upper bound on performance at {} MHz: {} GOp/s".format(
     args.frequency, 1e-9 * op_sum_total / min_runtime * args.frequency * 1e6))
+print("Peak runtime: {} cycles ({} seconds at {} MHz)".format(
+    op_sum_total // op_sum, op_sum_total / op_sum / (args.frequency * 1e6),
+    args.frequency))
 print("Peak performance at {} MHz: {} GOp/s".format(
     args.frequency, 1e-9 * (op_sum * args.frequency * 1e6)))
 print("Lower bound communication volume: {} MB".format(1e-6 * min_comm_volume))
