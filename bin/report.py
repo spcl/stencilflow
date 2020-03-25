@@ -20,20 +20,23 @@ min_comm_volume = chain.minimum_communication_volume()
 
 op_sum = 0
 op_sum_total = 0
+print("======== Operation count ================================")
 for name, (count, count_total) in operations.items():
     print("{}: {} per cycle ({} for program)".format(name, count, count_total))
     op_sum += count
     op_sum_total += count_total
 print("Total: {} per cycle ({} for program)".format(op_sum, op_sum_total))
+print("======== Realistic bounds ===============================")
 print("Lower bound on runtime: {} cycles ({} seconds at {} MHz)".format(
     min_runtime, min_runtime / (args.frequency * 1e6), args.frequency))
 print("Upper bound on performance at {} MHz: {} GOp/s".format(
     args.frequency, 1e-9 * op_sum_total / min_runtime * args.frequency * 1e6))
+print("Lower bound communication volume: {} MB".format(1e-6 * min_comm_volume))
+print("Upper bound bandwidth: {} GB/s".format(
+      1e-9 * min_comm_volume / (min_runtime / (1e6 * args.frequency))))
+print("======== Peak numbers ===================================")
 print("Peak runtime: {} cycles ({} seconds at {} MHz)".format(
     op_sum_total // op_sum, op_sum_total / op_sum / (args.frequency * 1e6),
     args.frequency))
 print("Peak performance at {} MHz: {} GOp/s".format(
     args.frequency, 1e-9 * (op_sum * args.frequency * 1e6)))
-print("Lower bound communication volume: {} MB".format(1e-6 * min_comm_volume))
-print("Upper bound bandwidth: {} GB/s".format(
-    1e-9 * min_comm_volume / (min_runtime / (1e6 * args.frequency))))
