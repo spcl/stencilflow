@@ -37,6 +37,7 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import argparse
+import ast
 import functools
 import operator
 import os
@@ -656,6 +657,64 @@ class KernelChainGraph:
         print(
             "buffer size slow memory: {} \nbuffer size fast memory: {}".format(
                 total_slow, total_fast))
+
+    def operation_count(self):
+        """For each operation type found in the ASTs, return a tuple of
+           (num ops per cycle, num ops total)."""
+
+        num_iterations = functools.reduce(lambda a, b: a * b, self.dimensions)
+
+        operations = {}
+
+        for kernel in self.graph.nodes():
+
+            if not isinstance(kernel, Kernel):
+                continue
+
+            stencil_ast = ast.parse(kernel.kernel_string)
+
+            counter = helper.OpCounter()
+            counter.visit(stencil_ast)
+            num_ops = counter.operation_count
+            for name, count in num_ops.items():
+                count_total = num_iterations * count
+                if name not in operations:
+                    operations[name] = (count, count_total)
+                else:
+                    operations[name] = (operations[name][0] + count,
+                                        operations[name][1] + count_total)
+
+        return operations
+
+    def minimum_communication_volume(self):
+        """Computes the minimum off-chip bandwidth communication volume
+           required to evaluate the self."""
+        num_elements = functools.reduce(lambda a, b: a * b, self.dimensions)
+        communication_volume = 0
+        for v in self.inputs.values():
+            dtype = v["data_type"]
+            if isinstance(dtype, str):
+                dtype = str_to_dtype(dtype)
+            communication_volume += dtype.bytes * num_elements
+        for i in self.outputs:
+            dtype = self.program[i]["data_type"]
+            if isinstance(dtype, str):
+                dtype = str_to_dtype(dtype)
+            communication_volume += dtype.bytes * num_elements
+        return communication_volume
+
+    def runtime_lower_bound(self):
+        """Returns the lower bound on number of cycles to execute the program,
+           in number of cycles."""
+        max_init_cycles = 0
+        for kernel in self.graph.nodes():
+            if not isinstance(kernel, Kernel):
+                continue
+            for d in kernel.dist_to_center.values():
+                if d > max_init_cycles:
+                    max_init_cycles = d
+        return (functools.reduce(lambda a, b: a * b, self.dimensions) +
+                max_init_cycles + self.compute_critical_path())
 
 
 if __name__ == "__main__":

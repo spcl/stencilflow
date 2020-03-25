@@ -331,7 +331,7 @@ def aligned(a, alignment=16):
     return aa
 
 
-class _OpCounter(ast.NodeVisitor):
+class OpCounter(ast.NodeVisitor):
     def __init__(self):
         self._operation_count = {}
 
@@ -349,62 +349,6 @@ class _OpCounter(ast.NodeVisitor):
                 self._operation_count[op_name] = 0
             self._operation_count[op_name] += 1
         self.generic_visit(node)
-
-
-def operation_count(program):
-    """For each operation type found in the ASTs, return a tuple of
-       (num ops per cycle, num ops total)."""
-    try:
-        with open(program, "r") as in_file:
-            program = json.loads(in_file.read())
-    except TypeError:
-        pass  # Assume this is already a loaded dictionary
-
-    num_iterations = functools.reduce(lambda a, b: a * b, program["dimensions"])
-
-    operations = {}
-
-    for name, stencil in program["program"].items():
-
-        stencil_ast = ast.parse(stencil["computation_string"])
-
-        counter = _OpCounter()
-        counter.visit(stencil_ast)
-        num_ops = counter.operation_count
-        for name, count in num_ops.items():
-            count_total = num_iterations * count
-            if name not in operations:
-                operations[name] = (count, count_total)
-            else:
-                operations[name] = (operations[name][0] + count,
-                                    operations[name][1] + count_total)
-
-    return operations
-
-
-def minimum_communication_volume(program):
-    """Computes the minimum off-chip bandwidth communication volume required to
-       evaluate the program."""
-    try:
-        with open(program, "r") as in_file:
-            program = json.loads(in_file.read())
-    except TypeError:
-        pass  # Assume this is already a loaded dictionary
-    shape = program["dimensions"]
-    num_elements = functools.reduce(lambda a, b: a * b, shape)
-    communication_volume = 0
-    for v in program["inputs"].values():
-        dtype = v["data_type"]
-        if isinstance(dtype, str):
-            dtype = str_to_dtype(dtype)
-        communication_volume += dtype.bytes * num_elements
-    for i in program["outputs"]:
-        v = program["program"][i]
-        dtype = v["data_type"]
-        if isinstance(dtype, str):
-            dtype = str_to_dtype(dtype)
-        communication_volume += dtype.bytes * num_elements
-    return communication_volume
 
 
 if __name__ == "__main__":
