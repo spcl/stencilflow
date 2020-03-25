@@ -61,19 +61,19 @@ class KernelChainGraph:
     def __init__(self,
                  path: str,
                  plot_graph: bool = False,
-                 log_level: int = 0) -> None:
+                 log_level: LogLevel = LogLevel.NO_LOG) -> None:
         """
         Create new KernelChainGraph with given initialization parameters.
         :param path: path to the input file
         :param plot_graph: flag indication whether or not to produce the graphical graph representation
         :param log_level: flag for console output logging
         """
-        if log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC:
             print("Initialize KernelChainGraph.")
         # set parameters
         # absolute path
         self.path: str = os.path.abspath(path)  # get valid
-        self.log_level: int = log_level
+        self.log_level: LogLevel = log_level
         # init internal fields
         self.inputs: Dict[str, Dict[str, str]] = dict()  # input data
         self.outputs: List[str] = list()  # name of the output fields
@@ -95,33 +95,33 @@ class KernelChainGraph:
         self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
         self.kernel_dimensions = -1  # 2: 2D, 3: 3D
         # trigger all internal calculations
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Read input config files.")
         self.import_input()  # read input config file
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Create all kernels.")
         self.create_kernels()  # create all kernels
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Compute kernel latencies.")
         self.compute_kernel_latency()  # compute their latencies
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Connect kernels.")
         self.connect_kernels()  # connect them in the graph
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Compute delay buffer sizes.")
         self.compute_delay_buffer()  # compute the delay buffer sizes
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Add channels to the graph edges.")
         self.add_channels(
         )  # add all channels (internal buffer and delay buffer) to the edges of the graph
         # plot kernel graphs if flag set to true
         if plot_graph:
-            if self.log_level >= LogLevel.BASIC.value:
+            if self.log_level >= LogLevel.BASIC:
                 print("Plot kernel chain graph.")
             # plot kernel chain graph
             self.plot_graph(self.name + ".png")
             # plot all compute graphs
-            if self.log_level >= LogLevel.BASIC.value:
+            if self.log_level >= LogLevel.BASIC:
                 print("Plot computation graph of each kernel.")
             for compute_kernel in self.kernel_nodes:
                 self.kernel_nodes[compute_kernel].graph.plot_graph(
@@ -136,7 +136,7 @@ class KernelChainGraph:
                     "Warning: Computation contains sinusoidal functions with experimental latency values."
                 )
         # print report for moderate and high verbosity levels
-        if self.log_level >= LogLevel.MODERATE.value:
+        if self.log_level >= LogLevel.MODERATE:
             self.report(self.name)
 
     def plot_graph(self, save_path: str = None) -> None:
@@ -676,7 +676,7 @@ if __name__ == "__main__":
     # instantiate the KernelChainGraph
     chain = KernelChainGraph(path=args.stencil_file,
                              plot_graph=args.plot,
-                             log_level=int(args.log_level))
+                             log_level=LogLevel(args.log_level))
     # simulate the design if argument -simulate is true
     if args.simulate:
         from simulator import Simulator
@@ -689,7 +689,7 @@ if __name__ == "__main__":
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions,
                         write_output=False,
-                        log_level=int(args.log_level))
+                        log_level=LogLevel(args.log_level))
         sim.simulate()
 
     # output a report if argument -report is true
