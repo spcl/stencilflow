@@ -65,7 +65,7 @@ class Simulator:
     """
     def __init__(self, program_name: str, program_description: Dict,
                  input_nodes: Dict, kernel_nodes: Dict, output_nodes: Dict,
-                 dimensions: List, write_output: bool, log_level: int) -> None:
+                 dimensions: List, write_output: bool, log_level: LogLevel) -> None:
         """
         Create new Simulator class with given initialization parameters.
         :param program_name: name of the program
@@ -85,7 +85,7 @@ class Simulator:
         self.kernel_nodes: Dict = kernel_nodes
         self.output_nodes: Dict = output_nodes
         self.write_output: bool = write_output
-        self.log_level: int = log_level
+        self.log_level: LogLevel = log_level
 
     def step_execution(self):
         """
@@ -146,7 +146,7 @@ class Simulator:
         Initialize the input nodes with data given in the config file.
         """
         # loop over all input nodes
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Initialize simulator input arrays.")
         initialized = helper.load_input_arrays(
             self.program_description["inputs"],
@@ -166,7 +166,7 @@ class Simulator:
                 self.output_nodes[output].write_result_to_file(
                     self.program_name)
         # output kernel performance metric
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             for kernel in self.kernel_nodes:
                 self.kernel_nodes[kernel].print_kernel_performance()
 
@@ -207,22 +207,22 @@ class Simulator:
         Run the main simulation loop
         """
         # init
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Initialize simulation.")
         self.initialize()
         # run simulation
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Running simulation...")
         PC = 0
         while not self.all_done():
-            if self.log_level >= LogLevel.FULL.value:  # output program counter of each node
+            if self.log_level >= LogLevel.FULL:  # output program counter of each node
                 print("Execute next step. Current global program counter: {}.".
                       format(PC))
             # execute
             self.step_execution()
             # increment program counter
             PC += 1
-            if self.log_level >= LogLevel.FULL.value:  # output program counter of each node
+            if self.log_level >= LogLevel.FULL:  # output program counter of each node
                 for input in self.input_nodes:
                     print("input:{}, PC: {}".format(
                         input, self.input_nodes[input].program_counter))
@@ -233,23 +233,23 @@ class Simulator:
                     print("output:{}, PC: {}".format(
                         output, self.output_nodes[output].program_counter))
         # write completion message
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Simulation completed after {} cycles.".format(PC))
         # finalize the simulation
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Finalize simulation.")
         self.finalize()
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Create simulator report.")
             self.report()
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Write result report.")
             for out in self.output_nodes:
                 print("name: {}, data: {}".format(
                     out, self.output_nodes[out].data_queue.export_data()))
 
     def report(self):
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Create simulator report.")
         self.diagnostics(None)
 
@@ -258,7 +258,7 @@ class Simulator:
             print(
                 "Error: Exception {} has been risen. Run diagnostics.".format(
                     exception.__traceback__))
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Run diagnostics of {}.".format(self.program_name))
         # print info about all inputs
         for input in self.input_nodes:

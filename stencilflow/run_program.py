@@ -61,7 +61,7 @@ def run_program(stencil_file,
                 use_cached_sdfg=None,
                 skip_execution=False,
                 plot=False,
-                log_level=LogLevel.BASIC.value,
+                log_level=LogLevel.BASIC,
                 print_result=False):
 
     # Load program file
@@ -70,15 +70,15 @@ def run_program(stencil_file,
     name = re.match("([^\.]+)\.[^\.]+", name).group(1)
 
     # Create SDFG
-    if log_level >= LogLevel.BASIC.value:
+    if log_level >= LogLevel.BASIC:
         print("Creating kernel graph...")
     chain = KernelChainGraph(path=stencil_file,
                              plot_graph=plot,
-                             log_level=int(log_level))
+                             log_level=log_level)
 
     # do simulation
     if run_simulation:
-        if log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC:
             print("Running simulation...")
         sim = Simulator(program_name=name,
                         program_description=program_description,
@@ -87,29 +87,29 @@ def run_program(stencil_file,
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions,
                         write_output=False,
-                        log_level=int(log_level))
+                        log_level=log_level)
         sim.simulate()
         simulation_result = sim.get_result()
 
     if use_cached_sdfg:
-        if log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC:
             print("Loading cached SDFG...")
         sdfg_path = os.path.join(".dacecache", name, "program.sdfg")
         sdfg = dace.SDFG.from_file(sdfg_path)
     else:
-        if log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC:
             print("Generating SDFG...")
         sdfg = generate_sdfg(name, chain)
 
     if compare_to_reference:
         if use_cached_sdfg:
-            if log_level >= LogLevel.BASIC.value:
+            if log_level >= LogLevel.BASIC:
                 print("Loading cached reference SDFG...")
             sdfg_path = os.path.join(".dacecache", name + "_reference",
                                      "program.sdfg")
             reference_sdfg = dace.SDFG.from_file(sdfg_path)
         else:
-            if log_level >= LogLevel.BASIC.value:
+            if log_level >= LogLevel.BASIC:
                 print("Generating reference SDFG...")
             reference_sdfg = generate_reference(name + "_reference", chain)
 
@@ -121,8 +121,8 @@ def run_program(stencil_file,
         "compiler",
         "intel_fpga",
         "kernel_flags",
-        value="-fp-relaxed -cl-no-signed-zeros "
-        "-cl-fast-relaxed-math -cl-single-precision-constant -profile")
+        value="-fp-relaxed -cl-no-signed-zeros -no-interleaving=default"
+        "-global-ring -cl-fast-relaxed-math -cl-single-precision-constant")
     if mode == "emulation":
         dace.config.Config.set("compiler",
                                "intel_fpga",
@@ -135,20 +135,20 @@ def run_program(stencil_file,
                                value="hardware")
     else:
         raise ValueError("Unrecognized execution mode: {}".format(mode))
-    if log_level >= LogLevel.BASIC.value:
+    if log_level >= LogLevel.BASIC:
         print("Expanding library nodes...")
     sdfg.expand_library_nodes()
-    if log_level >= LogLevel.BASIC.value:
+    if log_level >= LogLevel.BASIC:
         print("Compiling SDFG...")
     program = sdfg.compile()
     if compare_to_reference:
-        if log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC:
             print("Compiling reference SDFG...")
         reference_sdfg.expand_library_nodes()
         reference_program = reference_sdfg.compile()
 
     # Load data from disk
-    if log_level >= LogLevel.BASIC.value:
+    if log_level >= LogLevel.BASIC:
         print("Loading input arrays...")
     if input_directory is None:
         input_directory = os.path.dirname(stencil_file)
@@ -158,7 +158,7 @@ def run_program(stencil_file,
         shape=program_description["dimensions"])
 
     # Initialize output arrays
-    if log_level >= LogLevel.BASIC.value:
+    if log_level >= LogLevel.BASIC:
         print("Initializing output arrays...")
     output_arrays = {
         arr_name: helper.aligned(

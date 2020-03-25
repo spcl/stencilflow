@@ -369,7 +369,7 @@ class SimulatorTest(unittest.TestCase):
                 dimensions=chain.dimensions,
                 program_name="test",
                 write_output=False,
-                log_level=0)
+                log_level=LogLevel.NO_LOG)
             sim.simulate()
             # check if result matches
             self.assertTrue(
@@ -413,7 +413,7 @@ class ProgramTest(unittest.TestCase):
                 "emulation",
                 compare_to_reference=True,
                 run_simulation=True,
-                log_level=1,
+                log_level=LogLevel.BASIC,
                 input_directory=os.path.abspath(test_directory))
 
     def test_program(self):
@@ -426,7 +426,7 @@ class ProgramTest(unittest.TestCase):
                 "emulation",
                 compare_to_reference=True,
                 run_simulation=False,
-                log_level=1,
+                log_level=LogLevel.NO_LOG,
                 input_directory=os.path.abspath(test_directory))
 
 

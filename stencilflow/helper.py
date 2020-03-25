@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-
 """
 BSD 3-Clause License
 
@@ -37,6 +36,7 @@ __author__ = "Andreas Kuster"
 __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
+import ast
 import collections
 import functools
 import json
@@ -49,7 +49,6 @@ from typing import List, Dict
 
 import dace
 import numpy as np
-
 """
     This file contains many helper methods that are being re-used in multiple classes and do not specifically belong to
     a class.
@@ -61,14 +60,12 @@ def deprecated(func):
     This is a decorator which can be used to mark functions as deprecated. It will result in a warning being emitted
     when the function is used.
     """
-
     @functools.wraps(func)
     def new_func(*args, **kwargs):
         warnings.simplefilter('always', DeprecationWarning)  # turn off filter
-        warnings.warn(
-            "Call to deprecated function {}.".format(func.__name__),
-            category=DeprecationWarning,
-            stacklevel=2)
+        warnings.warn("Call to deprecated function {}.".format(func.__name__),
+                      category=DeprecationWarning,
+                      stacklevel=2)
         warnings.simplefilter('default', DeprecationWarning)  # reset filter
         return func(*args, **kwargs)
 
@@ -98,8 +95,8 @@ def parse_json(config_path: str) -> Dict:
     """
     # check file exists
     if not os.path.isfile(config_path):
-        relative = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), config_path)
+        relative = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                config_path)
         if not os.path.isfile(relative):
             raise RuntimeError("file {} does not exists.".format(config_path))
         config_path = relative
@@ -137,8 +134,7 @@ def max_dict_entry_key(dict1: Dict[str, List[int]]) -> str:
     return max(dict1, key=dict1.get)
 
 
-def list_add_cwise(list1: List,
-                   list2: List) -> List:
+def list_add_cwise(list1: List, list2: List) -> List:
     """
     Merge two lists by component-wise addition.
     :param list1: input list: summand
@@ -156,8 +152,7 @@ def list_add_cwise(list1: List,
     return list(map(lambda x, y: x + y, list1, list2))
 
 
-def list_subtract_cwise(list1: List,
-                        list2: List) -> List:
+def list_subtract_cwise(list1: List, list2: List) -> List:
     """
     Merge two lists by component-wise subtraction.
     :param list1: input list: minuend
@@ -175,8 +170,7 @@ def list_subtract_cwise(list1: List,
     return list(map(lambda x, y: x - y, list1, list2))
 
 
-def dim_to_abs_val(input: List[int],
-                   dimensions: List[int]) -> int:
+def dim_to_abs_val(input: List[int], dimensions: List[int]) -> int:
     """
     Computes scalar number out of independent dimension unit.
     :param input: vector to evaluate
@@ -205,14 +199,15 @@ def load_array(input_config: Dict, prefix=None, shape=None):
         m = re.match(r"([^:]+):(.+)", data)
         if m:
             if shape is None:
-                raise ValueError("Must provide shape when using generated inputs")
+                raise ValueError(
+                    "Must provide shape when using generated inputs")
             if m.group(1) == "constant":
                 val = float(m.group(2))
                 arr = np.empty(shape, dtype=dtype)
                 arr[:] = val
                 return arr
             elif m.group(1) == "random":
-                m1 = re.match(r"([0-9\.]+).+([0-9\.]+)", m.group(2));
+                m1 = re.match(r"([0-9\.]+).+([0-9\.]+)", m.group(2))
                 rand_min = float(m1.group(1))
                 rand_max = float(m2.group(1))
                 return rand_min + (rand_max - rand_min) * np.rand(*shape)
@@ -284,8 +279,9 @@ def arrays_are_equal(reference, result, tolerance=1e-5):
     if not isinstance(result, np.ndarray):
         result = load_array(result)
     # tolerate zeroes by adding epsilon to the divisor
-    relative_diff = (np.abs(reference - result) / (np.maximum.reduce(
-        [reference, result]) + np.finfo(reference.dtype).eps))
+    relative_diff = (np.abs(reference - result) /
+                     (np.maximum.reduce([reference, result]) +
+                      np.finfo(reference.dtype).eps))
     return np.all(relative_diff <= tolerance)
 
 
@@ -296,7 +292,9 @@ def unique(iterable):
     :return iterable without duplicates
     """
     try:
-        return type(iterable)([i for i in sorted(set(iterable), key=lambda x: iterable.index(x))])
+        return type(iterable)([
+            i for i in sorted(set(iterable), key=lambda x: iterable.index(x))
+        ])
     except TypeError:
         return type(iterable)(collections.OrderedDict(
             zip(map(str, iterable), iterable)).values())
@@ -331,6 +329,26 @@ def aligned(a, alignment=16):
     np.copyto(aa, a)
     assert (aa.ctypes.data % alignment) == 0
     return aa
+
+
+class OpCounter(ast.NodeVisitor):
+    def __init__(self):
+        self._operation_count = {}
+
+    @property
+    def operation_count(self):
+        return self._operation_count
+
+    def visit_BinOp(self, node: ast.BinOp):
+        if isinstance(node.left, ast.Subscript) or isinstance(
+                node.left, ast.BinOp) or isinstance(
+                    node.right, ast.Subscript) or isinstance(
+                        node.right, ast.BinOp):
+            op_name = type(node.op).__name__
+            if op_name not in self._operation_count:
+                self._operation_count[op_name] = 0
+            self._operation_count[op_name] += 1
+        self.generic_visit(node)
 
 
 if __name__ == "__main__":
