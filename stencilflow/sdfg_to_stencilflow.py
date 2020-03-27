@@ -250,9 +250,6 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                                     shape, s))
 
                 elif isinstance(node, dace.graph.nodes.Tasklet):
-                    print(node.__dict__)
-                    import pdb
-                    pdb.set_trace()
                     warnings.warn("Ignored tasklet {}".format(node.label))
 
                 elif isinstance(node, dace.graph.nodes.AccessNode):
