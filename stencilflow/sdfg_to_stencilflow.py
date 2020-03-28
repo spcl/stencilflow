@@ -4,11 +4,12 @@ import astunparse
 import json
 import re
 import warnings
+from typing import Tuple
 
 import dace
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
-from dace.transformation.pattern_matching import Transformation
+from dace.data import Array
 from dace.transformation.dataflow import MapFission
 from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
@@ -21,6 +22,37 @@ def _specialize_symbols(iterable, symbols):
         specialized = re.sub(r"\b{}\b".format(k), str(v), specialized)
     return type(iterable)(int(dace.sympy.sympify(v))
                           for v in specialized.split(", "))
+
+
+def _permute_array(array: Array, perm: Tuple[int, int, int], sdfg: dace.SDFG,
+                   array_name: str):
+    array.shape = [array.shape[i] for i in perm]
+    array.strides = [array.strides[i] for i in perm]
+    array.offset = [array.offset[i] for i in perm]
+    # Modify all edges coming in/out of the array
+    for state in sdfg.nodes():
+        for e in state.edges():
+            if e.data.data == array_name:
+                e.data.subset = type(
+                    e.data.subset)([e.data.subset[i] for i in perm])
+
+
+def standardize_data_layout(sdfg):
+    I, J, K = tuple(dace.symbol(sym) for sym in 'IJK')
+
+    for nsdfg in sdfg.all_sdfgs_recursive():
+        for aname, array in nsdfg.arrays.items():
+            if K in array.free_symbols:
+                i_index = next(i for i, s in enumerate(array.shape)
+                               if I in s.free_symbols)
+                j_index = next(i for i, s in enumerate(array.shape)
+                               if J in s.free_symbols)
+                k_index = next(i for i, s in enumerate(array.shape)
+                               if K in s.free_symbols)
+                # NOTE: We use the J, K, I format here. To change, permute
+                # the order below.
+                _permute_array(array, (j_index, k_index, i_index), nsdfg,
+                               aname)
 
 
 def canonicalize_sdfg(sdfg, symbols={}):
@@ -44,9 +76,10 @@ def canonicalize_sdfg(sdfg, symbols={}):
     sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
 
     # Fuse and nest parallel K-loops
-    transformations = [NestK, MapFission, InlineSDFG]
-
-    return sdfg.apply_transformations_repeated(transformations, validate=False)
+    sdfg.apply_transformations_repeated(MapFission, validate=False)
+    standardize_data_layout(sdfg)
+    sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
+    return sdfg
 
 
 class _OutputTransformer(ast.NodeTransformer):
