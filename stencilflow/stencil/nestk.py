@@ -31,8 +31,11 @@ class NestK(Transformation):
         return '%s into %s' % (map_entry.map.label, stencil.label)
 
     @staticmethod
-    def can_be_applied(graph: dace.SDFGState, candidate: Dict[Any, int],
-                       expr_index: int, sdfg: dace.SDFG, strict=False):
+    def can_be_applied(graph: dace.SDFGState,
+                       candidate: Dict[Any, int],
+                       expr_index: int,
+                       sdfg: dace.SDFG,
+                       strict=False):
         map_entry: nodes.MapEntry = graph.node(candidate[NestK._map_entry])
         stencil: Stencil = graph.node(candidate[NestK._stencil])
 
@@ -48,6 +51,8 @@ class NestK(Transformation):
                 return False
 
         for edge in graph.all_edges(stencil):
+            if edge.data.data is None:  # Empty memlet
+                continue
             # TODO: Use bitmap to verify lower-dimensional arrays
             if len(edge.data.subset) == 3:
                 for i, rng in enumerate(edge.data.subset.ndrange()):
@@ -80,6 +85,9 @@ class NestK(Transformation):
         pname = map_entry.map.params[0]
         dim_index = None
         for edge in graph.all_edges(stencil):
+            if edge.data.data is None:  # Empty memlet
+                continue
+
             if len(edge.data.subset) == 3:
                 for i, rng in enumerate(edge.data.subset.ndrange()):
                     for r in rng:
@@ -110,8 +118,8 @@ class NestK(Transformation):
             for child in tree.children:
                 memlet = labeling.propagate_memlet(graph, child.edge.data,
                                                    map_entry, False)
-                graph.add_edge(stencil, child.edge.src_conn,
-                               edge.dst, edge.dst_conn, memlet)
+                graph.add_edge(stencil, child.edge.src_conn, edge.dst,
+                               edge.dst_conn, memlet)
 
         # Remove map
         graph.remove_nodes_from([map_entry, map_exit])
