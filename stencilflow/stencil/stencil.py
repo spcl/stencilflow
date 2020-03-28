@@ -35,7 +35,7 @@ class Stencil(dace.library.LibraryNode):
     code = dace.properties.CodeProperty(
         desc="Stencil code using all inputs to produce all outputs",
         default="")
-    code._language = dace.dtypes.Language.CPP
+
 
     def __init__(self,
                  label,
@@ -51,4 +51,5 @@ class Stencil(dace.library.LibraryNode):
         self.accesses = accesses
         self.output_fields = output_fields
         self.boundary_conditions = boundary_conditions
-        self.code = type(self).code.from_string(code, dace.dtypes.Language.CPP)
+        self.code = type(self).code.from_string(code,
+                                                dace.dtypes.Language.Python)
