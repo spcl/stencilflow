@@ -152,7 +152,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         # Tasklet code generation
         #######################################################################
 
-        code = node.code
+        code = node.code.as_string
 
         # Replace relative indices with memlet names
         converter = SubscriptConverter()
