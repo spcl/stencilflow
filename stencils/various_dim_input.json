@@ -1,5 +1,15 @@
 {
   "inputs": {
+    "in0d": {
+      "data": [0.0],
+      "data_type": "float64",
+      "dimensions": "[]"
+    },
+    "in1d": {
+      "data": "stencils/data/zeros_16_fp64.dat",
+      "data_type": "float64",
+      "dimensions": "[k]"
+    },
     "in2d": {
       "data": "stencils/data/zeros_16x16_fp64.dat",
       "data_type": "float64",
