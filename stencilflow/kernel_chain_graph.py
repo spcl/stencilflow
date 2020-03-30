@@ -52,6 +52,7 @@ from .kernel import Kernel
 from .bounded_queue import BoundedQueue
 from .input import Input
 from .output import Output
+from .simulator import Simulator
 
 
 class KernelChainGraph:
