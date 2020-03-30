@@ -122,7 +122,7 @@ def run_program(stencil_file,
         "intel_fpga",
         "kernel_flags",
         value="-fp-relaxed -cl-no-signed-zeros -no-interleaving=default"
-        "-global-ring -cl-fast-relaxed-math -cl-single-precision-constant")
+        " -global-ring -duplicate-ring -cl-fast-relaxed-math -cl-single-precision-constant")
     if mode == "emulation":
         dace.config.Config.set("compiler",
                                "intel_fpga",

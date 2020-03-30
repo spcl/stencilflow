@@ -576,8 +576,8 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
     name = sdfg.name
     sdfg_before = copy.deepcopy(sdfg)
     sdfg_after = copy.deepcopy(sdfg)
-    sdfg_before._name = name + "_before"
-    sdfg_after._name = name + "_after"
+    sdfg_before._name = name
+    sdfg_after._name = name
     nodes_before = set(
         (sdfg.node_id(s), s.node_id(n)) for s, n in nodes_before)
     nodes_after = set((sdfg.node_id(s), s.node_id(n)) for s, n in nodes_after)
