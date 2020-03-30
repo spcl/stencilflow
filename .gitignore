@@ -9,3 +9,5 @@ _dotgraphs
 *.sdfg
 *.sdfg.html
 /.idea/
+.env
+.vscode/
