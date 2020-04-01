@@ -56,6 +56,10 @@ def standardize_data_layout(sdfg):
 
 
 def canonicalize_sdfg(sdfg, symbols={}):
+    # Fuse and nest parallel K-loops
+    sdfg.apply_transformations_repeated(MapFission, validate=False)
+    standardize_data_layout(sdfg)
+    sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
 
     # Specialize symbols
     sdfg.specialize(symbols)
@@ -75,10 +79,6 @@ def canonicalize_sdfg(sdfg, symbols={}):
     # Unroll sequential K-loops
     sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
 
-    # Fuse and nest parallel K-loops
-    sdfg.apply_transformations_repeated(MapFission, validate=False)
-    standardize_data_layout(sdfg)
-    sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
     return sdfg
 
 

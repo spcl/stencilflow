@@ -11,3 +11,4 @@ _dotgraphs
 /.idea/
 .env
 .vscode/
+*.code-workspace
