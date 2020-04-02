@@ -43,16 +43,17 @@ def standardize_data_layout(sdfg):
     for nsdfg in sdfg.all_sdfgs_recursive():
         for aname, array in nsdfg.arrays.items():
             if K in array.free_symbols:
-                i_index = next(i for i, s in enumerate(array.shape)
-                               if I in s.free_symbols)
-                j_index = next(i for i, s in enumerate(array.shape)
-                               if J in s.free_symbols)
+                i_index = next((i for i, s in enumerate(array.shape)
+                                if I in s.free_symbols), -1)
+                j_index = next((i for i, s in enumerate(array.shape)
+                                if J in s.free_symbols), -1)
                 k_index = next(i for i, s in enumerate(array.shape)
                                if K in s.free_symbols)
                 # NOTE: We use the J, K, I format here. To change, permute
                 # the order below.
-                _permute_array(array, (j_index, k_index, i_index), nsdfg,
-                               aname)
+                order = tuple(dim for dim in (j_index, k_index, i_index)
+                              if dim >= 0)
+                _permute_array(array, order, nsdfg, aname)
 
 
 def canonicalize_sdfg(sdfg, symbols={}):

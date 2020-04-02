@@ -6,7 +6,7 @@ from dace.transformation.dataflow import MapFission
 from typing import Any, Dict, Set
 import warnings
 
-from dace import registry, sdfg as sd
+from dace import registry, sdfg as sd, symbolic
 from dace.properties import make_properties
 from dace.graph import nodes, nxutil, labeling
 from stencilflow.stencil.stencil import Stencil
@@ -90,7 +90,9 @@ class NestK(Transformation):
                                 # k dimension must match in all memlets
                                 return False
                             if str(r) != pname:
-                                warnings.warn('k expression is not trivial')
+                                if symbolic.issymbolic(r -
+                                                       symbolic.symbol(pname)):
+                                    warnings.warn('k expression is nontrivial')
                             dim_index = i
 
         # No nesting dimension found
