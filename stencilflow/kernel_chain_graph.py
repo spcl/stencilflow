@@ -329,7 +329,7 @@ class KernelChainGraph:
         if self.kernel_dimensions == 1:  # 1D
             for entry in self.program:
                 self.program[entry]["computation_string"] = \
-                    self.program[entry]["computation_string"].replace("[", "[i,j,")  # add two extra indices
+                    self.program[entry]["computation_string"].replace("[", "[i, j,")  # add two extra indices
             self.dimensions = [1, 1] + inp["dimensions"]  # add two extra dimensions
         elif self.kernel_dimensions == 2:  # 2D
             for entry in self.program:
@@ -503,7 +503,7 @@ class KernelChainGraph:
         """
         Computes the max latency critical path through the graph in scalar format.
         """
-        return helper.dim_to_abs_val(self.compute_critical_path_dim(), self.dimensions)
+        return helper.convert_3d_to_1d(self.compute_critical_path_dim(), self.dimensions)
 
     def report(self, name):
         print("Report of {}\n".format(name))

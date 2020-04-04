@@ -181,7 +181,7 @@ class Kernel(BaseKernelNodeClass):
         """
         for item in self.graph.accesses:
             furthest = max(self.graph.accesses[item])
-            self.dist_to_center[item] = helper.dim_to_abs_val(furthest, self.dimensions)
+            self.dist_to_center[item] = helper.convert_3d_to_1d(furthest, self.dimensions)
 
     def iter_comp_tree(self,
                        node: BaseOperationNodeClass,
@@ -230,7 +230,7 @@ class Kernel(BaseKernelNodeClass):
                 dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             # break down index from 3D (i.e. [X,Y,Z]) to 1D
             if flatten_index:
-                word_index = self.convert_3d_to_1d(dim_index)
+                word_index = helper.convert_3d_to_1d( self.dimensions, dim_index)
                 # replace negative sign if the flag is set
                 if replace_negative_index and word_index < 0:
                     return node.name + "[" + "n" + str(abs(word_index)) + "]"
@@ -323,18 +323,6 @@ class Kernel(BaseKernelNodeClass):
         self.exec_success = False
         self.result = None
 
-    def convert_3d_to_1d(self,
-                         index: List[int]) -> int:
-        """
-        Convert [i,j,k] to flat 1D array index using the given dimensions [dimX, dimY, dimZ]
-        :param index: index array to be converted to 1D
-        :return: scalar value of the computation i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
-        """
-        # do computation: index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k if the array is not empty
-        if not index:
-            return 0  # empty list
-        return helper.dim_to_abs_val(index, self.dimensions)
-
     def remove_duplicate_accesses(self,
                                   inp: List) -> List:
         """
@@ -371,7 +359,7 @@ class Kernel(BaseKernelNodeClass):
                 for item in itr:
                     curr = item
                     # calculate size of buffer
-                    diff = abs(helper.dim_to_abs_val(helper.list_subtract_cwise(pre, curr), self.dimensions))
+                    diff = abs(helper.convert_3d_to_1d(helper.list_subtract_cwise(pre, curr), self.dimensions))
                     if diff == 0:  # two accesses on same field
                         pass
                     else:

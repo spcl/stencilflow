@@ -126,7 +126,7 @@ def do_estimate():
     critical_path_dim = [x * _DYCORE_CRITICAL_PATH_LENGTH for x in _MEAN_CRITICAL_PATH_KERNEL]
     print("total critical path length (dimensionless) = _MEAN_CRITICAL_PATH_KERNEL * _DYCORE_CRITICAL_PATH_LENGTH = "
           "{} * {} = {}".format(_MEAN_CRITICAL_PATH_KERNEL, _DYCORE_CRITICAL_PATH_LENGTH, critical_path_dim))
-    critical_path_cyc = helper.dim_to_abs_val(critical_path_dim, _DIMENSIONS)
+    critical_path_cyc = helper.convert_3d_to_1d(critical_path_dim, _DIMENSIONS)
     print("total critical path length (cycles) = {} cycles\n".format(critical_path_cyc))
     # compute maximum possible communication volume
     run_time_cyc = critical_path_cyc + reduce(operator.mul, _DIMENSIONS)
