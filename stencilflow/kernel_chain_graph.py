@@ -577,7 +577,7 @@ class KernelChainGraph:
                 )))
 
         print("instantiate optimizer...")
-        from .optimizer import Optimizer
+        from stencilflow import Optimizer
         opt = Optimizer(self.kernel_nodes, self.dimensions)
         bound = 12001
         opt.minimize_fast_mem(communication_volume_bound=bound)
