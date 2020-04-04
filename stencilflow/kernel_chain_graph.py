@@ -82,7 +82,7 @@ class KernelChainGraph:
         self.outputs: List[str] = list()  # name of the output fields
         self.dimensions: List[int] = list()  # global problem size
         self.program: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = dict(
-        )  # mathematical stencil expressionos:program[stencil_name] = stencil expression
+        )  # mathematical stencil expressions:program[stencil_name] = stencil expression
         self.kernel_latency = None  # critical path latency
         self.channels: Dict[str, BoundedQueue] = dict()  # each channel is an edge between two nodes
         self.graph: nx.DiGraph = nx.DiGraph()  # data flow graph
