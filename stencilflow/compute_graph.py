@@ -41,9 +41,9 @@ from typing import List, Dict, Set
 
 import networkx as nx
 
-from .helper import helper
-from .base_node_class import BaseOperationNodeClass
-from .compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
+from stencilflow.helper import helper
+from stencilflow.base_node_class import BaseOperationNodeClass
+from stencilflow.compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 
 
 class ComputeGraph:
@@ -214,10 +214,8 @@ class ComputeGraph:
         for equation in self.tree.body:
             # check if base node is of type Expr or Assign
             if isinstance(equation, ast.Assign):
-                lhs = self.create_operation_node(equation,
-                                                 0)  # left hand side equation
-                rhs = self.ast_tree_walk(equation.value,
-                                         1)  # right hand side of equation
+                lhs = self.create_operation_node(equation, 0)  # left hand side equation
+                rhs = self.ast_tree_walk(equation.value, 1)  # right hand side of equation
                 self.graph.add_edge(rhs, lhs)
         # merge ambiguous variables in tree (implies: merge of ast.Assign trees into a single tree)
         outp_nodes = list(self.graph.nodes)
@@ -527,7 +525,7 @@ if __name__ == "__main__":
     """
         simple debugging example
     """
-    computation = "res = -a if (a+1 > b-c) else b; b = d + e"
+    computation = "out = cos(3.14);res = A[i,j,k] if (A[i,j,k]+1 > A[i,j,k]-B[i,j,k]) else out"
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()

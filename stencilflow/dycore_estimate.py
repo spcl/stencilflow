@@ -42,7 +42,9 @@ import operator
 from functools import reduce
 from typing import List
 
-import stencilflow.helper as helper
+from stencilflow.log_level import LogLevel
+from stencilflow.helper import helper
+from stencilflow.kernel_chain_graph import KernelChainGraph
 
 """
     Intro:
@@ -97,15 +99,15 @@ def do_estimate():
     # instantiate fastwaves and add critical path
     critical_paths.append(KernelChainGraph(path="input/fastwaves.json",
                                            plot_graph=False,
-                                           verbose=False).compute_critical_path_dim())
+                                           log_level=LogLevel.FULL.value).compute_critical_path_dim())
     # instantiate diffusion and add critical path
     critical_paths.append(KernelChainGraph(path="input/diffusion.json",
                                            plot_graph=False,
-                                           verbose=False).compute_critical_path_dim())
+                                           log_level=LogLevel.FULL.value).compute_critical_path_dim())
     # instantiate advection and add critical path
     critical_paths.append(KernelChainGraph(path="input/advection.json",
                                            plot_graph=False,
-                                           verbose=False).compute_critical_path_dim())
+                                           log_level=LogLevel.FULL.value).compute_critical_path_dim())
     # calculate mean of the three
     critical_path_sum = functools.reduce(lambda x, y: helper.list_add_cwise(x, y), critical_paths, [0] * 3)
     mean: List[int] = list(map(lambda x: x / len(critical_paths), critical_path_sum))
