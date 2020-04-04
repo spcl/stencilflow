@@ -46,13 +46,13 @@ from typing import List, Dict
 
 import networkx as nx
 
-from .helper import helper
-from .log_level import LogLevel
-from .kernel import Kernel
-from .bounded_queue import BoundedQueue
-from .input import Input
-from .output import Output
-from .simulator import Simulator
+from stencilflow.helper import helper
+from stencilflow.log_level import LogLevel
+from stencilflow.kernel import Kernel
+from stencilflow.bounded_queue import BoundedQueue
+from stencilflow.input import Input
+from stencilflow.output import Output
+from stencilflow.simulator import Simulator
 
 
 class KernelChainGraph:

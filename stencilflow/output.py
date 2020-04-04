@@ -37,18 +37,17 @@ __author__ = "Andreas Kuster"
 __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
+import os
 import functools
 import operator
-import os
+
 from typing import List
 
 from dace.dtypes import typeclass
 
-from stencilflow import *
-import stencilflow.helper as helper
-
-from .base_node_class import BaseKernelNodeClass
-from .bounded_queue import BoundedQueue
+from stencilflow.helper import helper
+from stencilflow.base_node_class import BaseKernelNodeClass
+from stencilflow.bounded_queue import BoundedQueue
 
 
 class Output(BaseKernelNodeClass):

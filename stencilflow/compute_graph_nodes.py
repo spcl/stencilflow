@@ -41,8 +41,8 @@ import ast
 import operator
 from typing import List, Dict
 
-from .base_node_class import BaseOperationNodeClass
-from .calculator import Calculator
+from stencilflow.base_node_class import BaseOperationNodeClass
+from stencilflow.calculator import Calculator
 
 
 class Name(BaseOperationNodeClass):

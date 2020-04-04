@@ -47,10 +47,11 @@ import sys
 import dace
 import numpy as np
 
-from stencilflow import *
+from stencilflow.simulator import Simulator
+from stencilflow.kernel_chain_graph import KernelChainGraph
 from stencilflow.sdfg_generator import generate_sdfg, generate_reference
 from stencilflow.log_level import LogLevel
-import stencilflow.helper as helper
+from stencilflow.helper import helper
 
 
 def run_program(stencil_file,
