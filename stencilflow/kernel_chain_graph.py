@@ -424,8 +424,7 @@ class KernelChainGraph:
             for inp in node.input_paths:
                 # compute maximum delay size per input
                 max_delay = max(node.input_paths[inp])
-                max_delay[
-                    2] += 1  # add an extra delay cycle for the processing in the kernel node
+                max_delay[2] += 1  # add an extra delay cycle for the processing in the kernel node
                 # loop over all inputs and set their size relative to the max size to have data ready at the exact
                 # same time
                 for entry in node.input_paths[inp]:
