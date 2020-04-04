@@ -43,12 +43,12 @@ from typing import List, Dict
 
 import dace.dtypes
 
-from .helper import helper
-from .base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
-from .bounded_queue import BoundedQueue
-from .calculator import Calculator
-from .compute_graph import ComputeGraph
-from .compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
+from stencilflow.helper import helper
+from stencilflow.base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
+from stencilflow.bounded_queue import BoundedQueue
+from stencilflow.calculator import Calculator
+from stencilflow.compute_graph import ComputeGraph
+from stencilflow.compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 
 
 class Kernel(BaseKernelNodeClass):
