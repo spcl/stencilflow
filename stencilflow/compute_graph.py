@@ -133,7 +133,7 @@ class ComputeGraph:
     def setup_internal_buffers(self, relative_to_center=True) -> None:
         """
         Set up minimum/maximum index and accesses for the internal data structures.
-        :param relative_to_center: if true, the center of the stencil is at position [0,0,0] respecively 0, if false,
+        :param relative_to_center: if true, the center of the stencil is at position [0,0,0] respectively 0, if false,
         the furthest element is at position [0,0,0] and all other accesses on the same input field are relative to that
         (i.e. negative)
         """
