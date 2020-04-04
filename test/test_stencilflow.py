@@ -49,7 +49,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 TEST_FOLDER = os.path.join(os.path.dirname(__file__), "testing")
 
 
-from stencilflow import BoundedQueue
+from stencilflow.bounded_queue import BoundedQueue
 
 
 class BoundedQueueTest(unittest.TestCase):
@@ -124,7 +124,7 @@ class BoundedQueueTest(unittest.TestCase):
         self.assertFalse(queue.try_peek_last())
 
 
-from stencilflow import Calculator
+from stencilflow.calculator import Calculator
 from numpy import cos
 
 
@@ -150,7 +150,7 @@ class RunProgramTest(unittest.TestCase):
         pass  # not a general test case, since dace and intel fgpa opencl sdk has to be installed and configured
 
 
-from stencilflow import helper
+from stencilflow.helper import helper
 
 
 class HelperTest(unittest.TestCase):
@@ -209,7 +209,7 @@ class HelperTest(unittest.TestCase):
         self.assertListEqual(sorted(helper.unique(not_unique)), [1.0, 2.0])
 
 
-from stencilflow import ComputeGraph
+from stencilflow.compute_graph import ComputeGraph
 
 
 class ComputeGraphTest(unittest.TestCase):
@@ -238,7 +238,7 @@ class ComputeGraphTest(unittest.TestCase):
         os.remove(filename)
 
 
-from stencilflow import Kernel
+from stencilflow.kernel import Kernel
 
 
 class KernelTest(unittest.TestCase):
@@ -302,6 +302,7 @@ class OptimizerTest(unittest.TestCase):
 
 
 from stencilflow import Simulator
+import numpy as np
 
 
 class SimulatorTest(unittest.TestCase):
