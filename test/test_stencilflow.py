@@ -48,10 +48,12 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 TEST_FOLDER = os.path.join(os.path.dirname(__file__), "testing")
 
+
 from stencilflow import BoundedQueue
 
 
 class BoundedQueueTest(unittest.TestCase):
+
     def test_import(self):
         # init
         queue = BoundedQueue(name="test", maxsize=5)
@@ -127,6 +129,7 @@ from numpy import cos
 
 
 class CalculatorTest(unittest.TestCase):
+
     def test_calc(self):
         # init vars
         variables = dict()
@@ -142,15 +145,16 @@ class CalculatorTest(unittest.TestCase):
 
 
 class RunProgramTest(unittest.TestCase):
+
     def test(self):
         pass  # not a general test case, since dace and intel fgpa opencl sdk has to be installed and configured
 
 
 from stencilflow import helper
-import numpy as np
 
 
 class HelperTest(unittest.TestCase):
+
     def test(self):
         # check max_dict_entry_key
         self.assertEqual(
@@ -174,21 +178,21 @@ class HelperTest(unittest.TestCase):
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(
-                        os.path.dirname(__file__), "testing",
-                        "helper_test.csv"),
+                        os.path.join(
+                            os.path.dirname(__file__), "testing",
+                            "helper_test.csv"),
                     "data_type":
-                    helper.str_to_dtype("float64")
+                        helper.str_to_dtype("float64")
                 })), [7.0, 7.0])
         self.assertListEqual(
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(
-                        os.path.dirname(__file__), "testing",
-                        "helper_test.dat"),
+                        os.path.join(
+                            os.path.dirname(__file__), "testing",
+                            "helper_test.dat"),
                     "data_type":
-                    helper.str_to_dtype("float64")
+                        helper.str_to_dtype("float64")
                 })), [7.0, 7.0])
         # check save_array / load_array
         out_data = np.array([1.0, 2.0, 3.0])
@@ -204,10 +208,12 @@ class HelperTest(unittest.TestCase):
         not_unique = [1.0, 2.0, 1.0]
         self.assertListEqual(sorted(helper.unique(not_unique)), [1.0, 2.0])
 
+
 from stencilflow import ComputeGraph
 
 
 class ComputeGraphTest(unittest.TestCase):
+
     def test(self):
         # define example computation
         computation = "out = cos(3.14);res = A[i,j,k] if (A[i,j,k]+1 > A[i,j,k]-B[i,j,k]) else out"
@@ -231,10 +237,12 @@ class ComputeGraphTest(unittest.TestCase):
         # delete plot
         os.remove(filename)
 
+
 from stencilflow import Kernel
 
 
 class KernelTest(unittest.TestCase):
+
     def test(self):
         # define global problem size
         dimensions = [100, 100, 100]
@@ -255,10 +263,12 @@ class KernelTest(unittest.TestCase):
             "SUBST = (((a[0] + a[-1]) + a[-100]) + a[-10000]); dummy = (SUBST + a[0])"
         )
 
+
 from stencilflow import KernelChainGraph
 
 
 class KernelChainGraphTest(unittest.TestCase):
+
     def test(self):
         chain = KernelChainGraph(
             path=os.path.join(TEST_FOLDER, 'simple_input_delay_buf.json'),
@@ -271,6 +281,7 @@ from stencilflow import Optimizer
 
 
 class OptimizerTest(unittest.TestCase):
+
     def test(self):
         # instantiate example KernelChainGraph
         chain = KernelChainGraph(
@@ -323,7 +334,7 @@ class SimulatorTest(unittest.TestCase):
             },
             "sample7": {
                 "file":
-                "simulator7.json",
+                    "simulator7.json",
                 "res": [
                     20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25,
                     16.25
@@ -347,7 +358,7 @@ class SimulatorTest(unittest.TestCase):
             },
             "sample12": {
                 "file":
-                "simulator12.json",
+                    "simulator12.json",
                 "res": [
                     20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25, 16.25,
                     16.25, 20.25, 20.25, 19.25, 20.25, 20.25, 19.25, 16.25,
@@ -403,9 +414,9 @@ class ProgramTest(unittest.TestCase):
     def test_and_simulate(self):
         test_directory = os.path.join(os.path.dirname(__file__), "testing")
         for stencil_file in [
-                "simulator", "simulator2", "simulator3", "simulator4",
-                "simulator5", "simulator6", "simulator8",
-                "simulator9", "simulator10", "simulator11"
+            "simulator", "simulator2", "simulator3", "simulator4",
+            "simulator5", "simulator6", "simulator8",
+            "simulator9", "simulator10", "simulator11"
         ]:
             print(
                 "Simulating and emulating program {}...".format(stencil_file))
