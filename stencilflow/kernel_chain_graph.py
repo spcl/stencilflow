@@ -618,7 +618,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-stencil_file")
     parser.add_argument("-plot", action="store_true")
-    parser.add_argument("-log-level")
+    parser.add_argument("-log-level", default=LogLevel.MODERATE.value)
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
     args = parser.parse_args()
