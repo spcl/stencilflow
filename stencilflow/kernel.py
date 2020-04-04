@@ -230,7 +230,7 @@ class Kernel(BaseKernelNodeClass):
                 dim_index = helper.list_subtract_cwise(node.index, self.graph.max_index[node.name])
             # break down index from 3D (i.e. [X,Y,Z]) to 1D
             if flatten_index:
-                word_index = helper.convert_3d_to_1d( self.dimensions, dim_index)
+                word_index = helper.convert_3d_to_1d(self.dimensions, dim_index)
                 # replace negative sign if the flag is set
                 if replace_negative_index and word_index < 0:
                     return node.name + "[" + "n" + str(abs(word_index)) + "]"
