@@ -6,7 +6,7 @@
       "dimensions": "[]"
     },
     "in1d": {
-      "data": "stencils/data/zeros_16_fp64.dat",
+      "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
       "data_type": "float64",
       "dimensions": "[k]"
     },
