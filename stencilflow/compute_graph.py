@@ -67,13 +67,14 @@ class ComputeGraph:
             tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
             tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     """
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(self, verbose: bool = False, dimensions=3) -> None:
         """
         Create new ComputeGraph with given initialization parameters.
         :param verbose: flag for console output logging
         """
         # set parameter variables
         self.verbose = verbose
+        self.dimensions = dimensions
         # read static parameters from config file
         self.config: Dict[str, int] = helper.parse_json("compute_graph.config")
         # initialize internal data structures
@@ -98,8 +99,8 @@ class ComputeGraph:
         )  # dictionary containing all field accesses for a specific
         # resource e.g. {"A":{[0,0,0],[0,1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
-    @staticmethod
-    def create_operation_node(node: ast,
+    def create_operation_node(self,
+                              node: ast,
                               number: int) -> BaseOperationNodeClass:
         """
         Create operation node of the correct type.
@@ -119,7 +120,7 @@ class ComputeGraph:
             return Output(node, number)
         elif isinstance(node,
                         ast.Subscript):  # array access (form: arr[i,j,k])
-            return Subscript(node, number)
+            return Subscript(node, number, self.dimensions)
         elif isinstance(node,
                         ast.IfExp):  # if/else clause of ternary operation
             return Ternary(node, number)
@@ -138,8 +139,7 @@ class ComputeGraph:
         (i.e. negative)
         """
         # init dicts
-        self.min_index = dict(
-        )  # min_index["buffer_name"] = [i_min, j_min, k_min]
+        self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
         self.max_index = dict()
         self.buffer_size = dict()  # buffer_size["buffer_name"] = size
         # find min and max index
@@ -156,12 +156,19 @@ class ComputeGraph:
                 if inp.name not in self.accesses:  # create initial list
                     self.accesses[inp.name] = list()
                 self.accesses[inp.name].append(inp.index)  # add entry
+            elif isinstance(inp, Name):
+                if inp.name not in self.accesses:  # create initial list
+                    self.accesses[inp.name] = list()
+                self.accesses[inp.name].append([0]*self.dimensions)  # add entry
         # set buffer_size = max_index - min_index
-        for buffer_name in self.min_index:
-            self.buffer_size[buffer_name] = [
-                abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name],
-                                                   self.min_index[buffer_name])
-            ]
+        for buffer_name in self.accesses:
+            if buffer_name not in self.min_index:
+                self.buffer_size[buffer_name] = [0]*self.dimensions
+            else:
+                self.buffer_size[buffer_name] = [
+                    abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name],
+                                                       self.min_index[buffer_name])]
+
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
             for field in self.accesses:
