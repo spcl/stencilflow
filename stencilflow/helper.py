@@ -316,8 +316,26 @@ class helper:
         # index = i*dimY*dimZ + j*dimZ + k = (i*dimY + j)*dimZ + k
         if not index:
             return 0  # empty list
-        return helper.dim_to_abs_val(index, dimensions)
+        elif helper.num_dims(index) == 3:
+            return helper.dim_to_abs_val(index, dimensions)
+        elif helper.num_dims(index) == 2:
+            if index[0] is None:
+                return index[1]*dimensions[2] + index[2]
+            elif index[1] is None:
+                return index[0]*dimensions[2] + index[2]
+            elif index[2] is None:
+                return index[0]*dimensions[1] + index[1]
+        elif helper.num_dims(index) == 1:
+            return [x for x in index if x is not None][0]
 
+    @staticmethod
+    def num_dims(index: List[int]):
+        """
+
+        :param index:
+        :return:
+        """
+        return functools.reduce(lambda x, y: x + 1 if y is not None else x, index, 0)
 
     # credits: https://stackoverflow.com/questions/9895787/memory-alignment-for-fast-fft-in-python-using-shared-arrays
     @staticmethod
@@ -338,6 +356,9 @@ if __name__ == "__main__":
     """
         Basic helper function test. Comprehensive testing is implemented in 'testing.py'.
     """
+
+    test = helper.num_dims([1, None, 1])
+
     example_list = [[1, 2, 2], [1, 2, 3], [3, 2, 1], [2, 3, 1]]
     print("properties of list {}:\nmin: {}\nmax: {}\n".format(
         example_list, min(example_list), max(example_list)))
