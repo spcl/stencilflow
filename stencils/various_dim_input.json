@@ -5,11 +5,6 @@
       "data_type": "float64",
       "dimensions": "[]"
     },
-        "x": {
-      "data": [0.0],
-      "data_type": "float64",
-      "dimensions": "[]"
-    },
     "in1d": {
       "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
       "data_type": "float64",
