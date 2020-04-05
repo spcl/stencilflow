@@ -205,8 +205,11 @@ class Kernel(BaseKernelNodeClass):
         # differentiate cases for each node type
         if isinstance(node, Binop):  # binary operation
             # extract expression elements
-            lhs = pred[0]  # left hand side
-            rhs = pred[1]  # right hand side
+            if len(pred) == 1: # lhs == rhs:
+                lhs, rhs = pred[0], pred[0]
+            else:
+                lhs = pred[0]  # left hand side
+                rhs = pred[1]  # right hand side
             # recursively compute the child string
             lhs_str = self.iter_comp_tree(lhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index, output_dimensions)
             rhs_str = self.iter_comp_tree(rhs, index_relative_to_center, replace_negative_index, python_syntax, flatten_index, output_dimensions)
