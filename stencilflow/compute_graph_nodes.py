@@ -215,7 +215,8 @@ class Subscript(BaseOperationNodeClass):
 
     def __init__(self,
                  ast_node: ast,
-                 number: int) -> None:
+                 number: int,
+                 dimensions: int) -> None:
         """
         Create new Subscript node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -224,6 +225,7 @@ class Subscript(BaseOperationNodeClass):
         # initialize superclass
         super().__init__(ast_node, number)
         # initialize local fields
+        self.dimensions = dimensions
         self.index: List[int] = list()
         self.create_index(ast_node)
 
@@ -253,7 +255,19 @@ class Subscript(BaseOperationNodeClass):
         """
         # create index
         self.index = list()
-        for slice in ast_node.slice.value.elts:
+        if hasattr(ast_node.slice.value, "elts"):
+            for slice in ast_node.slice.value.elts:
+                if isinstance(slice, ast.Name):
+                    self.index.append(self._VAR_MAP[slice.id])
+                elif isinstance(slice, ast.BinOp):
+                    # note: only support for index variations [i, j+3,..]
+                    # read index expression
+                    expression = str(slice.left.id) + self._OP_SYM_MAP[type(slice.op)] + str(slice.right.n)
+                    # convert [i+1,j, k-1] to [1, 0, -1]
+                    calculator = Calculator()
+                    self.index.append(calculator.eval_expr(self._VAR_MAP, expression))
+        else:
+            slice = ast_node.slice.value
             if isinstance(slice, ast.Name):
                 self.index.append(self._VAR_MAP[slice.id])
             elif isinstance(slice, ast.BinOp):
@@ -263,6 +277,8 @@ class Subscript(BaseOperationNodeClass):
                 # convert [i+1,j, k-1] to [1, 0, -1]
                 calculator = Calculator()
                 self.index.append(calculator.eval_expr(self._VAR_MAP, expression))
+        diff = self.dimensions - len(self.index)
+        self.index = [0]*diff + self.index
 
     def generate_name(self,
                       ast_node: ast) -> str:
