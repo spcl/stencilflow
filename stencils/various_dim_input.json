@@ -13,7 +13,7 @@
     "in2d": {
       "data": "stencils/data/zeros_16x16_fp64.dat",
       "data_type": "float64",
-      "dimensions": "[j, k]"
+      "dimensions": "[i, j]"
     },
     "in3d": {
       "data": "stencils/data/zeros_16x16x16_fp64.dat",
@@ -25,9 +25,9 @@
     "out"
   ],
   "dimensions": [
+    8,
     16,
-    16,
-    16
+    32
   ],
   "program": {
     "out": {
