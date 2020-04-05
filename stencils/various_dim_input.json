@@ -31,7 +31,7 @@
   ],
   "program": {
     "out": {
-      "computation_string": "res = in2d[j, k] + ind3d[i, j, k]",
+      "computation_string": "res = in0d + in1d[k] + in1d[k+42] + in2d[i, j] + in2d[i+1, j+1] + in3d[i, j, k] +  in3d[i+1, j+1, k+1]",
       "boundary_conditions": {
         "in0d": {
           "type": "constant",
