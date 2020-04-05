@@ -282,7 +282,8 @@ class KernelChainGraph:
                                     "name": name,
                                     "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
                                     "internal_buffer": dest.internal_buffer[src.name],
-                                    "data_type": src.data_type
+                                    "data_type": src.data_type,
+                                    "input_dim": self.inputs[src.name]["dimensions"]
                                 }
                                 # add channel reference to global channel dictionary
                                 self.channels[name] = channel
