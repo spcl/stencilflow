@@ -294,13 +294,10 @@ class Kernel(BaseKernelNodeClass):
         res = []
         # treat named nodes
         for n in self.graph.graph.nodes:
-            if isinstance(n, Name):
-                res.append(n.name + " = " + self.iter_comp_tree(
-                    list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index, python_syntax, flatten_index, output_dimensions))
+            if isinstance(n, Name) and n.name not in self.input_paths:
+                res.append(n.name + " = " + self.iter_comp_tree(list(self.graph.graph.pred[n])[0], relative_to_center, replace_negative_index, python_syntax, flatten_index, output_dimensions))
         # treat output node(s)
-        output_node = [
-            n for n in self.graph.graph.nodes if isinstance(n, Output)
-        ]
+        output_node = [n for n in self.graph.graph.nodes if isinstance(n, Output)]
         if len(output_node) != 1:
             raise Exception("Expected a single output node")
         output_node = output_node[0]

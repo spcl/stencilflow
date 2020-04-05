@@ -273,8 +273,7 @@ class KernelChainGraph:
                                 # add channel to edge
                                 self.graph[src][dest]['channel'] = channel
                                 break
-                    elif isinstance(src, Input) and isinstance(
-                            dest, Kernel):  # case: INPUT -> KERNEL
+                    elif isinstance(src, Input) and isinstance(dest, Kernel):  # case: INPUT -> KERNEL
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # create channel
