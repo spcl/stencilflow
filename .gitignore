@@ -12,3 +12,4 @@ _dotgraphs
 .env
 .vscode/
 *.code-workspace
+*.pyc
