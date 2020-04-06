@@ -137,8 +137,8 @@ def do_estimate():
         "total critical path length (dimensionless) = _MEAN_CRITICAL_PATH_KERNEL * _DYCORE_CRITICAL_PATH_LENGTH = "
         "{} * {} = {}".format(_MEAN_CRITICAL_PATH_KERNEL,
                               _DYCORE_CRITICAL_PATH_LENGTH, critical_path_dim))
-    critical_path_cyc = stencilflow.convert_3d_to_1d(critical_path_dim,
-                                                     _DIMENSIONS)
+    critical_path_cyc = stencilflow.convert_3d_to_1d(index=critical_path_dim,
+                                                    dimensions=_DIMENSIONS)
     print("total critical path length (cycles) = {} cycles\n".format(
         critical_path_cyc))
     # compute maximum possible communication volume

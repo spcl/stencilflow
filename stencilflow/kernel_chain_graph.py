@@ -431,8 +431,8 @@ class KernelChainGraph:
                 for entry in node.input_paths[inp]:
                     name = entry[-1]
                     max_size = helper.convert_3d_to_1d(
-                        self.dimensions,
-                        helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
+                        dimensions=self.dimensions,
+                        index=helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
                     node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
                     node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
             # set input node delay buffers to 1
@@ -503,7 +503,7 @@ class KernelChainGraph:
         """
         Computes the max latency critical path through the graph in scalar format.
         """
-        return helper.convert_3d_to_1d(self.compute_critical_path_dim(), self.dimensions)
+        return helper.convert_3d_to_1d(index=self.compute_critical_path_dim(), dimensions=self.dimensions)
 
     def report(self, name):
         print("Report of {}\n".format(name))

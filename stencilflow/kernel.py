@@ -136,8 +136,7 @@ class Kernel(BaseKernelNodeClass):
         self.buf_usage_sum = dict()
         self.buf_usage_num = dict()
         self.init_metric = False
-        self.PC_exec_start = helper.convert_3d_to_1d(
-            self.dimensions, self.dimensions)  # upper bound
+        self.PC_exec_start = helper.convert_3d_to_1d(dimensions=self.dimensions, index=self.dimensions)  # upper bound
         self.PC_exec_end = 0  # lower bound
 
     def print_kernel_performance(self):
@@ -198,8 +197,7 @@ class Kernel(BaseKernelNodeClass):
         """
         for item in self.graph.accesses:
             furthest = max(self.graph.accesses[item])
-            self.dist_to_center[item] = helper.convert_3d_to_1d(
-                furthest, self.dimensions)
+            self.dist_to_center[item] = helper.convert_3d_to_1d(dimensions=self.dimensions, index=furthest)
 
     def iter_comp_tree(self,
                        node: BaseOperationNodeClass,
@@ -278,8 +276,7 @@ class Kernel(BaseKernelNodeClass):
                     dim_index = list(
                         map(lambda x, y: y
                             if x is not None else None, ind, new_ind))
-                word_index = helper.convert_3d_to_1d(self.dimensions,
-                                                     dim_index)
+                word_index = helper.convert_3d_to_1d(dimensions=self.dimensions, index=dim_index)
                 # replace negative sign if the flag is set
                 if replace_negative_index and word_index < 0:
                     return node.name + "[" + "n" + str(abs(word_index)) + "]"
@@ -438,9 +435,7 @@ class Kernel(BaseKernelNodeClass):
                     curr = item
                     # calculate size of buffer
                     diff = abs(
-                        helper.convert_3d_to_1d(
-                            helper.list_subtract_cwise(pre, curr),
-                            self.dimensions))
+                        helper.convert_3d_to_1d(index=helper.list_subtract_cwise(pre, curr), dimensions=self.dimensions))
                     if diff == 0:  # two accesses on same field
                         pass
                     else:
@@ -479,7 +474,7 @@ class Kernel(BaseKernelNodeClass):
             return "_{}_{}_{}".format(index[0], index[1], index[2])
             """
             # compute absolute index
-            ind = helper.convert_3d_to_1d(self.dimensions, index)
+            ind = helper.convert_3d_to_1d(dimensions=self.dimensions, index=index)
             # return formatted string
             return "_{}".format(ind) if ind >= 0 else "_n{}".format(abs(ind))
         else:
