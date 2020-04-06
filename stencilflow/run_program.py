@@ -170,18 +170,6 @@ def run_program(stencil_file,
     if compare_to_reference:
         reference_output_arrays = copy.deepcopy(output_arrays)
 
-    # Compile program (if running emulation)
-    build_folder = os.path.join(".dacecache", name, "build")
-    if mode == "emulation":
-        print("Compiling emulation kernel...")
-        sp.run(["make", "intelfpga_compile_" + name + "_emulator"],
-               cwd=build_folder,
-               check=True)
-    elif mode == "hardware":
-        if not os.path.exists(
-                os.path.join(build_folder, name + "_hardware.aocx")):
-            raise FileNotFoundError("Hardware kernel has not been built.")
-
     if skip_execution:
         exit()
 
