@@ -37,6 +37,7 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import argparse
+import ast
 import functools
 import operator
 import re
@@ -64,19 +65,19 @@ class KernelChainGraph:
     def __init__(self,
                  path: str,
                  plot_graph: bool = False,
-                 log_level: int = 0) -> None:
+                 log_level: LogLevel = LogLevel.NO_LOG) -> None:
         """
         Create new KernelChainGraph with given initialization parameters.
         :param path: path to the input file
         :param plot_graph: flag indication whether or not to produce the graphical graph representation
         :param log_level: flag for console output logging
         """
-        if log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC:
             print("Initialize KernelChainGraph.")
         # set parameters
         # absolute path
         self.path: str = os.path.abspath(path)  # get valid
-        self.log_level: int = log_level
+        self.log_level: LogLevel = log_level
         # init internal fields
         self.inputs: Dict[str, Dict[str, str]] = dict()  # input data
         self.outputs: List[str] = list()  # name of the output fields
@@ -93,33 +94,33 @@ class KernelChainGraph:
         self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
         self.kernel_dimensions = -1  # 2: 2D, 3: 3D
         # trigger all internal calculations
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Read input config files.")
         self.import_input()  # read input config file
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Create all kernels.")
         self.create_kernels()  # create all kernels
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Compute kernel latencies.")
         self.compute_kernel_latency()  # compute their latencies
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Connect kernels.")
         self.connect_kernels()  # connect them in the graph
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Compute delay buffer sizes.")
         self.compute_delay_buffer()  # compute the delay buffer sizes
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Add channels to the graph edges.")
         self.add_channels(
         )  # add all channels (internal buffer and delay buffer) to the edges of the graph
         # plot kernel graphs if flag set to true
         if plot_graph:
-            if self.log_level >= LogLevel.BASIC.value:
+            if self.log_level >= LogLevel.BASIC:
                 print("Plot kernel chain graph.")
             # plot kernel chain graph
             self.plot_graph(self.name + ".png")
             # plot all compute graphs
-            if self.log_level >= LogLevel.BASIC.value:
+            if self.log_level >= LogLevel.BASIC:
                 print("Plot computation graph of each kernel.")
             for compute_kernel in self.kernel_nodes:
                 self.kernel_nodes[compute_kernel].graph.plot_graph(
@@ -131,7 +132,7 @@ class KernelChainGraph:
                     or "tan" in self.program[kernel]["computation_string"]:
                 print("Warning: Computation contains sinusoidal functions with experimental latency values.")
         # print report for moderate and high verbosity levels
-        if self.log_level >= LogLevel.MODERATE.value:
+        if self.log_level >= LogLevel.MODERATE:
             self.report(self.name)
 
     def plot_graph(self, save_path: str = None) -> None:
@@ -606,6 +607,64 @@ class KernelChainGraph:
                         total_fast += entry.maxsize
         print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(total_slow, total_fast))
 
+    def operation_count(self):
+        """For each operation type found in the ASTs, return a tuple of
+           (num ops per cycle, num ops total)."""
+
+        num_iterations = functools.reduce(lambda a, b: a * b, self.dimensions)
+
+        operations = {}
+
+        for kernel in self.graph.nodes():
+
+            if not isinstance(kernel, Kernel):
+                continue
+
+            stencil_ast = ast.parse(kernel.kernel_string)
+
+            counter = helper.OpCounter()
+            counter.visit(stencil_ast)
+            num_ops = counter.operation_count
+            for name, count in num_ops.items():
+                count_total = num_iterations * count
+                if name not in operations:
+                    operations[name] = (count, count_total)
+                else:
+                    operations[name] = (operations[name][0] + count,
+                                        operations[name][1] + count_total)
+
+        return operations
+
+    def minimum_communication_volume(self):
+        """Computes the minimum off-chip bandwidth communication volume
+           required to evaluate the self."""
+        num_elements = functools.reduce(lambda a, b: a * b, self.dimensions)
+        communication_volume = 0
+        for v in self.inputs.values():
+            dtype = v["data_type"]
+            if isinstance(dtype, str):
+                dtype = str_to_dtype(dtype)
+            communication_volume += dtype.bytes * num_elements
+        for i in self.outputs:
+            dtype = self.program[i]["data_type"]
+            if isinstance(dtype, str):
+                dtype = str_to_dtype(dtype)
+            communication_volume += dtype.bytes * num_elements
+        return communication_volume
+
+    def runtime_lower_bound(self):
+        """Returns the lower bound on number of cycles to execute the program,
+           in number of cycles."""
+        max_init_cycles = 0
+        for kernel in self.graph.nodes():
+            if not isinstance(kernel, Kernel):
+                continue
+            for d in kernel.dist_to_center.values():
+                if d > max_init_cycles:
+                    max_init_cycles = d
+        return (functools.reduce(lambda a, b: a * b, self.dimensions) +
+                max_init_cycles + self.compute_critical_path())
+
 
 if __name__ == "__main__":
     """
@@ -625,7 +684,7 @@ if __name__ == "__main__":
     # instantiate the KernelChainGraph
     chain = KernelChainGraph(path=args.stencil_file,
                              plot_graph=args.plot,
-                             log_level=int(args.log_level))
+                             log_level=LogLevel(args.log_level))
     # simulate the design if argument -simulate is true
     if args.simulate:
         sim = Simulator(program_name=re.match(
@@ -636,7 +695,7 @@ if __name__ == "__main__":
                         output_nodes=chain.output_nodes,
                         dimensions=chain.dimensions,
                         write_output=False,
-                        log_level=int(args.log_level))
+                        log_level=LogLevel(args.log_level))
         sim.simulate()
 
     # output a report if argument -report is true

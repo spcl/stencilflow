@@ -4,13 +4,14 @@ import astunparse
 import json
 import re
 import warnings
+from typing import Tuple
 
 import dace
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
-from dace.transformation.pattern_matching import Transformation
+from dace.data import Array
 from dace.transformation.dataflow import MapFission
-from dace.transformation.interstate import LoopUnroll
+from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
 PARAMETERS = ["i", "j", "k"]
 
@@ -23,7 +24,43 @@ def _specialize_symbols(iterable, symbols):
                           for v in specialized.split(", "))
 
 
+def _permute_array(array: Array, perm: Tuple[int, int, int], sdfg: dace.SDFG,
+                   array_name: str):
+    array.shape = [array.shape[i] for i in perm]
+    array.strides = [array.strides[i] for i in perm]
+    array.offset = [array.offset[i] for i in perm]
+    # Modify all edges coming in/out of the array
+    for state in sdfg.nodes():
+        for e in state.edges():
+            if e.data.data == array_name:
+                e.data.subset = type(
+                    e.data.subset)([e.data.subset[i] for i in perm])
+
+
+def standardize_data_layout(sdfg):
+    I, J, K = tuple(dace.symbol(sym) for sym in 'IJK')
+
+    for nsdfg in sdfg.all_sdfgs_recursive():
+        for aname, array in nsdfg.arrays.items():
+            if K in array.free_symbols:
+                i_index = next((i for i, s in enumerate(array.shape)
+                                if I in s.free_symbols), -1)
+                j_index = next((i for i, s in enumerate(array.shape)
+                                if J in s.free_symbols), -1)
+                k_index = next(i for i, s in enumerate(array.shape)
+                               if K in s.free_symbols)
+                # NOTE: We use the J, K, I format here. To change, permute
+                # the order below.
+                order = tuple(dim for dim in (j_index, k_index, i_index)
+                              if dim >= 0)
+                _permute_array(array, order, nsdfg, aname)
+
+
 def canonicalize_sdfg(sdfg, symbols={}):
+    # Fuse and nest parallel K-loops
+    sdfg.apply_transformations_repeated(MapFission, validate=False)
+    standardize_data_layout(sdfg)
+    sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
 
     # Specialize symbols
     sdfg.specialize(symbols)
@@ -43,14 +80,7 @@ def canonicalize_sdfg(sdfg, symbols={}):
     # Unroll sequential K-loops
     sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
 
-    # Fuse and nest parallel K-loops
-    strict = [
-        k for k, v in Transformation.extensions().items()
-        if v.get('strict', False)
-    ]
-    extra = [NestK, MapFission]
-
-    return sdfg.apply_transformations_repeated(strict + extra, validate=False)
+    return sdfg
 
 
 class _OutputTransformer(ast.NodeTransformer):
@@ -86,24 +116,36 @@ class _OutputTransformer(ast.NodeTransformer):
 
 
 class _RenameTransformer(ast.NodeTransformer):
-    def __init__(self, rename_map, offset):
+    def __init__(self, rename_map, offset, accesses):
         self._rename_map = rename_map
         self._offset = offset
+        self._accesses = accesses
         self._operation_count = 0
 
     @property
     def operation_count(self):
         return self._operation_count
 
-    def visit_Index(self, node: ast.Subscript):
+    def visit_Subscript(self, node: ast.Subscript):
         # Convert [0, 1, -1] to [i, j + 1, k - 1]
-        offsets = tuple(x.n - self._offset[i]
-                        for i, x in enumerate(node.value.elts))
+        offsets = [
+            offset for offset, valid in zip(self._offset, self._accesses[
+                node.value.id][0]) if valid
+        ]
+        if isinstance(node.slice.value, ast.Tuple):
+            # Negative indices show up as a UnaryOp, others as Num
+            indices = (x.n if isinstance(x, ast.Num) else -x.operand.n
+                       for x in node.slice.value.elts)
+        else:
+            # One dimensional access doesn't show up as a tuple
+            indices = (node.slice.value.n if isinstance(
+                node.slice.value, ast.Num) else -node.slice.value.operand.n, )
+        indices = tuple(x - o for x, o in zip(indices, offsets))
         t = "(" + ", ".join(
             PARAMETERS[i] +
-            (" + " + str(o) if o > 0 else (" - " + str(o) if o < 0 else ""))
-            for i, o in enumerate(offsets)) + ")"
-        node.value = ast.parse(t).body[0].value
+            (" + " + str(o) if o > 0 else (" - " + str(-o) if o < 0 else ""))
+            for i, o in enumerate(indices)) + ")"
+        node.slice.value = ast.parse(t).body[0].value
         self.generic_visit(node)
         return node
 
@@ -221,11 +263,11 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     # Now we need to go rename versioned variables in the
                     # stencil code
                     output_transformer = _OutputTransformer()
-                    old_ast = ast.parse(node.code)
+                    old_ast = ast.parse(node.code.as_string)
                     new_ast = output_transformer.visit(old_ast)
                     output_offset = output_transformer.offset
                     rename_transformer = _RenameTransformer(
-                        rename_map, output_offset)
+                        rename_map, output_offset, node.accesses)
                     new_ast = rename_transformer.visit(new_ast)
                     operation_count[0] += rename_transformer.operation_count
                     code = astunparse.unparse(new_ast)
@@ -254,9 +296,6 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                                     shape, s))
 
                 elif isinstance(node, dace.graph.nodes.Tasklet):
-                    print(node.__dict__)
-                    import pdb
-                    pdb.set_trace()
                     warnings.warn("Ignored tasklet {}".format(node.label))
 
                 elif isinstance(node, dace.graph.nodes.AccessNode):

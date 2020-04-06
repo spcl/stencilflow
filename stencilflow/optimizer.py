@@ -61,14 +61,14 @@ class Optimizer:
     def __init__(self,
                  kernels: Dict[str, Kernel],
                  dimensions: List[int],
-                 log_level: int = 0):
+                 log_level: LogLevel = LogLevel.NO_LOG):
         """
         Create new BoundedQueue with given initialization parameters.
         :param kernels: all kernels
         :param dimensions: global dimensions / problem size (i.e. size of the input array
         :param verbose: flag for console output logging
         """
-        if log_level >= LogLevel.BASIC.value:
+        if log_level >= LogLevel.BASIC:
             print("Initialize Optimizer.")
         # save params
         self.kernels = kernels
@@ -82,10 +82,10 @@ class Optimizer:
         self.eps = self.config[
             "eps"]  # machine precision (i.e. used for division by (almost) zero)
         # run init methods
-        if self.log_level >= LogLevel.MODERATE.value:
+        if self.log_level >= LogLevel.MODERATE:
             print("Add all buffers to the metric.")
         self.add_buffers_to_metric()
-        if self.log_level >= LogLevel.MODERATE.value:
+        if self.log_level >= LogLevel.MODERATE:
             print("Reset old state.")
         self.reset()
 
@@ -109,7 +109,7 @@ class Optimizer:
         :param fast_memory_bound: maximum available fast on-chip memory
         :param slow_memory_bound: maximum available slow dram memory
         """
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print(
                 "Run optimizer in mode: Minimize Communication Volume with fast memory bound: {} and slow memory "
                 "bound: {}.".format(fast_memory_bound, slow_memory_bound))
@@ -129,7 +129,7 @@ class Optimizer:
                 "Optimization failed, slow memory bound: {}, slow memory necessary to hold fast memory "
                 "constraint: {}".format(slow_memory_bound,
                                         self.slow_memory_use))
-        if self.log_level >= LogLevel.MODERATE.value:
+        if self.log_level >= LogLevel.MODERATE:
             self.report()
 
     def minimize_fast_mem(self, communication_volume_bound: int) -> None:
@@ -138,7 +138,7 @@ class Optimizer:
         slow memory.
         :param communication_volume_bound: maximum available data volume between fast and slow memory
         """
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print(
                 "Run optimizer in mode: Minimize Fast Memory Usage with comm volume bound: {}"
                 .format(communication_volume_bound))
@@ -155,7 +155,7 @@ class Optimizer:
             self.update_neighbours(opt)
             self.metric_data.remove(opt)
             opt = self.max_metric()
-        if self.log_level >= LogLevel.MODERATE.value:
+        if self.log_level >= LogLevel.MODERATE:
             self.report()
 
     def optimize_to_ratio(self, ratio: float) -> None:
@@ -164,7 +164,7 @@ class Optimizer:
         available communication volume.
         :param ratio: ratio = #fast_mem / #comm_vol
         """
-        if self.log_level >= LogLevel.BASIC.value:
+        if self.log_level >= LogLevel.BASIC:
             print("Run optimizer in mode: Optimize to Ratio with ratio: {}".
                   format(ratio))
         self.reinit()
@@ -177,7 +177,7 @@ class Optimizer:
             self.update_neighbours(opt)
             self.metric_data.remove(opt)
             opt = self.max_metric()
-        if self.log_level >= LogLevel.MODERATE.value:
+        if self.log_level >= LogLevel.MODERATE:
             self.report()
 
     @staticmethod

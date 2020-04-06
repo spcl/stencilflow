@@ -36,6 +36,7 @@ __author__ = "Andreas Kuster"
 __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
+import ast
 import collections
 import functools
 import json
@@ -345,6 +346,26 @@ def aligned(a, alignment=16):
     np.copyto(aa, a)
     assert (aa.ctypes.data % alignment) == 0
     return aa
+
+
+class OpCounter(ast.NodeVisitor):
+    def __init__(self):
+        self._operation_count = {}
+
+    @property
+    def operation_count(self):
+        return self._operation_count
+
+    def visit_BinOp(self, node: ast.BinOp):
+        if isinstance(node.left, ast.Subscript) or isinstance(
+                node.left, ast.BinOp) or isinstance(
+                    node.right, ast.Subscript) or isinstance(
+                        node.right, ast.BinOp):
+            op_name = type(node.op).__name__
+            if op_name not in self._operation_count:
+                self._operation_count[op_name] = 0
+            self._operation_count[op_name] += 1
+        self.generic_visit(node)
 
 
 if __name__ == "__main__":
