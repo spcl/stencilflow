@@ -290,15 +290,15 @@ class OptimizerTest(unittest.TestCase):
         # instantiate the Optimizer
         opt = Optimizer(chain.kernel_nodes, chain.dimensions)
         # define bounds
-        com_bound = 10000
+        com_bound = 1000
         fast_mem_bound = 1000
         slow_mem_bound = 100000
         ratio = 0.5
         # run all optimization strategies
         opt.minimize_fast_mem(communication_volume_bound=com_bound)
-        opt.minimize_comm_vol(
-            fast_memory_bound=fast_mem_bound, slow_memory_bound=slow_mem_bound)
+        opt.minimize_comm_vol(fast_memory_bound=fast_mem_bound, slow_memory_bound=slow_mem_bound)
         opt.optimize_to_ratio(ratio=ratio)
+        print()
 
 
 from stencilflow import Simulator
