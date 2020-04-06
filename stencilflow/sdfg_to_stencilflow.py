@@ -116,24 +116,36 @@ class _OutputTransformer(ast.NodeTransformer):
 
 
 class _RenameTransformer(ast.NodeTransformer):
-    def __init__(self, rename_map, offset):
+    def __init__(self, rename_map, offset, accesses):
         self._rename_map = rename_map
         self._offset = offset
+        self._accesses = accesses
         self._operation_count = 0
 
     @property
     def operation_count(self):
         return self._operation_count
 
-    def visit_Index(self, node: ast.Subscript):
+    def visit_Subscript(self, node: ast.Subscript):
         # Convert [0, 1, -1] to [i, j + 1, k - 1]
-        offsets = tuple(x.n - self._offset[i]
-                        for i, x in enumerate(node.value.elts))
+        offsets = [
+            offset for offset, valid in zip(self._offset, self._accesses[
+                node.value.id][0]) if valid
+        ]
+        if isinstance(node.slice.value, ast.Tuple):
+            # Negative indices show up as a UnaryOp, others as Num
+            indices = (x.n if isinstance(x, ast.Num) else -x.operand.n
+                       for x in node.slice.value.elts)
+        else:
+            # One dimensional access doesn't show up as a tuple
+            indices = (node.slice.value.n if isinstance(
+                node.slice.value, ast.Num) else -node.slice.value.operand.n, )
+        indices = tuple(x - o for x, o in zip(indices, offsets))
         t = "(" + ", ".join(
             PARAMETERS[i] +
             (" + " + str(o) if o > 0 else (" - " + str(-o) if o < 0 else ""))
-            for i, o in enumerate(offsets)) + ")"
-        node.value = ast.parse(t).body[0].value
+            for i, o in enumerate(indices)) + ")"
+        node.slice.value = ast.parse(t).body[0].value
         self.generic_visit(node)
         return node
 
@@ -251,11 +263,11 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     # Now we need to go rename versioned variables in the
                     # stencil code
                     output_transformer = _OutputTransformer()
-                    old_ast = ast.parse(node.code)
+                    old_ast = ast.parse(node.code.as_string)
                     new_ast = output_transformer.visit(old_ast)
                     output_offset = output_transformer.offset
                     rename_transformer = _RenameTransformer(
-                        rename_map, output_offset)
+                        rename_map, output_offset, node.accesses)
                     new_ast = rename_transformer.visit(new_ast)
                     operation_count[0] += rename_transformer.operation_count
                     code = astunparse.unparse(new_ast)
