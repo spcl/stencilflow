@@ -261,7 +261,7 @@ class Kernel(BaseKernelNodeClass):
                     node.index, self.graph.max_index[node.name])
             # break down index from 3D (i.e. [X,Y,Z]) to 1D
             if flatten_index:
-                if node.name in self.input_paths:
+                if node.name in self.input_paths and self.inputs[node.name]["input_dim"] is not None:
                     ind = [
                         x if x in self.inputs[node.name]["input_dim"] else None
                         for x in ["i", "j", "k"]
@@ -718,8 +718,7 @@ class Kernel(BaseKernelNodeClass):
         computation for the current variable mapping that was set up by the try_read() function.
         """
         # check if read has been succeeded
-        if self.center_reached and self.read_success and \
-                0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
+        if self.center_reached and self.read_success and 0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
             # execute calculation
             try:
                 # get computation string
