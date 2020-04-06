@@ -40,7 +40,7 @@ import operator
 from functools import reduce
 from typing import List, Dict
 
-from stencilflow.helper import helper
+import stencilflow.helper as helper
 from stencilflow.kernel import Kernel
 from stencilflow.log_level import LogLevel
 

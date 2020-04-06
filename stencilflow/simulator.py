@@ -41,7 +41,7 @@ import operator
 import os
 from typing import List, Dict
 
-from stencilflow.helper import helper
+import stencilflow.helper as helper
 from stencilflow.log_level import LogLevel
 
 

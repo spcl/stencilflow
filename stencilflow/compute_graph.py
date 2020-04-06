@@ -41,7 +41,7 @@ from typing import List, Dict, Set
 
 import networkx as nx
 
-from stencilflow.helper import helper
+import stencilflow.helper as helper
 from stencilflow.base_node_class import BaseOperationNodeClass
 from stencilflow.compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 
@@ -99,8 +99,7 @@ class ComputeGraph:
         )  # dictionary containing all field accesses for a specific
         # resource e.g. {"A":{[0,0,0],[0,1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
-    def create_operation_node(self,
-                              node: ast,
+    def create_operation_node(self, node: ast,
                               number: int) -> BaseOperationNodeClass:
         """
         Create operation node of the correct type.
@@ -139,7 +138,8 @@ class ComputeGraph:
         (i.e. negative)
         """
         # init dicts
-        self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
+        self.min_index = dict(
+        )  # min_index["buffer_name"] = [i_min, j_min, k_min]
         self.max_index = dict()
         self.buffer_size = dict()  # buffer_size["buffer_name"] = size
         # find min and max index
@@ -159,15 +159,18 @@ class ComputeGraph:
             elif isinstance(inp, Name):
                 if inp.name not in self.accesses:  # create initial list
                     self.accesses[inp.name] = list()
-                self.accesses[inp.name].append([0]*self.dimensions)  # add entry
+                self.accesses[inp.name].append([0] *
+                                               self.dimensions)  # add entry
         # set buffer_size = max_index - min_index
         for buffer_name in self.accesses:
             if buffer_name not in self.min_index:
-                self.buffer_size[buffer_name] = [0]*self.dimensions
+                self.buffer_size[buffer_name] = [0] * self.dimensions
             else:
                 self.buffer_size[buffer_name] = [
-                    abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name],
-                                                       self.min_index[buffer_name])]
+                    abs(a_i - b_i)
+                    for a_i, b_i in zip(self.max_index[buffer_name],
+                                        self.min_index[buffer_name])
+                ]
 
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
@@ -221,8 +224,10 @@ class ComputeGraph:
         for equation in self.tree.body:
             # check if base node is of type Expr or Assign
             if isinstance(equation, ast.Assign):
-                lhs = self.create_operation_node(equation, 0)  # left hand side equation
-                rhs = self.ast_tree_walk(equation.value, 1)  # right hand side of equation
+                lhs = self.create_operation_node(equation,
+                                                 0)  # left hand side equation
+                rhs = self.ast_tree_walk(equation.value,
+                                         1)  # right hand side of equation
                 self.graph.add_edge(rhs, lhs)
         # merge ambiguous variables in tree (implies: merge of ast.Assign trees into a single tree)
         outp_nodes = list(self.graph.nodes)

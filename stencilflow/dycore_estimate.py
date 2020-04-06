@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-
 """
 BSD 3-Clause License
 
@@ -42,10 +41,9 @@ import operator
 from functools import reduce
 from typing import List
 
+import stencilflow
 from stencilflow.log_level import LogLevel
-from stencilflow.helper import helper
 from stencilflow.kernel_chain_graph import KernelChainGraph
-
 """
     Intro:
         This is a buffer size and bandwidth estimate for the whole dynamical core of the COSMO weather model. With only
@@ -97,22 +95,31 @@ def do_estimate():
     # estimate for critical path length (#cycles): mean of the tree stencils: fastwaves, diffusion, advection
     critical_paths: List[List[int]] = list(list())
     # instantiate fastwaves and add critical path
-    critical_paths.append(KernelChainGraph(path="input/fastwaves.json",
-                                           plot_graph=False,
-                                           log_level=LogLevel.FULL.value).compute_critical_path_dim())
+    critical_paths.append(
+        KernelChainGraph(
+            path="input/fastwaves.json",
+            plot_graph=False,
+            log_level=LogLevel.FULL.value).compute_critical_path_dim())
     # instantiate diffusion and add critical path
-    critical_paths.append(KernelChainGraph(path="input/diffusion.json",
-                                           plot_graph=False,
-                                           log_level=LogLevel.FULL.value).compute_critical_path_dim())
+    critical_paths.append(
+        KernelChainGraph(
+            path="input/diffusion.json",
+            plot_graph=False,
+            log_level=LogLevel.FULL.value).compute_critical_path_dim())
     # instantiate advection and add critical path
-    critical_paths.append(KernelChainGraph(path="input/advection.json",
-                                           plot_graph=False,
-                                           log_level=LogLevel.FULL.value).compute_critical_path_dim())
+    critical_paths.append(
+        KernelChainGraph(
+            path="input/advection.json",
+            plot_graph=False,
+            log_level=LogLevel.FULL.value).compute_critical_path_dim())
     # calculate mean of the three
-    critical_path_sum = functools.reduce(lambda x, y: helper.list_add_cwise(x, y), critical_paths, [0] * 3)
-    mean: List[int] = list(map(lambda x: x / len(critical_paths), critical_path_sum))
+    critical_path_sum = functools.reduce(
+        lambda x, y: stencilflow.list_add_cwise(x, y), critical_paths, [0] * 3)
+    mean: List[int] = list(
+        map(lambda x: x / len(critical_paths), critical_path_sum))
     _MEAN_CRITICAL_PATH_KERNEL: List[int] = mean
-    print("Mean critical path length of the three stencils is: {}".format(mean))
+    print(
+        "Mean critical path length of the three stencils is: {}".format(mean))
     # print header
     print("###########################################################")
     print("COSMO dynamical core buffer size estimate report:\n")
@@ -123,19 +130,29 @@ def do_estimate():
     # longer
     _DYCORE_CRITICAL_PATH_LENGTH = 2 * chain.compute_critical_path()
     # compute total critical path
-    critical_path_dim = [x * _DYCORE_CRITICAL_PATH_LENGTH for x in _MEAN_CRITICAL_PATH_KERNEL]
-    print("total critical path length (dimensionless) = _MEAN_CRITICAL_PATH_KERNEL * _DYCORE_CRITICAL_PATH_LENGTH = "
-          "{} * {} = {}".format(_MEAN_CRITICAL_PATH_KERNEL, _DYCORE_CRITICAL_PATH_LENGTH, critical_path_dim))
-    critical_path_cyc = helper.convert_3d_to_1d(critical_path_dim, _DIMENSIONS)
-    print("total critical path length (cycles) = {} cycles\n".format(critical_path_cyc))
+    critical_path_dim = [
+        x * _DYCORE_CRITICAL_PATH_LENGTH for x in _MEAN_CRITICAL_PATH_KERNEL
+    ]
+    print(
+        "total critical path length (dimensionless) = _MEAN_CRITICAL_PATH_KERNEL * _DYCORE_CRITICAL_PATH_LENGTH = "
+        "{} * {} = {}".format(_MEAN_CRITICAL_PATH_KERNEL,
+                              _DYCORE_CRITICAL_PATH_LENGTH, critical_path_dim))
+    critical_path_cyc = stencilflow.convert_3d_to_1d(critical_path_dim,
+                                                     _DIMENSIONS)
+    print("total critical path length (cycles) = {} cycles\n".format(
+        critical_path_cyc))
     # compute maximum possible communication volume
     run_time_cyc = critical_path_cyc + reduce(operator.mul, _DIMENSIONS)
-    print("total run time (cycles) = latency + dimX*dimY*dimZ = {}".format(run_time_cyc))
+    print("total run time (cycles) = latency + dimX*dimY*dimZ = {}".format(
+        run_time_cyc))
     run_time_sec = run_time_cyc / _FPGA_CLOCK_FREQUENCY
-    print("total run time (seconds) = total run time (cycles) / _FPGA_CLOCK_FREQUENCY = {}".format(run_time_sec))
+    print(
+        "total run time (seconds) = total run time (cycles) / _FPGA_CLOCK_FREQUENCY = {}"
+        .format(run_time_sec))
     comm_vol = _FPGA_BANDWIDTH * run_time_sec
-    print("maximum available communication volume (to slow memory) = _FPGA_BANDWIDTH * total run time (seconds) = {}"
-          .format(comm_vol))
+    print(
+        "maximum available communication volume (to slow memory) = _FPGA_BANDWIDTH * total run time (seconds) = {}"
+        .format(comm_vol))
 
 
 if __name__ == "__main__":

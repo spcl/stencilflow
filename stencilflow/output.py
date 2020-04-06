@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-
 """
 BSD 3-Clause License
 
@@ -45,7 +44,7 @@ from typing import List
 
 from dace.dtypes import typeclass
 
-from stencilflow.helper import helper
+import stencilflow.helper as helper
 from stencilflow.base_node_class import BaseKernelNodeClass
 from stencilflow.bounded_queue import BoundedQueue
 
@@ -55,7 +54,6 @@ class Output(BaseKernelNodeClass):
         The Output class is a subclass of the BaseKernelNodeClass and represents an Ouput node in the KernelChainGraph.
         Its purpose is to store data coming from the pipeline/dataflow design.
     """
-
     def __init__(self,
                  name: str,
                  data_type: typeclass,
@@ -69,10 +67,12 @@ class Output(BaseKernelNodeClass):
         :param data_queue: dummy
         """
         # init superclass with queue of size: global problem size
-        super().__init__(name=name, data_type=data_type, data_queue=BoundedQueue(name="output",
-                                                                                 maxsize=functools.reduce(operator.mul,
-                                                                                                          dimensions),
-                                                                                 collection=[]))
+        super().__init__(name=name,
+                         data_type=data_type,
+                         data_queue=BoundedQueue(name="output",
+                                                 maxsize=functools.reduce(
+                                                     operator.mul, dimensions),
+                                                 collection=[]))
 
     def reset_old_compute_state(self) -> None:
         """
@@ -90,7 +90,8 @@ class Output(BaseKernelNodeClass):
             # read data
             if self.inputs[inp]["delay_buffer"].try_peek_last() is not False and self.inputs[inp]["delay_buffer"] \
                     .try_peek_last() is not None:
-                self.data_queue.enqueue(self.inputs[inp]["delay_buffer"].dequeue())
+                self.data_queue.enqueue(
+                    self.inputs[inp]["delay_buffer"].dequeue())
                 self.program_counter += 1
             elif self.inputs[inp]["delay_buffer"].try_peek_last() is not False:
                 self.inputs[inp]["delay_buffer"].dequeue()  # remove bubble
@@ -101,8 +102,7 @@ class Output(BaseKernelNodeClass):
         """
         pass  # nothing to do
 
-    def write_result_to_file(self,
-                             input_config_name: str) -> None:
+    def write_result_to_file(self, input_config_name: str) -> None:
         """
         Write internal queue with computation result to the file results/INPUT_CONFIG_NAME/SELF.NAME_simulation.dat
         :param input_config_name: the config name, used to determine the save path
@@ -112,4 +112,6 @@ class Output(BaseKernelNodeClass):
         # create (recursively) directories
         os.makedirs(output_folder, exist_ok=True)
         # store the data
-        helper.save_array(self.data_queue.export_data(), "{}/{}_{}.dat".format(output_folder, self.name, 'simulation'))
+        helper.save_array(
+            self.data_queue.export_data(),
+            "{}/{}_{}.dat".format(output_folder, self.name, 'simulation'))

@@ -46,7 +46,7 @@ from typing import List, Dict
 
 import networkx as nx
 
-from stencilflow.helper import helper
+import stencilflow.helper as helper
 from stencilflow.log_level import LogLevel
 from stencilflow.kernel import Kernel
 from stencilflow.bounded_queue import BoundedQueue

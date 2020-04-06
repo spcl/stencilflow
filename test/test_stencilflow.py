@@ -150,7 +150,7 @@ class RunProgramTest(unittest.TestCase):
         pass  # not a general test case, since dace and intel fgpa opencl sdk has to be installed and configured
 
 
-from stencilflow.helper import helper
+import stencilflow.helper as helper
 
 
 class HelperTest(unittest.TestCase):
