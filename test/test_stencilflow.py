@@ -172,7 +172,7 @@ class HelperTest(unittest.TestCase):
         # check dim_to_abs_val
         self.assertEqual(helper.dim_to_abs_val([3, 2, 1], [10, 10, 10]), 321)
         # check convert_3d_to_1d
-        self.assertEqual(helper.convert_3d_to_1d([10, 10, 10], [3, 2, 1]), 321)
+        self.assertEqual(helper.convert_3d_to_1d(dimensions=[10, 10, 10], index=[3, 2, 1]), 321)
         # check load_array
         self.assertListEqual(
             list(
@@ -302,6 +302,7 @@ class OptimizerTest(unittest.TestCase):
 
 
 from stencilflow import Simulator
+from stencilflow.log_level import LogLevel
 import numpy as np
 
 
