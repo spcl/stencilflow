@@ -41,8 +41,8 @@ from functools import reduce
 from typing import List, Dict
 
 import stencilflow.helper as helper
-from stencilflow import *
-from .kernel import Kernel
+from stencilflow.kernel import Kernel
+from stencilflow.log_level import LogLevel
 
 
 class Optimizer:
@@ -116,8 +116,7 @@ class Optimizer:
         self.reinit()
         # optimize for minimal communication volume use / maximal fast memory use
         opt = self.max_metric()
-        while not self.empty_list(
-                self.metric_data) and self.fast_memory_use > fast_memory_bound:
+        while not self.empty_list(self.metric_data) and self.fast_memory_use > fast_memory_bound:
             self.fast_memory_use -= opt["queue"].maxsize * opt["datatype_size"]
             self.slow_memory_use += opt["queue"].maxsize * opt["datatype_size"]
             opt["queue"].swap_out = True
@@ -209,7 +208,7 @@ class Optimizer:
         self.fast_memory_use = 0
         for item in self.metric_data:
             if not item["queue"].swap_out:
-                self.fast_memory_use += item["queue"].maxsize
+                self.fast_memory_use += item["queue"].maxsize*item["datatype_size"]
         # reset slow memory usage
         self.slow_memory_use = 0
 
@@ -267,13 +266,11 @@ class Optimizer:
             succ_fast = True
         # set comm vol accordingly
         if pre_fast and succ_fast:  # case (fast, fast)
-            buffer["comm_vol"] = 2 * self.single_comm_volume(
-                buffer["datatype_size"])
+            buffer["comm_vol"] = 2 * self.single_comm_volume(buffer["datatype_size"])
         elif (pre_fast and not succ_fast) or (
                 not pre_fast
                 and succ_fast):  # case (fast, slow) or (slow, fast)
-            buffer["comm_vol"] = 1 * self.single_comm_volume(
-                buffer["datatype_size"])
+            buffer["comm_vol"] = 1 * self.single_comm_volume(buffer["datatype_size"])
         else:  # case (slow, slow)
             buffer["comm_vol"] = self.eps
 
@@ -301,8 +298,7 @@ class Optimizer:
                     "next":
                     None
                 }
-                self.fast_memory_use += del_buf["queue"].maxsize * del_buf[
-                    "datatype_size"]
+                self.fast_memory_use += del_buf["queue"].maxsize * del_buf["datatype_size"]
                 self.metric_data.append(del_buf)
                 # get internal buffers next
                 prev = del_buf

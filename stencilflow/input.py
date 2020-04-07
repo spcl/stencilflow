@@ -37,11 +37,10 @@ __author__ = "Andreas Kuster"
 __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
-import numpy as np
 from dace.dtypes import typeclass
 
-from .base_node_class import BaseKernelNodeClass
-from .bounded_queue import BoundedQueue
+from stencilflow.base_node_class import BaseKernelNodeClass
+from stencilflow.bounded_queue import BoundedQueue
 
 
 class Input(BaseKernelNodeClass):

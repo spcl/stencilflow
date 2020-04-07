@@ -13,8 +13,6 @@ from dace.data import Array
 from dace.transformation.dataflow import MapFission
 from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
-PARAMETERS = ["i", "j", "k"]
-
 
 def _specialize_symbols(iterable, symbols):
     specialized = ", ".join(map(str, iterable))
@@ -142,7 +140,7 @@ class _RenameTransformer(ast.NodeTransformer):
                 node.slice.value, ast.Num) else -node.slice.value.operand.n, )
         indices = tuple(x - o for x, o in zip(indices, offsets))
         t = "(" + ", ".join(
-            PARAMETERS[i] +
+            stencilflow.ITERATORS[i] +
             (" + " + str(o) if o > 0 else (" - " + str(-o) if o < 0 else ""))
             for i, o in enumerate(indices)) + ")"
         node.slice.value = ast.parse(t).body[0].value

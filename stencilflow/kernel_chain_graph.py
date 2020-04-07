@@ -40,18 +40,20 @@ import argparse
 import ast
 import functools
 import operator
-import os
 import re
+import os
+
 from typing import List, Dict
 
 import networkx as nx
 
 import stencilflow.helper as helper
-from .log_level import LogLevel
-from .kernel import Kernel
-from .bounded_queue import BoundedQueue
-from .input import Input
-from .output import Output
+from stencilflow.log_level import LogLevel
+from stencilflow.kernel import Kernel
+from stencilflow.bounded_queue import BoundedQueue
+from stencilflow.input import Input
+from stencilflow.output import Output
+from stencilflow.simulator import Simulator
 
 
 class KernelChainGraph:
@@ -59,6 +61,7 @@ class KernelChainGraph:
     The KernelChainGraph class represents the whole pipelined data flow graph consisting of input nodes (real data input
     arrays, kernel nodes and output nodes (storing the result of the computation).
     """
+
     def __init__(self,
                  path: str,
                  plot_graph: bool = False,
@@ -80,18 +83,13 @@ class KernelChainGraph:
         self.outputs: List[str] = list()  # name of the output fields
         self.dimensions: List[int] = list()  # global problem size
         self.program: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = dict(
-        )  # mathematical stencil expressionos:program[stencil_name] = stencil expression
+        )  # mathematical stencil expressions:program[stencil_name] = stencil expression
         self.kernel_latency = None  # critical path latency
-        self.channels: Dict[
-            str,
-            BoundedQueue] = dict()  # each channel is an edge between two nodes
+        self.channels: Dict[str, BoundedQueue] = dict()  # each channel is an edge between two nodes
         self.graph: nx.DiGraph = nx.DiGraph()  # data flow graph
-        self.input_nodes: Dict[str,
-                               Kernel] = dict()  # Input nodes of the graph
-        self.output_nodes: Dict[str,
-                                Kernel] = dict()  # Output nodes of the graph
-        self.kernel_nodes: Dict[str,
-                                Kernel] = dict()  # Kernel nodes of the graph
+        self.input_nodes: Dict[str, Kernel] = dict()  # Input nodes of the graph
+        self.output_nodes: Dict[str,  Kernel] = dict()  # Output nodes of the graph
+        self.kernel_nodes: Dict[str, Kernel] = dict()  # Kernel nodes of the graph
         self.config = helper.parse_json("stencil_chain.config")
         self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
         self.kernel_dimensions = -1  # 2: 2D, 3: 3D
@@ -129,13 +127,10 @@ class KernelChainGraph:
                     self.name + "_" + compute_kernel + ".png")
         # print sin/cos/tan latency warning
         for kernel in self.program:
-            if "sin" in self.program[kernel][
-                    'computation_string'] or "cos" in self.program[kernel][
-                        'computation_string'] or "tan" in self.program[kernel][
-                            'computation_string']:
-                print(
-                    "Warning: Computation contains sinusoidal functions with experimental latency values."
-                )
+            if "sin" in self.program[kernel]["computation_string"] \
+                    or "cos" in self.program[kernel]["computation_string"] \
+                    or "tan" in self.program[kernel]["computation_string"]:
+                print("Warning: Computation contains sinusoidal functions with experimental latency values.")
         # print report for moderate and high verbosity levels
         if self.log_level >= LogLevel.MODERATE:
             self.report(self.name)
@@ -150,7 +145,7 @@ class KernelChainGraph:
         fig, ax = plt.subplots()
         ax.set_axis_off()
         # generate positions of the node (for pretty visualization)
-        positions = nx.nx_pydot.graphviz_layout(self.graph, prog='dot')
+        positions = nx.nx_pydot.graphviz_layout(self.graph, prog="dot")
         # divide nodes into different lists for colouring purpose
         nums = list()
         names = list()
@@ -260,22 +255,16 @@ class KernelChainGraph:
         for src in self.graph.nodes:
             for dest in self.graph.nodes:
                 if src is not dest:  # skip src == dest
-                    if isinstance(src, Kernel) and isinstance(
-                            dest, Kernel):  # case: KERNEL -> KERNEL
+                    if isinstance(src, Kernel) and isinstance(dest, Kernel):  # case: KERNEL -> KERNEL
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
                                 channel = {
-                                    "name":
-                                    name,
-                                    "delay_buffer":
-                                    self.kernel_nodes[dest.name].delay_buffer[
-                                        src.name],
-                                    "internal_buffer":
-                                    dest.internal_buffer[src.name],
-                                    "data_type":
-                                    src.data_type
+                                    "name": name,
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
+                                    "internal_buffer": dest.internal_buffer[src.name],
+                                    "data_type": src.data_type
                                 }
                                 # add channel reference to global channel dictionary
                                 self.channels[name] = channel
@@ -285,22 +274,17 @@ class KernelChainGraph:
                                 # add channel to edge
                                 self.graph[src][dest]['channel'] = channel
                                 break
-                    elif isinstance(src, Input) and isinstance(
-                            dest, Kernel):  # case: INPUT -> KERNEL
+                    elif isinstance(src, Input) and isinstance(dest, Kernel):  # case: INPUT -> KERNEL
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # create channel
                                 name = src.name + "_" + dest.name
                                 channel = {
-                                    "name":
-                                    name,
-                                    "delay_buffer":
-                                    self.kernel_nodes[dest.name].delay_buffer[
-                                        src.name],
-                                    "internal_buffer":
-                                    dest.internal_buffer[src.name],
-                                    "data_type":
-                                    src.data_type
+                                    "name": name,
+                                    "delay_buffer": self.kernel_nodes[dest.name].delay_buffer[src.name],
+                                    "internal_buffer": dest.internal_buffer[src.name],
+                                    "data_type": src.data_type,
+                                    "input_dim": self.inputs[src.name]["dimensions"] if "dimensions" in self.inputs[src.name] else None
                                 }
                                 # add channel reference to global channel dictionary
                                 self.channels[name] = channel
@@ -310,20 +294,15 @@ class KernelChainGraph:
                                 # add to edge
                                 self.graph[src][dest]['channel'] = channel
                                 break
-                    elif isinstance(dest,
-                                    Output):  # case: INPUT/KERNEL -> OUTPUT
+                    elif isinstance(dest, Output):  # case: INPUT/KERNEL -> OUTPUT
                         if src.name == dest.name:
                             # create channel
                             name = src.name + "_" + dest.name
                             channel = {
-                                "name":
-                                name,
-                                "delay_buffer":
-                                self.output_nodes[dest.name].delay_buffer[
-                                    src.name],
+                                "name": name,
+                                "delay_buffer": self.output_nodes[dest.name].delay_buffer[src.name],
                                 "internal_buffer": {},
-                                "data_type":
-                                src.data_type
+                                "data_type": src.data_type
                             }
                             # add channel reference to global channel dictionary
                             self.channels[name] = channel
@@ -331,7 +310,7 @@ class KernelChainGraph:
                             src.outputs[dest.name] = channel
                             dest.inputs[src.name] = channel
                             # add to edge
-                            self.graph[src][dest]['channel'] = channel
+                            self.graph[src][dest]["channel"] = channel
                     else:
                         # pass all other source/destination pairs
                         pass
@@ -343,37 +322,32 @@ class KernelChainGraph:
         inp = helper.parse_json(self.path)
         # get dimensions
         self.kernel_dimensions = len(inp["dimensions"])
+        # import program, inputs and outputs
+        self.program = inp["program"]
+        self.inputs = inp["inputs"]
+        self.outputs = inp["outputs"]
+        # handle stencil program output dimensions
         if self.kernel_dimensions == 1:  # 1D
-            self.program = inp["program"]
             for entry in self.program:
                 self.program[entry]["computation_string"] = \
-                    self.program[entry]["computation_string"].replace("[", "[i,j,")  # add two extra indices
-            self.inputs = inp["inputs"]
-            self.outputs = inp["outputs"]
-            self.dimensions = [
-                1, 1
-            ] + inp["dimensions"]  # add two extra dimensions
+                    self.program[entry]["computation_string"].replace("[", "[i, j,")  # add two extra indices
+            self.dimensions = [1, 1] + inp["dimensions"]  # add two extra dimensions
         elif self.kernel_dimensions == 2:  # 2D
-            self.program = inp["program"]
             for entry in self.program:
                 self.program[entry]["computation_string"] = self.program[entry]["computation_string"] \
                     .replace("[", "[i,")  # add extra index
-            self.inputs = inp["inputs"]
-            self.outputs = inp["outputs"]
             self.dimensions = [1] + inp["dimensions"]  # add extra dimension
         else:  # 3D
-            self.program = inp["program"]
-            self.inputs = inp["inputs"]
-            self.outputs = inp["outputs"]
             self.dimensions = inp["dimensions"]
+        # handle input array dimension
+        # TODO: implement
 
     def total_elements(self) -> int:
         """
         Reduction of the global problem size to a single scalar.
         :return: the global problem size as a scalar value
         """
-        return functools.reduce(operator.mul, self.dimensions,
-                                1)  # foldl (*) 1 [...]
+        return functools.reduce(operator.mul, self.dimensions, 1)  # foldl (*) 1 [...]
 
     def create_kernels(self) -> None:
         """
@@ -419,8 +393,7 @@ class KernelChainGraph:
         self.kernel_latency = dict()
         # compute kernel latency of each kernel
         for kernel in self.kernel_nodes:
-            self.kernel_latency[kernel] = self.kernel_nodes[
-                kernel].graph.max_latency
+            self.kernel_latency[kernel] = self.kernel_nodes[kernel].graph.max_latency
 
     def at_least_one(self, value: int) -> int:
         """
@@ -452,24 +425,19 @@ class KernelChainGraph:
             for inp in node.input_paths:
                 # compute maximum delay size per input
                 max_delay = max(node.input_paths[inp])
-                max_delay[
-                    2] += 1  # add an extra delay cycle for the processing in the kernel node
+                max_delay[2] += 1  # add an extra delay cycle for the processing in the kernel node
                 # loop over all inputs and set their size relative to the max size to have data ready at the exact
                 # same time
                 for entry in node.input_paths[inp]:
                     name = entry[-1]
                     max_size = helper.convert_3d_to_1d(
-                        self.dimensions,
-                        helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
-                    node.delay_buffer[name] = BoundedQueue(name=name,
-                                                           maxsize=max_size)
-                    node.delay_buffer[name].import_data(
-                        [None] * node.delay_buffer[name].maxsize)
+                        dimensions=self.dimensions,
+                        index=helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
+                    node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                    node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
             # set input node delay buffers to 1
             if isinstance(node, Input):
-                node.delay_buffer = BoundedQueue(name=node.name,
-                                                 maxsize=1,
-                                                 collection=[None])
+                node.delay_buffer = BoundedQueue(name=node.name, maxsize=1, collection=[None])
             # propagate the path lengths (from input arrays over all ways) to the successors
             for succ in self.graph.successors(node):
                 # add input node to all as direct input (=0 delay buffer)
@@ -482,14 +450,13 @@ class KernelChainGraph:
                     succ.input_paths[node.name].append(successor)
                 # add kernel node to all, but calculate the length first (predecessor + delay + internal, ..)
                 elif isinstance(node, Kernel):  # add KERNEL
-
                     # add latency, internal_buffer, delay_buffer
                     internal_buffer = [0] * 3
                     for item in node.graph.accesses:
                         internal_buffer = max(
                             node.graph.accesses[item]) if max(
-                                node.graph.accesses[item]
-                            ) > internal_buffer else internal_buffer
+                            node.graph.accesses[item]
+                        ) > internal_buffer else internal_buffer
                     # latency
                     latency = self.kernel_nodes[node.name].graph.max_latency
                     # compute delay buffer and create entry
@@ -509,7 +476,6 @@ class KernelChainGraph:
                         total.append(node.name)
                         # add entry to paths
                         succ.input_paths[entry].append(total)
-
                 else:  # NodeType.OUTPUT: do nothing
                     continue
 
@@ -537,8 +503,7 @@ class KernelChainGraph:
         """
         Computes the max latency critical path through the graph in scalar format.
         """
-        return helper.dim_to_abs_val(self.compute_critical_path_dim(),
-                                     self.dimensions)
+        return helper.convert_3d_to_1d(index=self.compute_critical_path_dim(), dimensions=self.dimensions)
 
     def report(self, name):
         print("Report of {}\n".format(name))
@@ -555,43 +520,36 @@ class KernelChainGraph:
 
         print("field access info:")
         for node in self.kernel_nodes:
-            print("node name: {}, field accesses: {}".format(
-                node, self.kernel_nodes[node].graph.accesses))
+            print("node name: {}, field accesses: {}".format(node, self.kernel_nodes[node].graph.accesses))
         print()
 
         print("internal buffer size info:")
         for node in self.kernel_nodes:
-            print("node name: {}, internal buffer size: {}".format(
-                node, self.kernel_nodes[node].graph.buffer_size))
+            print("node name: {}, internal buffer size: {}".format(node, self.kernel_nodes[node].graph.buffer_size))
         print()
 
         print("internal buffer chunks info:")
         for node in self.kernel_nodes:
-            print("node name: {}, internal buffer chunks: {}".format(
-                node, self.kernel_nodes[node].internal_buffer))
+            print("node name: {}, internal buffer chunks: {}".format(node, self.kernel_nodes[node].internal_buffer))
         print()
 
         print("delay buffer size info:")
         for node in self.kernel_nodes:
-            print("node name: {}, delay buffer size: {}".format(
-                node, self.kernel_nodes[node].delay_buffer))
+            print("node name: {}, delay buffer size: {}".format(node, self.kernel_nodes[node].delay_buffer))
         print()
 
         print("path length info:")
         for node in self.kernel_nodes:
-            print("node name: {}, path lengths: {}".format(
-                node, self.kernel_nodes[node].input_paths))
+            print("node name: {}, path lengths: {}".format(node, self.kernel_nodes[node].input_paths))
         print()
 
         print("latency info:")
         for node in self.kernel_nodes:
-            print("node name: {}, node latency: {}".format(
-                node, self.kernel_nodes[node].graph.max_latency))
+            print("node name: {}, node latency: {}".format(node, self.kernel_nodes[node].graph.max_latency))
         print()
 
         print("critical path info:")
-        print("critical path length is {}\n".format(
-            self.compute_critical_path()))
+        print("critical path length is {}\n".format(self.compute_critical_path()))
 
         print("total buffer info:")
         total = 0
@@ -608,8 +566,7 @@ class KernelChainGraph:
 
         print("input kernel string info:")
         for node in self.kernel_nodes:
-            print("input kernel string of {} is: {}".format(
-                node, self.kernel_nodes[node].kernel_string))
+            print("input kernel string of {} is: {}".format(node, self.kernel_nodes[node].kernel_string))
         print()
 
         print("relative access kernel string info:")
@@ -620,14 +577,12 @@ class KernelChainGraph:
                 )))
 
         print("instantiate optimizer...")
-        from .optimizer import Optimizer
+        from stencilflow import Optimizer
         opt = Optimizer(self.kernel_nodes, self.dimensions)
         bound = 12001
         opt.minimize_fast_mem(communication_volume_bound=bound)
-        print("optimize fast memory usage with comm volume bound= {}".format(
-            bound))
-        print("single stream comm vol for float32 is: {}".format(
-            opt.single_comm_volume(4)))
+        print("optimize fast memory usage with comm volume bound= {}".format(bound))
+        print("single stream comm vol for float32 is: {}".format(opt.single_comm_volume(4)))
 
         print("total buffer info:")
         total = 0
@@ -638,25 +593,19 @@ class KernelChainGraph:
                     total_slow = 0
                     for entry in channel["internal_buffer"]:
                         if entry.swap_out:
-                            print("internal buffer slow memory: {}, size: {}".
-                                  format(entry.name, entry.maxsize))
+                            print("internal buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
                             total_slow += entry.maxsize
                         else:
-                            print("internal buffer fast memory: {}, size: {}".
-                                  format(entry.name, entry.maxsize))
+                            print("internal buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
                             total_fast += entry.maxsize
                     entry = channel["delay_buffer"]
                     if entry.swap_out:
-                        print("delay buffer slow memory: {}, size: {}".format(
-                            entry.name, entry.maxsize))
+                        print("delay buffer slow memory: {}, size: {}".format(entry.name, entry.maxsize))
                         total_slow += entry.maxsize
                     else:
-                        print("delay buffer fast memory: {}, size: {}".format(
-                            entry.name, entry.maxsize))
+                        print("delay buffer fast memory: {}, size: {}".format(entry.name, entry.maxsize))
                         total_fast += entry.maxsize
-        print(
-            "buffer size slow memory: {} \nbuffer size fast memory: {}".format(
-                total_slow, total_fast))
+        print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(total_slow, total_fast))
 
     def operation_count(self):
         """For each operation type found in the ASTs, return a tuple of
@@ -727,7 +676,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-stencil_file")
     parser.add_argument("-plot", action="store_true")
-    parser.add_argument("-log-level")
+    parser.add_argument("-log-level", default=LogLevel.MODERATE.value)
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
     args = parser.parse_args()
@@ -738,8 +687,6 @@ if __name__ == "__main__":
                              log_level=LogLevel(args.log_level))
     # simulate the design if argument -simulate is true
     if args.simulate:
-        from simulator import Simulator
-
         sim = Simulator(program_name=re.match(
             "[^\.]+", os.path.basename(args.stencil_file)).group(0),
                         program_description=program_description,

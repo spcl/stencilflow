@@ -47,10 +47,11 @@ import sys
 import dace
 import numpy as np
 
-from stencilflow import *
+import stencilflow
+from stencilflow.simulator import Simulator
+from stencilflow.kernel_chain_graph import KernelChainGraph
 from stencilflow.sdfg_generator import generate_sdfg, generate_reference
 from stencilflow.log_level import LogLevel
-import stencilflow.helper as helper
 
 
 def run_program(stencil_file,
@@ -65,7 +66,7 @@ def run_program(stencil_file,
                 print_result=False):
 
     # Load program file
-    program_description = helper.parse_json(stencil_file)
+    program_description = stencilflow.parse_json(stencil_file)
     name = os.path.basename(stencil_file)
     name = re.match("([^\.]+)\.[^\.]+", name).group(1)
 
@@ -152,7 +153,7 @@ def run_program(stencil_file,
         print("Loading input arrays...")
     if input_directory is None:
         input_directory = os.path.dirname(stencil_file)
-    input_arrays = helper.load_input_arrays(
+    input_arrays = stencilflow.load_input_arrays(
         program_description["inputs"],
         prefix=input_directory,
         shape=program_description["dimensions"])
@@ -161,7 +162,7 @@ def run_program(stencil_file,
     if log_level >= LogLevel.BASIC:
         print("Initializing output arrays...")
     output_arrays = {
-        arr_name: helper.aligned(
+        arr_name: stencilflow.aligned(
             np.zeros(program_description["dimensions"],
                      dtype=program_description["program"][arr_name]
                      ["data_type"].type), 64)
@@ -205,18 +206,19 @@ def run_program(stencil_file,
     # Write results to file
     output_folder = os.path.join("results", name)
     os.makedirs(output_folder, exist_ok=True)
-    helper.save_output_arrays(output_arrays, output_folder)
+    stencilflow.save_output_arrays(output_arrays, output_folder)
     print("Results saved to " + output_folder)
     if compare_to_reference:
         reference_folder = os.path.join(output_folder, "reference")
         os.makedirs(reference_folder, exist_ok=True)
-        helper.save_output_arrays(reference_output_arrays, reference_folder)
+        stencilflow.save_output_arrays(reference_output_arrays,
+                                       reference_folder)
         print("Reference results saved to " + reference_folder)
 
     if compare_to_reference:
         print("Comparing to reference SDFG...")
         for outp in output_arrays:
-            if not helper.arrays_are_equal(
+            if not stencilflow.arrays_are_equal(
                     np.ravel(output_arrays[outp]),
                     np.ravel(reference_output_arrays[outp])):
                 print("Result mismatch.")
@@ -233,8 +235,9 @@ def run_program(stencil_file,
             print("\t{}".format(np.ravel(output_arrays[outp])))
             print("Simulation result:")
             print("\t{}".format(np.ravel(simulation_result[outp])))
-            if not helper.arrays_are_equal(np.ravel(output_arrays[outp]),
-                                           np.ravel(simulation_result[outp])):
+            if not stencilflow.arrays_are_equal(
+                    np.ravel(output_arrays[outp]),
+                    np.ravel(simulation_result[outp])):
                 all_match = False
         if all_match:
             print("Results verified.")
