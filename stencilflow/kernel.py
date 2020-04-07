@@ -94,7 +94,7 @@ class Kernel(BaseKernelNodeClass):
         self.all_available = False
         self.not_available = set()
         # analyze input
-        self.graph: ComputeGraph = ComputeGraph(vectorization=self.vectorization)
+        self.graph: ComputeGraph = ComputeGraph(vectorization=vectorization)
         self.graph.generate_graph(kernel_string)  # generate the ast computation graph from the mathematical expression
         self.graph.calculate_latency(
         )  # calculate the latency in the computation tree to find the critical path

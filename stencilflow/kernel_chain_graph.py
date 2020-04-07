@@ -324,7 +324,7 @@ class KernelChainGraph:
         # get dimensions
         self.kernel_dimensions = len(inp["dimensions"])
         # get vectorization
-        self.vectorization = int(inp["vectorization"])
+        self.vectorization = int(inp["vectorization"]) if "vectorization" in inp else 1
         # import program, inputs and outputs
         self.program = inp["program"]
         self.inputs = inp["inputs"]
@@ -364,7 +364,8 @@ class KernelChainGraph:
                 kernel_string=str(self.program[kernel]['computation_string']),
                 dimensions=self.dimensions,
                 data_type=self.program[kernel]['data_type'],
-                boundary_conditions=self.program[kernel]['boundary_conditions'])
+                boundary_conditions=self.program[kernel]['boundary_conditions'],
+                vectorization=self.vectorization)
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
         # create all input nodes (without data, we will add data in the simulator if necessary)
