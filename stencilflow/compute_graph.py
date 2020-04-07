@@ -170,7 +170,8 @@ class ComputeGraph:
                     for a_i, b_i in zip(self.max_index[buffer_name],
                                         self.min_index[buffer_name])
                 ]
-            self.buffer_size[2] += (self.vectorization - 1)
+            # add vectorization buffer
+            self.buffer_size[buffer_name][2] += (self.vectorization - 1)
 
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
