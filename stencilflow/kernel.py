@@ -63,6 +63,7 @@ class Kernel(BaseKernelNodeClass):
                  dimensions: List[int],
                  data_type: dace.dtypes.typeclass,
                  boundary_conditions: Dict[str, Dict[str, str]],
+                 vectorization: int = 1,
                  plot_graph: bool = False,
                  verbose: bool = False) -> None:
         """
@@ -85,6 +86,7 @@ class Kernel(BaseKernelNodeClass):
         self.boundary_conditions: Dict[str, Dict[
             str, str]] = boundary_conditions  # boundary_conditions[field_name]
         self.verbose = verbose
+        self.vectorization = vectorization
         # read static parameters from config
         self.config: Dict = stencilflow.parse_json("kernel.config")
         self.calculator: Calculator = Calculator()
