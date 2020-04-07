@@ -98,10 +98,17 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     # Enrich accesses with the names of the corresponding input connectors
     input_to_connector = collections.OrderedDict(
         (k, "_" + k) for k in node.graph.accesses)
-    accesses = collections.OrderedDict(
-        (k, ([True] * len(shape), [tuple(x[dimensions_to_skip:]) for x in v]))
-        for k, v in zip(input_to_connector.values(),
-                        node.graph.accesses.values()))
+    input_dims = {
+        k: [i in (node.inputs[k]["input_dim"])
+            for i in stencilflow.ITERATORS] if "input_dim" in node.inputs[k]
+        and node.inputs[k]["input_dim"] is not None else [True] * len(shape)
+        for k in input_to_connector
+    }
+    accesses = collections.OrderedDict((conn, (input_dims[name], [
+        tuple(np.array(x[dimensions_to_skip:])[input_dims[name]])
+        for x in node.graph.accesses[name]
+    ])) for name, conn in zip(input_to_connector.keys(),
+                              input_to_connector.values()))
 
     # Map output field to output connector
     output_to_connector = collections.OrderedDict(
@@ -184,12 +191,29 @@ def generate_sdfg(name, chain):
 
     def add_input(node):
 
+        # Collapse iterators and shape if input is lower dimensional
+        for output in node.outputs.values():
+            try:
+                input_pars = output["input_dim"][:]
+            except (KeyError, TypeError):
+                input_pars = parameters
+            break  # Just needed any output to retrieve the dimensions
+        input_shape = shape[-len(input_pars):]
+        input_accesses = str(functools.reduce(operator.mul, input_shape, 1))
+        input_iterators = collections.OrderedDict(
+            (p, "0:{}".format(s)) for p, s in zip(input_pars, input_shape))
+
+        # If scalar, just add a symbol
+        if len(input_pars) == 0:
+            sdfg.add_symbol(node.name, node.data_type, override_dtype=True)
+            return  # We're done
+
         # Host-side array, which will be an input argument
         sdfg.add_array(node.name + "_host", shape, node.data_type)
 
         # Device-side copy
         sdfg.add_array(node.name,
-                       shape,
+                       input_shape,
                        node.data_type,
                        storage=StorageType.FPGA_Global,
                        transient=True)
@@ -202,11 +226,11 @@ def generate_sdfg(name, chain):
                                   copy_fpga,
                                   memlet=Memlet.simple(
                                       copy_fpga,
-                                      ", ".join(memlet_indices),
-                                      num_accesses=memcopy_accesses))
+                                      ", ".join(input_iterators.values()),
+                                      num_accesses=input_accesses))
 
         entry, exit = state.add_map("read_" + node.name,
-                                    iterators,
+                                    input_iterators,
                                     schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
@@ -225,7 +249,7 @@ def generate_sdfg(name, chain):
                               tasklet,
                               dst_conn="memory",
                               memlet=Memlet.simple(node.name,
-                                                   ", ".join(parameters),
+                                                   ", ".join(input_pars),
                                                    num_accesses=1))
 
         # Add memlets to all FIFOs connecting to compute units
@@ -308,6 +332,13 @@ def generate_sdfg(name, chain):
 
         # Add read nodes and memlets
         for field_name, connector in input_to_connector.items():
+
+            # Scalars are symbols rather than data nodes
+            try:
+                if len(node.inputs[field_name]["input_dim"]) == 0:
+                    continue
+            except (KeyError, TypeError):
+                pass  # input_dim is not defined or is None
 
             stream_name = make_stream_name(field_name, node.name)
 

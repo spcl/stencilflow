@@ -42,7 +42,7 @@ from typing import List, Dict
 
 import dace.dtypes
 
-import stencilflow.helper as helper
+import stencilflow
 from stencilflow.base_node_class import BaseKernelNodeClass, BaseOperationNodeClass
 from stencilflow.bounded_queue import BoundedQueue
 from stencilflow.calculator import Calculator
@@ -86,7 +86,7 @@ class Kernel(BaseKernelNodeClass):
             str, str]] = boundary_conditions  # boundary_conditions[field_name]
         self.verbose = verbose
         # read static parameters from config
-        self.config: Dict = helper.parse_json("kernel.config")
+        self.config: Dict = stencilflow.parse_json("kernel.config")
         self.calculator: Calculator = Calculator()
         # set simulator initial parameters
         self.all_available = False
@@ -136,7 +136,8 @@ class Kernel(BaseKernelNodeClass):
         self.buf_usage_sum = dict()
         self.buf_usage_num = dict()
         self.init_metric = False
-        self.PC_exec_start = helper.convert_3d_to_1d(dimensions=self.dimensions, index=self.dimensions)  # upper bound
+        self.PC_exec_start = stencilflow.convert_3d_to_1d(
+            dimensions=self.dimensions, index=self.dimensions)  # upper bound
         self.PC_exec_end = 0  # lower bound
 
     def print_kernel_performance(self):
@@ -197,7 +198,8 @@ class Kernel(BaseKernelNodeClass):
         """
         for item in self.graph.accesses:
             furthest = max(self.graph.accesses[item])
-            self.dist_to_center[item] = helper.convert_3d_to_1d(dimensions=self.dimensions, index=furthest)
+            self.dist_to_center[item] = stencilflow.convert_3d_to_1d(
+                dimensions=self.dimensions, index=furthest)
 
     def iter_comp_tree(self,
                        node: BaseOperationNodeClass,
@@ -255,16 +257,17 @@ class Kernel(BaseKernelNodeClass):
             if index_relative_to_center:
                 dim_index = node.index
             else:
-                dim_index = helper.list_subtract_cwise(
+                dim_index = stencilflow.list_subtract_cwise(
                     node.index, self.graph.max_index[node.name])
             # break down index from 3D (i.e. [X,Y,Z]) to 1D
             if flatten_index:
-                if node.name in self.input_paths and self.inputs[node.name]["input_dim"] is not None:
+                if node.name in self.input_paths and self.inputs[
+                        node.name]["input_dim"] is not None:
                     ind = [
                         x if x in self.inputs[node.name]["input_dim"] else None
                         for x in stencilflow.ITERATORS
                     ]
-                    num_dim = helper.num_dims(ind)
+                    num_dim = stencilflow.num_dims(ind)
                     dim_index = dim_index[len(self.dimensions) - num_dim:]
                     new_ind, i = list(), 0
                     for entry in ind:
@@ -276,17 +279,27 @@ class Kernel(BaseKernelNodeClass):
                     dim_index = list(
                         map(lambda x, y: y
                             if x is not None else None, ind, new_ind))
-                word_index = helper.convert_3d_to_1d(dimensions=self.dimensions, index=dim_index)
+                word_index = stencilflow.convert_3d_to_1d(
+                    dimensions=self.dimensions, index=dim_index)
                 # replace negative sign if the flag is set
                 if replace_negative_index and word_index < 0:
                     return node.name + "[" + "n" + str(abs(word_index)) + "]"
                 else:
                     return node.name + "[" + str(word_index) + "]"
             else:
-                for i in range(3 - output_dimensions):
-                    if dim_index[i] != 0:
-                        raise ValueError("Removed used index dimension")
-                return node.name + str(dim_index[3 - output_dimensions:])
+                try:
+                    dim_index = [
+                        dim_index[stencilflow.ITERATORS.index(i)]
+                        for i in self.inputs[node.name]["input_dim"]
+                    ]
+                except (KeyError, TypeError):
+                    pass  # input_dim not defined or is None
+                if len(dim_index) > output_dimensions:
+                    for i in range(3 - output_dimensions):
+                        if dim_index[i] != 0:
+                            raise ValueError("Removed used index dimension")
+                    dim_index = dim_index[3 - output_dimensions:]
+                return node.name + str(dim_index)
         elif isinstance(
                 node, Ternary
         ):  # ternary operator of the form true_expr if comp else false_expr
@@ -435,7 +448,9 @@ class Kernel(BaseKernelNodeClass):
                     curr = item
                     # calculate size of buffer
                     diff = abs(
-                        helper.convert_3d_to_1d(index=helper.list_subtract_cwise(pre, curr), dimensions=self.dimensions))
+                        stencilflow.convert_3d_to_1d(
+                            index=stencilflow.list_subtract_cwise(pre, curr),
+                            dimensions=self.dimensions))
                     if diff == 0:  # two accesses on same field
                         pass
                     else:
@@ -474,7 +489,8 @@ class Kernel(BaseKernelNodeClass):
             return "_{}_{}_{}".format(index[0], index[1], index[2])
             """
             # compute absolute index
-            ind = helper.convert_3d_to_1d(dimensions=self.dimensions, index=index)
+            ind = stencilflow.convert_3d_to_1d(dimensions=self.dimensions,
+                                               index=index)
             # return formatted string
             return "_{}".format(ind) if ind >= 0 else "_n{}".format(abs(ind))
         else:
@@ -541,7 +557,7 @@ class Kernel(BaseKernelNodeClass):
         :return: data
         """
         # get the access index
-        access_index = helper.list_add_cwise(global_index, relative_index)
+        access_index = stencilflow.list_add_cwise(global_index, relative_index)
         """
             Boundary Condition
         """
@@ -589,7 +605,8 @@ class Kernel(BaseKernelNodeClass):
                 gki = self.get_global_kernel_index()
                 # check bound, out of bound is handled by the boundary condition automatically (always available for
                 # constant)
-                if self.is_out_of_bound(helper.list_add_cwise(inp.index, gki)):
+                if self.is_out_of_bound(
+                        stencilflow.list_add_cwise(inp.index, gki)):
                     pass
                 else:  # within bounds
                     # get position and check if the value (not None) is available
@@ -713,7 +730,8 @@ class Kernel(BaseKernelNodeClass):
         computation for the current variable mapping that was set up by the try_read() function.
         """
         # check if read has been succeeded
-        if self.center_reached and self.read_success and 0 <= self.program_counter < functools.reduce(operator.mul, self.dimensions, 1):
+        if self.center_reached and self.read_success and 0 <= self.program_counter < functools.reduce(
+                operator.mul, self.dimensions, 1):
             # execute calculation
             try:
                 # get computation string

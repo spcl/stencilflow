@@ -3,22 +3,22 @@
     "in0d": {
       "data": [0.0],
       "data_type": "float64",
-      "dimensions": "[]"
+      "dimensions": []
     },
     "in1d": {
       "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
       "data_type": "float64",
-      "dimensions": "[k]"
+      "dimensions": ["k"]
     },
     "in2d": {
       "data": "stencils/data/zeros_16x16_fp64.dat",
       "data_type": "float64",
-      "dimensions": "[i, j]"
+      "dimensions": ["i", "j"]
     },
     "in3d": {
       "data": "stencils/data/zeros_16x16x16_fp64.dat",
       "data_type": "float64",
-      "dimensions": "[i, j, k]"
+      "dimensions": ["i", "j", "k"]
     }
   },
   "outputs": [

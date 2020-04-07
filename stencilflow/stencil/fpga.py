@@ -17,7 +17,7 @@ def dim_to_abs_val(input, dimensions):
         functools.reduce(operator.mul, dimensions[i + 1:], 1)
         for i in range(len(dimensions))
     ]
-    return functools.reduce(operator.add, map(operator.mul, input, vec))
+    return functools.reduce(operator.add, map(operator.mul, input, vec), 0)
 
 
 def make_iterators(dimensions, halo_sizes=None, parameters=None):
@@ -60,8 +60,12 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         buffer_accesses = collections.OrderedDict()
         in_edges = parent_state.in_edges(node)
         for field_name, (dim_mask, relative) in node.accesses.items():
+            relative = dace.dtypes.deduplicate(relative)
+            if not any(dim_mask):
+                # This is a scalar, no buffer needed
+                continue
             # Deduplicate, as we can have multiple accesses to the same index
-            abs_indices = dace.dtypes.deduplicate(
+            abs_indices = (
                 [dim_to_abs_val(i, shape[dim_mask]) for i in relative] +
                 ([0] if node.boundary_conditions[field_name]["btype"] == "copy"
                  else []))
@@ -135,10 +139,11 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         nested_sdfg_tasklet = dace.graph.nodes.NestedSDFG(
             nested_sdfg.label,
             nested_sdfg,
-            [k + "_in" for k in node.accesses.keys()] +  # Input connectors
+            # Input connectors
+            [k + "_in" for k, v in node.accesses.items() if any(v[0])] +
             [name + "_buffer_in" for name, _ in buffer_sizes.items()],
-            [k + "_out"
-             for k in node.output_fields.keys()] +  # Output connectors
+            # Output connectors
+            [k + "_out" for k in node.output_fields.keys()] +
             [name + "_buffer_out" for name, _ in buffer_sizes.items()])
         state.add_node(nested_sdfg_tasklet)
 
@@ -243,7 +248,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         compute_inputs = list(
             itertools.chain.from_iterable(
                 [["_" + v for v in code_memlet_names[f].values()]
-                 for f in node.accesses]))
+                 for f, a in node.accesses.items() if any(a[0])]))
         compute_tasklet = compute_state.add_tasklet(
             node.label + "_compute",
             compute_inputs,
@@ -401,7 +406,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
             # Make compute state
             compute_read = compute_state.add_read(buffer_name_inner_read)
-            for relative, offset in zip(node.accesses[field_name][1],
+            for relative, offset in zip(buffer_accesses[field_name][0],
                                         buffer_accesses[field_name][1]):
                 memlet_name = code_memlet_names[field_name][tuple(relative)]
                 compute_state.add_memlet_path(
