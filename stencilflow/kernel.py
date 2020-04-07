@@ -94,7 +94,7 @@ class Kernel(BaseKernelNodeClass):
         self.all_available = False
         self.not_available = set()
         # analyze input
-        self.graph: ComputeGraph = ComputeGraph()
+        self.graph: ComputeGraph = ComputeGraph(vectorization=self.vectorization)
         self.graph.generate_graph(
             kernel_string
         )  # generate the ast computation graph from the mathematicl expression
