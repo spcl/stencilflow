@@ -37,6 +37,8 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import ast
+import math
+
 from typing import List, Dict, Set
 
 import networkx as nx
@@ -471,6 +473,8 @@ class ComputeGraph:
                 node.latency = 1
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
+        # divide latency by W (vectorization parameter, #parallel units)
+        self.max_latency = math.ceil(self.max_latency / self.vectorization)
 
     def latency_tree_walk(self, node: BaseOperationNodeClass) -> None:
         """
