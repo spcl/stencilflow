@@ -54,6 +54,8 @@ import numpy as np
     a class.
 """
 
+ITERATORS = ["i", "j", "k"]
+
 
 def deprecated(func):
     """

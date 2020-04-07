@@ -262,7 +262,7 @@ class Kernel(BaseKernelNodeClass):
                 if node.name in self.input_paths and self.inputs[node.name]["input_dim"] is not None:
                     ind = [
                         x if x in self.inputs[node.name]["input_dim"] else None
-                        for x in ["i", "j", "k"]
+                        for x in stencilflow.ITERATORS
                     ]
                     num_dim = helper.num_dims(ind)
                     dim_index = dim_index[len(self.dimensions) - num_dim:]

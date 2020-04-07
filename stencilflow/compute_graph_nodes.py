@@ -41,6 +41,7 @@ import ast
 import operator
 from typing import List, Dict
 
+import stencilflow
 from stencilflow.base_node_class import BaseOperationNodeClass
 from stencilflow.calculator import Calculator
 
@@ -232,11 +233,7 @@ class Subscript(BaseOperationNodeClass):
     """
         Mapping between the index of the operation and its position (actually always 0).
     """
-    _VAR_MAP: Dict[str, int] = {
-        "i": 0,
-        "j": 0,
-        "k": 0
-    }
+    _VAR_MAP: Dict[str, int] = {i: 0 for i in stencilflow.ITERATORS}
 
     """
         Mapping between the operation and its symbol.

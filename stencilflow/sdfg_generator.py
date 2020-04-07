@@ -55,6 +55,7 @@ from dace.memlet import Memlet
 from dace.sdfg import SDFG
 from dace.dtypes import ScheduleType, StorageType, Language
 
+import stencilflow
 from stencilflow.kernel import Kernel
 from stencilflow.input import Input
 from stencilflow.output import Output
@@ -63,8 +64,6 @@ import stencilflow.stencil as stencil
 from stencilflow.stencil.fpga import make_iterators
 
 import networkx as nx
-
-ITERATORS = ["i", "j", "k"]
 
 
 def make_stream_name(src_name, dst_name):
@@ -77,7 +76,7 @@ def _generate_init(chain):
     # dimensions in less than 3. Have to remove them here.
     dimensions_to_skip = len(chain.dimensions) - chain.kernel_dimensions
     shape = np.array(chain.dimensions)[dimensions_to_skip:]
-    parameters = np.array(ITERATORS)[dimensions_to_skip:]
+    parameters = np.array(stencilflow.ITERATORS)[dimensions_to_skip:]
     # Only iterate over dimensions larger than 1, the rest will be added to the
     # SDFG as symbols that must be passed from outside.
     iterator_mask = shape > 1  # Dimensions we need to iterate over
