@@ -17,7 +17,7 @@
   "vectorization": 3,
   "program": {
     "out": {
-      "computation_string": "res = inA[i,j,k]",
+      "computation_string": "res = inA[i,j,k] + inA[i,j,k+1] + inA[i,j,k+2] + inA[i,j,k+3]",
       "boundary_conditions": {
         "in0d": {
           "type": "constant",
