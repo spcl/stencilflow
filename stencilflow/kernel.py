@@ -95,13 +95,10 @@ class Kernel(BaseKernelNodeClass):
         self.not_available = set()
         # analyze input
         self.graph: ComputeGraph = ComputeGraph(vectorization=self.vectorization)
-        self.graph.generate_graph(
-            kernel_string
-        )  # generate the ast computation graph from the mathematicl expression
+        self.graph.generate_graph(kernel_string)  # generate the ast computation graph from the mathematical expression
         self.graph.calculate_latency(
-        )  # calculate the latency in the compuation tree to find the critical path
-        self.graph.determine_inputs_outputs(
-        )  # sort out input nodes (field accesses and constant values) and output
+        )  # calculate the latency in the computation tree to find the critical path
+        self.graph.determine_inputs_outputs()  # sort out input nodes (field accesses and constant values) and output
         # nodes
         self.graph.setup_internal_buffers()
         # set plot path (if plot is set to True)
