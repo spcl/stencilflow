@@ -14,7 +14,7 @@
     2,
     2
   ],
-  "vectorization": 3,
+  "vectorization": 4,
   "program": {
     "out": {
       "computation_string": "res = inA[i,j,k] + inA[i,j,k+1] + inA[i,j,k+2] + inA[i,j,k+3]",
