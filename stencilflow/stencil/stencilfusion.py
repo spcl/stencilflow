@@ -170,7 +170,7 @@ class StencilFusion(Transformation):
 
 if __name__ == '__main__':
     from stencilflow.sdfg_to_stencilflow import (standardize_data_layout,
-                                                 remove_extra_subgraphs)
+                                                 remove_scalar_transients)
     from stencilflow.stencil.nestk import NestK
     from dace.transformation.interstate import StateFusion
 
@@ -179,13 +179,13 @@ if __name__ == '__main__':
     sdfg.apply_transformations_repeated([MapFission])
 
     # Partial canonicalization
-    remove_extra_subgraphs(sdfg)
+    remove_scalar_transients(sdfg)
     standardize_data_layout(sdfg)
 
-    sdfg.apply_transformations_repeated([NestK])
-    sdfg.apply_transformations_repeated([StateFusion])
-    sdfg.apply_strict_transformations()
+    sdfg.apply_transformations_repeated([NestK], validate=False)
+    sdfg.apply_transformations_repeated([StateFusion], validate=False)
+    sdfg.apply_strict_transformations(validate=False)
 
     # After graph is preprocessed, run StencilFusion
-    sdfg.apply_transformations_repeated([StencilFusion])
+    sdfg.apply_transformations_repeated([StencilFusion], validate=False)
     sdfg.save('fused.sdfg')

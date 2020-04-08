@@ -4,12 +4,13 @@ import astunparse
 import json
 import re
 import warnings
-from typing import Tuple
+from typing import Optional, Tuple
 
 import dace
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
 from dace.data import Array
+from dace.frontend.python.astutils import unparse
 from dace.transformation.dataflow import MapFission
 from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
@@ -54,36 +55,101 @@ def standardize_data_layout(sdfg):
                 _permute_array(array, order, nsdfg, aname)
 
 
-def remove_extra_subgraphs(sdfg: dace.SDFG):
-    """ Clean up subgraphs that end in transients that are never used anywhere
-        else in the SDFG. """
-    for state in sdfg.nodes():
-        toremove = set()
-        for node in state.sink_nodes():
-            if (isinstance(node, dace.nodes.AccessNode)
-                    and sdfg.arrays[node.data].transient):
-                if len([
-                        n for s in sdfg.nodes() for n in s.nodes()
-                        if isinstance(n, dace.nodes.AccessNode)
-                        and n.data == node.data
-                ]) == 1:
-                    if state.in_degree(node) == 1:
-                        predecessor = state.in_edges(node)[0].src
-                        # Only remove the node (and its predecessor) if it only
-                        # has one unique predecessor that is not connected to
-                        # anything else
-                        if (state.in_degree(predecessor) == 0
-                                and state.out_degree(predecessor) == 1 and
-                                isinstance(predecessor, dace.nodes.CodeNode)):
-                            toremove.add(predecessor)
-                            toremove.add(node)
+def remove_scalar_transients(top_sdfg: dace.SDFG):
+    """ Clean up tasklet->scalar-transient, replacing them with symbols. """
+    dprint = print  # lambda *args: pass
+    removed_transients = 0
+    for sdfg in top_sdfg.all_sdfgs_recursive():
+        transients_to_remove = {}
+        for dname, desc in sdfg.arrays.items():
+            skip = False
+            if isinstance(desc, dace.data.Scalar) and desc.transient:
+                # Find node where transient is instantiated
+                init_tasklet: Optional[dace.nodes.Tasklet] = None
+                itstate = None
+                for state in sdfg.nodes():
+                    if skip:
+                        break
+                    for node in state.nodes():
+                        if (isinstance(node, dace.nodes.AccessNode)
+                                and node.data == dname):
+                            if state.in_degree(node) > 1:
+                                dprint('Cannot remove scalar', dname,
+                                       '(more than one input)')
+                                skip = True
+                                break
+                            elif state.in_degree(node) == 1:
+                                if init_tasklet is not None:
+                                    dprint('Cannot remove scalar', dname,
+                                           '(initialized multiple times)')
+                                    skip = True
+                                    break
+                                init_tasklet = state.in_edges(node)[0].src
+                                itstate = state
+                if init_tasklet is None:
+                    dprint('Cannot remove scalar', dname, '(uninitialized)')
+                    skip = True
+                if skip:
+                    continue
 
-        state.remove_nodes_from(toremove)
+                # We can remove transient, find value from tasklet
+                if len(init_tasklet.code) != 1:
+                    dprint('Cannot remove scalar', dname, '(complex tasklet)')
+                    continue
+                if not isinstance(init_tasklet.code[0], ast.Assign):
+                    dprint('Cannot remove scalar', dname, '(complex tasklet2)')
+                    continue
+                val = float(unparse(init_tasklet.code[0].value))
+
+                dprint('Converting', dname, 'to constant with value', val)
+                transients_to_remove[dname] = val
+                # Remove initialization tasklet
+                itstate.remove_node(init_tasklet)
+
+        # Remove transients
+        for dname, val in transients_to_remove.items():
+            # Add constant, remove data descriptor
+            del sdfg.arrays[dname]
+            sdfg.add_constant(dname, val)
+
+            for state in sdfg.nodes():
+                for node in state.nodes():
+                    if (isinstance(node, dace.nodes.AccessNode)
+                            and node.data == dname):
+                        # For all access node instances, remove
+                        # outgoing edge connectors from subsequent nodes,
+                        # then remove access nodes
+                        for edge in state.out_edges(node):
+                            edge.dst._in_connectors.remove(edge.dst_conn)
+                            # If dst is a NestedSDFG, add the dst_connector as
+                            # a constant too and remove internal nodes
+                            # TODO(later): refactor into a function
+                            if isinstance(edge.dst, dace.nodes.NestedSDFG):
+                                nsdfg: dace.SDFG = edge.dst.sdfg
+                                nsdfg.add_constant(edge.dst_conn, val)
+                                del nsdfg.arrays[edge.dst_conn]
+                                for nstate in nsdfg.nodes():
+                                    for nnode in nstate.nodes():
+                                        if (isinstance(nnode,
+                                                       dace.nodes.AccessNode)
+                                                and
+                                                nnode.data == edge.dst_conn):
+                                            for nedge in nstate.out_edges(
+                                                    nnode):
+                                                nedge.dst._in_connectors.remove(
+                                                    nedge.dst_conn)
+                                            nstate.remove_node(nnode)
+
+                        # Lastly, remove the node itself
+                        state.remove_node(node)
+
+        removed_transients += len(transients_to_remove)
+    print('Cleaned up %d extra scalar transients' % removed_transients)
 
 
 def canonicalize_sdfg(sdfg, symbols={}):
     # Clean up unnecessary subgraphs
-    remove_extra_subgraphs(sdfg)
+    remove_scalar_transients(sdfg)
 
     # Fuse and nest parallel K-loops
     sdfg.apply_transformations_repeated(MapFission, validate=False)
