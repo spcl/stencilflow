@@ -54,7 +54,37 @@ def standardize_data_layout(sdfg):
                 _permute_array(array, order, nsdfg, aname)
 
 
+def remove_extra_subgraphs(sdfg: dace.SDFG):
+    """ Clean up subgraphs that end in transients that are never used anywhere
+        else in the SDFG. """
+    for state in sdfg.nodes():
+        toremove = set()
+        for node in state.sink_nodes():
+            if (isinstance(node, dace.nodes.AccessNode)
+                    and sdfg.arrays[node.data].transient):
+                if len([
+                        n for s in sdfg.nodes() for n in s.nodes()
+                        if isinstance(n, dace.nodes.AccessNode)
+                        and n.data == node.data
+                ]) == 1:
+                    if state.in_degree(node) == 1:
+                        predecessor = state.in_edges(node)[0].src
+                        # Only remove the node (and its predecessor) if it only
+                        # has one unique predecessor that is not connected to
+                        # anything else
+                        if (state.in_degree(predecessor) == 0
+                                and state.out_degree(predecessor) == 1 and
+                                isinstance(predecessor, dace.nodes.CodeNode)):
+                            toremove.add(predecessor)
+                            toremove.add(node)
+
+        state.remove_nodes_from(toremove)
+
+
 def canonicalize_sdfg(sdfg, symbols={}):
+    # Clean up unnecessary subgraphs
+    remove_extra_subgraphs(sdfg)
+
     # Fuse and nest parallel K-loops
     sdfg.apply_transformations_repeated(MapFission, validate=False)
     standardize_data_layout(sdfg)
