@@ -230,7 +230,7 @@ def generate_sdfg(name, chain):
                                       num_accesses=input_accesses))
 
         entry, exit = state.add_map("read_" + node.name,
-                                    input_iterators,
+                                    iterators,
                                     schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
