@@ -182,7 +182,7 @@ if __name__ == '__main__':
 
     sdfg.apply_transformations_repeated([MapFission])
 
-    # Partial canonicalization
+    # Partial canonicalization (2/2)
     remove_scalar_transients(sdfg)
     standardize_data_layout(sdfg)
 

@@ -4,13 +4,13 @@ import astunparse
 import json
 import re
 import warnings
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import dace
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
 from dace.data import Array
-from dace.frontend.python.astutils import unparse
+from dace.frontend.python.astutils import unparse, ASTFindReplace
 from dace.transformation.dataflow import MapFission
 from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
@@ -144,45 +144,59 @@ def remove_scalar_transients(top_sdfg: dace.SDFG):
                 # Remove initialization tasklet
                 itstate.remove_node(init_tasklet)
 
-        # Remove transients
-        for dname, val in transients_to_remove.items():
-            # Add constant, remove data descriptor
-            del sdfg.arrays[dname]
-            sdfg.add_constant(dname, val)
-
-            for state in sdfg.nodes():
-                for node in state.nodes():
-                    if (isinstance(node, dace.nodes.AccessNode)
-                            and node.data == dname):
-                        # For all access node instances, remove
-                        # outgoing edge connectors from subsequent nodes,
-                        # then remove access nodes
-                        for edge in state.out_edges(node):
-                            edge.dst._in_connectors.remove(edge.dst_conn)
-                            # If dst is a NestedSDFG, add the dst_connector as
-                            # a constant too and remove internal nodes
-                            # TODO(later): refactor into a function
-                            if isinstance(edge.dst, dace.nodes.NestedSDFG):
-                                nsdfg: dace.SDFG = edge.dst.sdfg
-                                nsdfg.add_constant(edge.dst_conn, val)
-                                del nsdfg.arrays[edge.dst_conn]
-                                for nstate in nsdfg.nodes():
-                                    for nnode in nstate.nodes():
-                                        if (isinstance(nnode,
-                                                       dace.nodes.AccessNode)
-                                                and
-                                                nnode.data == edge.dst_conn):
-                                            for nedge in nstate.out_edges(
-                                                    nnode):
-                                                nedge.dst._in_connectors.remove(
-                                                    nedge.dst_conn)
-                                            nstate.remove_node(nnode)
-
-                        # Lastly, remove the node itself
-                        state.remove_node(node)
-
+        _remove_transients(sdfg, transients_to_remove)
         removed_transients += len(transients_to_remove)
     print('Cleaned up %d extra scalar transients' % removed_transients)
+
+
+def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
+                                                                   float]):
+    """ Replaces transients with constants, removing associated access
+        nodes. """
+    # Remove transients
+    for dname, val in transients_to_remove.items():
+        # Add constant, remove data descriptor
+        del sdfg.arrays[dname]
+        sdfg.add_constant(dname, val)
+
+        for state in sdfg.nodes():
+            for node in state.nodes():
+                if (isinstance(node, dace.nodes.AccessNode)
+                        and node.data == dname):
+                    # For all access node instances, remove
+                    # outgoing edge connectors from subsequent nodes,
+                    # then remove access nodes
+                    for edge in state.out_edges(node):
+                        for e in state.memlet_tree(edge):
+                            # Do not break scopes if there are no other edges
+                            if len(state.edges_between(e.src, e.dst)) == 1:
+                                state.add_nedge(e.src, e.dst,
+                                                dace.EmptyMemlet())
+                            state.remove_edge_and_connectors(e)
+                            # If tasklet, replace connector name with constant
+                            if isinstance(e.dst, dace.nodes.Tasklet):
+                                ASTFindReplace({
+                                    e.dst_conn: dname
+                                }).visit(e.dst.code)
+                                e.dst.code.as_string = None  # force regenerate
+                            # If stencil, handle similarly
+                            elif isinstance(e.dst, stencil.Stencil):
+                                del e.dst.accesses[e.dst_conn]
+                                for i, stmt in enumerate(e.dst.code):
+                                    e.dst.code[i] = ASTFindReplace({
+                                        e.dst_conn:
+                                        dname
+                                    }).visit(stmt)
+                                e.dst.code.as_string = None  # force regenerate
+
+                        # If dst is a NestedSDFG, add the dst_connector as
+                        # a constant and remove internal nodes
+                        if isinstance(edge.dst, dace.nodes.NestedSDFG):
+                            nsdfg: dace.SDFG = edge.dst.sdfg
+                            _remove_transients(nsdfg, {dname: val})
+
+                    # Lastly, remove the node itself
+                    state.remove_node(node)
 
 
 def canonicalize_sdfg(sdfg, symbols={}):
