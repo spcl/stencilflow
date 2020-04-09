@@ -59,10 +59,16 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         buffer_sizes = collections.OrderedDict()
         buffer_accesses = collections.OrderedDict()
         in_edges = parent_state.in_edges(node)
+        scalars = {}  # {name: type}
         for field_name, (dim_mask, relative) in node.accesses.items():
             relative = dace.dtypes.deduplicate(relative)
             if not any(dim_mask):
-                # This is a scalar, no buffer needed
+                # This is a scalar, no buffer needed. Instead, the SDFG must
+                # take this as a symbol
+                scalars[field_name] = parent_sdfg.symbols[field_name]
+                sdfg.add_symbol(field_name,
+                                parent_sdfg.symbols[field_name],
+                                override_dtype=True)
                 continue
             # Deduplicate, as we can have multiple accesses to the same index
             abs_indices = (
@@ -166,7 +172,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         for field in node.boundary_conditions:
             btype = node.boundary_conditions[field]["btype"]
             if btype == "copy":
-                center_index = tuple(0 for _ in range(sum(accesses[field][0], 0)))
+                center_index = tuple(
+                    0 for _ in range(sum(accesses[field][0], 0)))
                 # This will register the renaming
                 converter.convert(field, center_index)
 
@@ -261,6 +268,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                              dace.graph.edges.InterstateEdge())
         nested_sdfg.add_edge(update_state, compute_state,
                              dace.graph.edges.InterstateEdge())
+
+        # First, grab scalar variables
+        for scalar, scalar_type in scalars.items():
+            nested_sdfg.add_symbol(scalar, scalar_type, True)
 
         for (field_name, size), init_size in zip(buffer_sizes.items(),
                                                  init_sizes):

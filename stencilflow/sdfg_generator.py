@@ -96,14 +96,14 @@ def _generate_init(chain):
 def _generate_stencil(node, chain, shape, dimensions_to_skip):
 
     # Enrich accesses with the names of the corresponding input connectors
-    input_to_connector = collections.OrderedDict(
-        (k, "_" + k) for k in node.graph.accesses)
     input_dims = {
         k: [i in (node.inputs[k]["input_dim"])
             for i in stencilflow.ITERATORS] if "input_dim" in node.inputs[k]
         and node.inputs[k]["input_dim"] is not None else [True] * len(shape)
-        for k in input_to_connector
+        for k in node.graph.accesses
     }
+    input_to_connector = collections.OrderedDict(
+        (k, "_" + k if any(dims) else k) for k, dims in input_dims.items())
     accesses = collections.OrderedDict((conn, (input_dims[name], [
         tuple(np.array(x[dimensions_to_skip:])[input_dims[name]])
         for x in node.graph.accesses[name]

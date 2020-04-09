@@ -176,7 +176,7 @@ def run_program(stencil_file,
 
     # Run program
     dace_args = {
-        key + "_host": val
+        (key + "_host" if len(val.shape) > 0 else key): val
         for key, val in itertools.chain(input_arrays.items(),
                                         output_arrays.items())
     }
