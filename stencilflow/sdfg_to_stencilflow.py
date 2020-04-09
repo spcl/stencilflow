@@ -41,13 +41,15 @@ def standardize_data_layout(sdfg):
 
     for nsdfg in sdfg.all_sdfgs_recursive():
         for aname, array in nsdfg.arrays.items():
-            if K in array.free_symbols:
+            if K in array.free_symbols or len(array.shape) == 3:
                 i_index = next((i for i, s in enumerate(array.shape)
                                 if I in s.free_symbols), -1)
                 j_index = next((i for i, s in enumerate(array.shape)
                                 if J in s.free_symbols), -1)
-                k_index = next(i for i, s in enumerate(array.shape)
-                               if K in s.free_symbols)
+                # The K index is the remainder after I and J have been detected
+                # (this helps work with subranges of the vertical domain)
+                k_index = next(i for i, _ in enumerate(array.shape)
+                               if i not in (i_index, j_index))
                 # NOTE: We use the J, K, I format here. To change, permute
                 # the order below.
                 order = tuple(dim for dim in (j_index, k_index, i_index)
