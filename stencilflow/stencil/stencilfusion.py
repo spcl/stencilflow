@@ -170,11 +170,15 @@ class StencilFusion(Transformation):
 
 if __name__ == '__main__':
     from stencilflow.sdfg_to_stencilflow import (standardize_data_layout,
-                                                 remove_scalar_transients)
+                                                 remove_scalar_transients,
+                                                 remove_unused_sinks)
     from stencilflow.stencil.nestk import NestK
     from dace.transformation.interstate import StateFusion
 
     sdfg: dace.SDFG = dace.SDFG.from_file(sys.argv[1])
+
+    # Partial canonicalization (1/2)
+    remove_unused_sinks(sdfg)
 
     sdfg.apply_transformations_repeated([MapFission])
 

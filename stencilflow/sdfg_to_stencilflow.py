@@ -55,6 +55,42 @@ def standardize_data_layout(sdfg):
                 _permute_array(array, order, nsdfg, aname)
 
 
+def remove_unused_sinks(top_sdfg: dace.SDFG):
+    """ Remove unused transient sink nodes and their generating
+        computation. """
+    for sdfg in top_sdfg.all_sdfgs_recursive():
+        for state in sdfg.nodes():
+            toremove = set()
+            map_sink_nodes = [
+                n for n in state.nodes() if state.out_degree(n) == 1
+                and state.out_edges(n)[0].data.data is None
+            ]
+            for node in state.sink_nodes() + map_sink_nodes:
+                if (isinstance(node, dace.nodes.AccessNode)
+                        and sdfg.arrays[node.data].transient):
+                    if len([
+                            n for s in sdfg.nodes() for n in s.nodes()
+                            if isinstance(n, dace.nodes.AccessNode)
+                            and n.data == node.data
+                    ]) == 1:
+                        if state.in_degree(node) == 1:
+                            predecessor = state.in_edges(node)[0].src
+                            # Only remove the node (and its predecessor) if it
+                            # has one unique predecessor that is not connected
+                            # to anything else
+                            if (state.out_degree(predecessor) == 1
+                                    and isinstance(predecessor,
+                                                   dace.nodes.CodeNode)):
+                                # Also remove potentially isolated input nodes
+                                for e in state.in_edges(predecessor):
+                                    if len(state.all_edges(e.src)) == 1:
+                                        toremove.add(e.src)
+                                toremove.add(predecessor)
+                                toremove.add(node)
+
+            state.remove_nodes_from(toremove)
+
+
 def remove_scalar_transients(top_sdfg: dace.SDFG):
     """ Clean up tasklet->scalar-transient, replacing them with symbols. """
     dprint = print  # lambda *args: pass
