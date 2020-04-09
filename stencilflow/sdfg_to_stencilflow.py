@@ -203,6 +203,7 @@ def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
 def canonicalize_sdfg(sdfg, symbols={}):
     # Clean up unnecessary subgraphs
     remove_scalar_transients(sdfg)
+    remove_unused_sinks(sdfg)
 
     # Fuse and nest parallel K-loops
     sdfg.apply_transformations_repeated(MapFission, validate=False)
