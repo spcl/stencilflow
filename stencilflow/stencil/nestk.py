@@ -174,6 +174,7 @@ class NestK(Transformation):
                 'For NestK to work, Stencil code language must be Python')
         stencil.code = DimensionAdder(add_dims,
                                       dim_index).visit(stencil.code[0])
+        stencil.code.as_string = None  # Force regeneration
 
 
 if __name__ == '__main__':

@@ -154,6 +154,8 @@ class StencilFusion(Transformation):
                     ReplaceSubscript(intermediate_name_b,
                                      intermediate_name_b).visit(stmt))
 
+            stencil_a.code.as_string = None  # Force regeneration
+
         elif stencil_a._code['language'] == dace.Language.CPP:
             raise NotImplementedError
         else:
