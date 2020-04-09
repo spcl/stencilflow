@@ -198,7 +198,7 @@ def generate_sdfg(name, chain):
             except (KeyError, TypeError):
                 input_pars = parameters
             break  # Just needed any output to retrieve the dimensions
-        input_shape = shape[-len(input_pars):]
+        input_shape = [shape[list(parameters).index(i)] for i in input_pars]
         input_accesses = str(functools.reduce(operator.mul, input_shape, 1))
         input_iterators = collections.OrderedDict(
             (p, "0:{}".format(s)) for p, s in zip(input_pars, input_shape))
