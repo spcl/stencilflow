@@ -9,10 +9,11 @@ from typing import Dict, Optional, Tuple
 import dace
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
+from stencilflow.stencil.stencilfusion import StencilFusion
 from dace.data import Array
 from dace.frontend.python.astutils import unparse, ASTFindReplace
 from dace.transformation.dataflow import MapFission
-from dace.transformation.interstate import LoopUnroll, InlineSDFG
+from dace.transformation.interstate import LoopUnroll, InlineSDFG, StateFusion
 
 
 def _specialize_symbols(iterable, symbols):
@@ -207,6 +208,9 @@ def canonicalize_sdfg(sdfg, symbols={}):
     sdfg.apply_transformations_repeated(MapFission, validate=False)
     standardize_data_layout(sdfg)
     sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
+    sdfg.apply_transformations_repeated([StateFusion])
+    sdfg.apply_strict_transformations()
+    sdfg.apply_transformations_repeated([StencilFusion])
 
     # Specialize symbols
     sdfg.specialize(symbols)
