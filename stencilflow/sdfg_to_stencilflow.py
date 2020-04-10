@@ -189,12 +189,11 @@ def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
                                         dname
                                     }).visit(stmt)
                                 e.dst.code.as_string = None  # force regenerate
-
-                        # If dst is a NestedSDFG, add the dst_connector as
-                        # a constant and remove internal nodes
-                        if isinstance(edge.dst, dace.nodes.NestedSDFG):
-                            nsdfg: dace.SDFG = edge.dst.sdfg
-                            _remove_transients(nsdfg, {dname: val})
+                            # If dst is a NestedSDFG, add the dst_connector as
+                            # a constant and remove internal nodes
+                            elif isinstance(e.dst, dace.nodes.NestedSDFG):
+                                nsdfg: dace.SDFG = e.dst.sdfg
+                                _remove_transients(nsdfg, {dname: val})
 
                     # Lastly, remove the node itself
                     state.remove_node(node)

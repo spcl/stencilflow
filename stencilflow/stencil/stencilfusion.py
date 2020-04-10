@@ -180,12 +180,12 @@ if __name__ == '__main__':
     sdfg: dace.SDFG = dace.SDFG.from_file(sys.argv[1])
 
     # Partial canonicalization (1/2)
+    remove_scalar_transients(sdfg)
     remove_unused_sinks(sdfg)
 
     sdfg.apply_transformations_repeated([MapFission])
 
     # Partial canonicalization (2/2)
-    remove_scalar_transients(sdfg)
     standardize_data_layout(sdfg)
 
     sdfg.apply_transformations_repeated([NestK], validate=False)
