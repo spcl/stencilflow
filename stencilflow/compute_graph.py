@@ -37,6 +37,8 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import ast
+import math
+
 from typing import List, Dict, Set
 
 import networkx as nx
@@ -67,7 +69,7 @@ class ComputeGraph:
             tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
             tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     """
-    def __init__(self, verbose: bool = False, dimensions=3) -> None:
+    def __init__(self, verbose: bool = False, dimensions=3, vectorization=1) -> None:
         """
         Create new ComputeGraph with given initialization parameters.
         :param verbose: flag for console output logging
@@ -75,6 +77,7 @@ class ComputeGraph:
         # set parameter variables
         self.verbose = verbose
         self.dimensions = dimensions
+        self.vectorization = vectorization
         # read static parameters from config file
         self.config: Dict[str, int] = helper.parse_json("compute_graph.config")
         # initialize internal data structures
@@ -138,8 +141,7 @@ class ComputeGraph:
         (i.e. negative)
         """
         # init dicts
-        self.min_index = dict(
-        )  # min_index["buffer_name"] = [i_min, j_min, k_min]
+        self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
         self.max_index = dict()
         self.buffer_size = dict()  # buffer_size["buffer_name"] = size
         # find min and max index
@@ -159,9 +161,8 @@ class ComputeGraph:
             elif isinstance(inp, Name):
                 if inp.name not in self.accesses:  # create initial list
                     self.accesses[inp.name] = list()
-                self.accesses[inp.name].append([0] *
-                                               self.dimensions)  # add entry
-        # set buffer_size = max_index - min_index
+                self.accesses[inp.name].append([0]*self.dimensions)  # add entry
+        # set buffer_size = max_index - min_index + (W-1) where W=vectorization
         for buffer_name in self.accesses:
             if buffer_name not in self.min_index:
                 self.buffer_size[buffer_name] = [0] * self.dimensions
@@ -171,6 +172,8 @@ class ComputeGraph:
                     for a_i, b_i in zip(self.max_index[buffer_name],
                                         self.min_index[buffer_name])
                 ]
+            # add vectorization buffer
+            self.buffer_size[buffer_name][2] += (self.vectorization - 1)
 
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
@@ -466,12 +469,12 @@ class ComputeGraph:
         """
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         for node in self.graph.nodes:
-            if isinstance(
-                    node, Output
-            ):  # start at the output nodes and walk the tree up to the input nodes
+            if isinstance(node, Output):  # start at the output nodes and walk the tree up to the input nodes
                 node.latency = 1
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
+        # divide latency by W (vectorization parameter, #parallel units)
+        self.max_latency = math.ceil(self.max_latency / self.vectorization)
 
     def latency_tree_walk(self, node: BaseOperationNodeClass) -> None:
         """

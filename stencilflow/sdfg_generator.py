@@ -96,14 +96,14 @@ def _generate_init(chain):
 def _generate_stencil(node, chain, shape, dimensions_to_skip):
 
     # Enrich accesses with the names of the corresponding input connectors
-    input_to_connector = collections.OrderedDict(
-        (k, "_" + k) for k in node.graph.accesses)
     input_dims = {
         k: [i in (node.inputs[k]["input_dim"])
             for i in stencilflow.ITERATORS] if "input_dim" in node.inputs[k]
         and node.inputs[k]["input_dim"] is not None else [True] * len(shape)
-        for k in input_to_connector
+        for k in node.graph.accesses
     }
+    input_to_connector = collections.OrderedDict(
+        (k, "_" + k if any(dims) else k) for k, dims in input_dims.items())
     accesses = collections.OrderedDict((conn, (input_dims[name], [
         tuple(np.array(x[dimensions_to_skip:])[input_dims[name]])
         for x in node.graph.accesses[name]
@@ -198,7 +198,7 @@ def generate_sdfg(name, chain):
             except (KeyError, TypeError):
                 input_pars = parameters
             break  # Just needed any output to retrieve the dimensions
-        input_shape = shape[-len(input_pars):]
+        input_shape = [shape[list(parameters).index(i)] for i in input_pars]
         input_accesses = str(functools.reduce(operator.mul, input_shape, 1))
         input_iterators = collections.OrderedDict(
             (p, "0:{}".format(s)) for p, s in zip(input_pars, input_shape))
@@ -230,7 +230,7 @@ def generate_sdfg(name, chain):
                                       num_accesses=input_accesses))
 
         entry, exit = state.add_map("read_" + node.name,
-                                    input_iterators,
+                                    iterators,
                                     schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output

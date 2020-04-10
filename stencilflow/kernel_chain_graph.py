@@ -84,6 +84,7 @@ class KernelChainGraph:
         self.dimensions: List[int] = list()  # global problem size
         self.program: Dict[str, Dict[str, Dict[str, Dict[str, str]]]] = dict(
         )  # mathematical stencil expressions:program[stencil_name] = stencil expression
+        self.vectorization = 1  # kernel vectorization width W
         self.kernel_latency = None  # critical path latency
         self.channels: Dict[str, BoundedQueue] = dict()  # each channel is an edge between two nodes
         self.graph: nx.DiGraph = nx.DiGraph()  # data flow graph
@@ -322,6 +323,8 @@ class KernelChainGraph:
         inp = helper.parse_json(self.path)
         # get dimensions
         self.kernel_dimensions = len(inp["dimensions"])
+        # get vectorization
+        self.vectorization = int(inp["vectorization"]) if "vectorization" in inp else 1
         # import program, inputs and outputs
         self.program = inp["program"]
         self.inputs = inp["inputs"]
@@ -361,7 +364,8 @@ class KernelChainGraph:
                 kernel_string=str(self.program[kernel]['computation_string']),
                 dimensions=self.dimensions,
                 data_type=self.program[kernel]['data_type'],
-                boundary_conditions=self.program[kernel]['boundary_conditions'])
+                boundary_conditions=self.program[kernel]['boundary_conditions'],
+                vectorization=self.vectorization)
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
         # create all input nodes (without data, we will add data in the simulator if necessary)

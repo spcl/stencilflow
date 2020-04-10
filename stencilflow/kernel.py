@@ -63,6 +63,7 @@ class Kernel(BaseKernelNodeClass):
                  dimensions: List[int],
                  data_type: dace.dtypes.typeclass,
                  boundary_conditions: Dict[str, Dict[str, str]],
+                 vectorization: int = 1,
                  plot_graph: bool = False,
                  verbose: bool = False) -> None:
         """
@@ -85,6 +86,7 @@ class Kernel(BaseKernelNodeClass):
         self.boundary_conditions: Dict[str, Dict[
             str, str]] = boundary_conditions  # boundary_conditions[field_name]
         self.verbose = verbose
+        self.vectorization = vectorization
         # read static parameters from config
         self.config: Dict = stencilflow.parse_json("kernel.config")
         self.calculator: Calculator = Calculator()
@@ -92,14 +94,11 @@ class Kernel(BaseKernelNodeClass):
         self.all_available = False
         self.not_available = set()
         # analyze input
-        self.graph: ComputeGraph = ComputeGraph()
-        self.graph.generate_graph(
-            kernel_string
-        )  # generate the ast computation graph from the mathematicl expression
+        self.graph: ComputeGraph = ComputeGraph(vectorization=vectorization)
+        self.graph.generate_graph(kernel_string)  # generate the ast computation graph from the mathematical expression
         self.graph.calculate_latency(
-        )  # calculate the latency in the compuation tree to find the critical path
-        self.graph.determine_inputs_outputs(
-        )  # sort out input nodes (field accesses and constant values) and output
+        )  # calculate the latency in the computation tree to find the critical path
+        self.graph.determine_inputs_outputs()  # sort out input nodes (field accesses and constant values) and output
         # nodes
         self.graph.setup_internal_buffers()
         # set plot path (if plot is set to True)
