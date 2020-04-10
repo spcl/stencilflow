@@ -229,7 +229,7 @@ def load_array(input_config: Dict, prefix=None, shape=None):
             return np.fromfile(path, dtype)
         else:
             raise ValueError("Invalid file type: " + path)
-    elif len(shape) == 0:
+    elif shape is not None and len(shape) == 0:
         return dtype(data)
     elif isinstance(data, np.ndarray):  # embedded array: already numpy array
         return data
