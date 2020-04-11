@@ -199,10 +199,27 @@ def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
                     state.remove_node(node)
 
 
+def split_condition_interstate_edges(sdfg: dace.SDFG):
+    edges_to_split = set()
+    for isedge in sdfg.edges():
+        if (not isedge.data.is_unconditional()
+                and len(isedge.data.assignments) > 0):
+            edges_to_split.add(isedge)
+
+    for ise in edges_to_split:
+        sdfg.remove_edge(ise)
+        interim = sdfg.add_state()
+        sdfg.add_edge(ise.src, interim,
+                      dace.InterstateEdge(ise.data.condition))
+        sdfg.add_edge(interim, ise.dst,
+                      dace.InterstateEdge(assignments=ise.data.assignments))
+
+
 def canonicalize_sdfg(sdfg, symbols={}):
     # Clean up unnecessary subgraphs
     remove_scalar_transients(sdfg)
     remove_unused_sinks(sdfg)
+    split_condition_interstate_edges(sdfg)
 
     # Fuse and nest parallel K-loops
     sdfg.apply_transformations_repeated(MapFission, validate=False)
