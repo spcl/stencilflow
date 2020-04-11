@@ -208,8 +208,6 @@ def canonicalize_sdfg(sdfg, symbols={}):
     sdfg.apply_transformations_repeated(MapFission, validate=False)
     standardize_data_layout(sdfg)
     sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
-    sdfg.apply_transformations_repeated([StateFusion])
-    sdfg.apply_strict_transformations()
     sdfg.apply_transformations_repeated([StencilFusion])
 
     # Specialize symbols
