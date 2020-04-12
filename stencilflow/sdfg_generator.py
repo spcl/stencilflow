@@ -455,7 +455,6 @@ def generate_reference(name, chain):
     prev_state = sdfg.add_state("init")
 
     # Throw vectorization in the bin for the reference code
-    shape[-1] *= vector_length
     vector_length = 1
 
     shape = tuple(map(int, shape))
