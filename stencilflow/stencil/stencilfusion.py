@@ -180,18 +180,18 @@ if __name__ == '__main__':
     sdfg: dace.SDFG = dace.SDFG.from_file(sys.argv[1])
 
     # Partial canonicalization (1/2)
+    remove_scalar_transients(sdfg)
     remove_unused_sinks(sdfg)
 
     sdfg.apply_transformations_repeated([MapFission])
 
     # Partial canonicalization (2/2)
-    remove_scalar_transients(sdfg)
     standardize_data_layout(sdfg)
 
-    sdfg.apply_transformations_repeated([NestK], validate=False)
-    sdfg.apply_transformations_repeated([StateFusion], validate=False)
-    sdfg.apply_strict_transformations(validate=False)
+    sdfg.apply_transformations_repeated([NestK])
+    sdfg.apply_transformations_repeated([StateFusion])
+    sdfg.apply_strict_transformations()
 
     # After graph is preprocessed, run StencilFusion
-    sdfg.apply_transformations_repeated([StencilFusion], validate=False)
+    sdfg.apply_transformations_repeated([StencilFusion])
     sdfg.save('fused.sdfg')

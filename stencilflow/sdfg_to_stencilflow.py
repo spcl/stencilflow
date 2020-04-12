@@ -189,28 +189,42 @@ def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
                                         dname
                                     }).visit(stmt)
                                 e.dst.code.as_string = None  # force regenerate
-
-                        # If dst is a NestedSDFG, add the dst_connector as
-                        # a constant and remove internal nodes
-                        if isinstance(edge.dst, dace.nodes.NestedSDFG):
-                            nsdfg: dace.SDFG = edge.dst.sdfg
-                            _remove_transients(nsdfg, {dname: val})
+                            # If dst is a NestedSDFG, add the dst_connector as
+                            # a constant and remove internal nodes
+                            elif isinstance(e.dst, dace.nodes.NestedSDFG):
+                                nsdfg: dace.SDFG = e.dst.sdfg
+                                _remove_transients(nsdfg, {dname: val})
 
                     # Lastly, remove the node itself
                     state.remove_node(node)
+
+
+def split_condition_interstate_edges(sdfg: dace.SDFG):
+    edges_to_split = set()
+    for isedge in sdfg.edges():
+        if (not isedge.data.is_unconditional()
+                and len(isedge.data.assignments) > 0):
+            edges_to_split.add(isedge)
+
+    for ise in edges_to_split:
+        sdfg.remove_edge(ise)
+        interim = sdfg.add_state()
+        sdfg.add_edge(ise.src, interim,
+                      dace.InterstateEdge(ise.data.condition))
+        sdfg.add_edge(interim, ise.dst,
+                      dace.InterstateEdge(assignments=ise.data.assignments))
 
 
 def canonicalize_sdfg(sdfg, symbols={}):
     # Clean up unnecessary subgraphs
     remove_scalar_transients(sdfg)
     remove_unused_sinks(sdfg)
+    split_condition_interstate_edges(sdfg)
 
     # Fuse and nest parallel K-loops
     sdfg.apply_transformations_repeated(MapFission, validate=False)
     standardize_data_layout(sdfg)
     sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
-    sdfg.apply_transformations_repeated([StateFusion])
-    sdfg.apply_strict_transformations()
     sdfg.apply_transformations_repeated([StencilFusion])
 
     # Specialize symbols
