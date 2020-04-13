@@ -256,12 +256,12 @@ def generate_sdfg(name, chain):
                                   copy_fpga,
                                   memlet=Memlet.simple(
                                       copy_fpga,
-                                      ", ".join(input_iterators.values()),
+                                      ", ".join(memcopy_indices),
                                       num_accesses=input_accesses,
                                       veclen=input_vector_length))
 
         entry, exit = state.add_map("read_" + node.name,
-                                    iterators,
+                                    input_iterators,
                                     schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
