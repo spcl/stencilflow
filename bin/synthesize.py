@@ -208,4 +208,4 @@ output_path = "_".join(map(str, vals)).replace(".", "p") + ".json"
 with open(output_path, "w") as out_file:
     out_file.write(json.dumps(program, indent=True))
 
-print("Wrote synthetic linear stencil to: {}".format(output_path))
+print("Wrote synthetic stencil to: {}".format(output_path))
