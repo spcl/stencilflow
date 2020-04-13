@@ -1,7 +1,7 @@
 {
     "inputs": {
         "a": {
-            "data": "data/zeros_32x32x32_fp32.dat",
+            "data": "constant:1.0",
             "data_type": "float32"
         }
     },
@@ -14,7 +14,7 @@
             "boundary_conditions": {
                 "a": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
@@ -26,7 +26,7 @@
             "boundary_conditions": {
                 "b0": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
@@ -38,7 +38,7 @@
             "boundary_conditions": {
                 "b1": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
@@ -50,7 +50,7 @@
             "boundary_conditions": {
                 "b2": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
@@ -62,7 +62,7 @@
             "boundary_conditions": {
                 "b3": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
@@ -74,7 +74,7 @@
             "boundary_conditions": {
                 "b4": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
@@ -86,7 +86,7 @@
             "boundary_conditions": {
                 "b5": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
@@ -98,7 +98,7 @@
             "boundary_conditions": {
                 "b6": {
                     "type": "constant",
-                    "value": 1.0
+                    "value": 0.0
                 }
             },
             "data_type":
