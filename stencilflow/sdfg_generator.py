@@ -224,7 +224,7 @@ def generate_sdfg(name, chain):
             try:
                 input_pars = output["input_dim"][:]
             except (KeyError, TypeError):
-                input_pars = parameters
+                input_pars = list(parameters)  # Copy
             break  # Just needed any output to retrieve the dimensions
         # If scalar, just add a symbol
         if len(input_pars) == 0:
