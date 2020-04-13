@@ -342,6 +342,11 @@ def generate_sdfg(name, chain):
         tasklet = state.add_tasklet("write_" + node.name, {in_memlet},
                                     {"memory"}, tasklet_code)
 
+        vectorized_pars = parameters
+        if vector_length > 1:
+            vectorized_pars[-1] = "{}*{}".format(vector_length,
+                                                 vectorized_pars[-1])
+
         stream_name = make_stream_name(src.name, node.name)
         read_node = state.add_read(stream_name)
 
