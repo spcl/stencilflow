@@ -97,7 +97,14 @@ dimensions = [
     make_extent_accesses(args.size_y, args.extent_y, args.stencil_shape),
     make_extent_accesses(args.size_z, args.extent_x, args.stencil_shape)
 ]
-indices = itertools.product(*dimensions)
+if args.stencil_shape == "cross":
+    indices = []
+    for i in range(len(dimensions)):
+        indices += itertools.product(
+            *[d if j == i else [0] for j, d in enumerate(dimensions)])
+elif args.stencil_shape == "box":
+    indices = itertools.product(*dimensions)
+
 indices = [
     "i{}, j{}, k{}".format(
         ("+" + str(i) if i > 0 else "-" + str(abs(i)) if i < 0 else ""),
