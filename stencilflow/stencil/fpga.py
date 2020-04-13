@@ -180,7 +180,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             [name + "_buffer_in" for name, _ in buffer_sizes.items()],
             # Output connectors
             [k + "_out" for k in node.output_fields.keys()] +
-            [name + "_buffer_out" for name, _ in buffer_sizes.items()])
+            [name + "_buffer_out" for name, _ in buffer_sizes.items()],
+            schedule=dace.ScheduleType.FPGA_Device)
         state.add_node(nested_sdfg_tasklet)
 
         # Shift state, which shifts all buffers by one
