@@ -348,7 +348,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             _, desc_outer = sdfg.add_array(
                 buffer_name_outer, (size, ),
                 field_dtype,
-                storage=dace.dtypes.StorageType.FPGA_Registers,
+                storage=dace.dtypes.StorageType.FPGA_Local,
                 transient=True)
 
             # Create read and write nodes
