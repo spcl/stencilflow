@@ -55,16 +55,17 @@ from dace.memlet import Memlet
 from dace.sdfg import SDFG
 from dace.dtypes import ScheduleType, StorageType, Language
 
-import stencilflow.helper as helper
-from .kernel import Kernel
-from .kernel_chain_graph import Input, Output
+import stencilflow
+from stencilflow.kernel import Kernel
+from stencilflow.input import Input
+from stencilflow.output import Output
 
 import stencilflow.stencil as stencil
 from stencilflow.stencil.fpga import make_iterators
 
 import networkx as nx
 
-ITERATORS = ["i", "j", "k"]
+MINIMUM_CHANNEL_DEPTH = 32
 
 
 def make_stream_name(src_name, dst_name):
@@ -76,33 +77,49 @@ def _generate_init(chain):
     # TODO: For some reason, we put fake entries into the shape when the
     # dimensions in less than 3. Have to remove them here.
     dimensions_to_skip = len(chain.dimensions) - chain.kernel_dimensions
-    shape = np.array(chain.dimensions)[dimensions_to_skip:]
-    parameters = np.array(ITERATORS)[dimensions_to_skip:]
+    shape = chain.dimensions[dimensions_to_skip:]
+    vector_length = chain.vectorization
+    if vector_length > 1:
+        if shape[-1] % vector_length != 0:
+            raise ValueError("Shape not divisible by vectorization width")
+    parameters = stencilflow.ITERATORS[dimensions_to_skip:]
     # Only iterate over dimensions larger than 1, the rest will be added to the
     # SDFG as symbols that must be passed from outside.
-    iterator_mask = shape > 1  # Dimensions we need to iterate over
-    iterators = make_iterators(shape[iterator_mask],
-                               parameters=parameters[iterator_mask])
-    memlet_indices = [
+    iterator_mask = [s > 1 for s in shape]  # Dimensions to iterate over
+    iterators = make_iterators(
+        [shape[i] for i, m in enumerate(iterator_mask) if m],
+        parameters=[parameters[i] for i, m in enumerate(iterator_mask) if m])
+    memcopy_indices = [
         iterators[k] if iterator_mask[i] else k
         for i, k in enumerate(parameters)
     ]
+    if vector_length > 1:
+        iterators[parameters[-1]] += "/{}".format(vector_length)
     memcopy_accesses = str(
-        functools.reduce(operator.mul, shape[iterator_mask], 1))
+        functools.reduce(operator.mul,
+                         [shape[i] for i, m in enumerate(iterator_mask) if m],
+                         1))
 
-    return (dimensions_to_skip, shape, parameters, iterators, memlet_indices,
-            memcopy_accesses)
+    return (dimensions_to_skip, shape, vector_length, parameters, iterators,
+            memcopy_indices, memcopy_accesses)
 
 
 def _generate_stencil(node, chain, shape, dimensions_to_skip):
 
     # Enrich accesses with the names of the corresponding input connectors
+    input_dims = {
+        k: [i in (node.inputs[k]["input_dim"])
+            for i in stencilflow.ITERATORS] if "input_dim" in node.inputs[k]
+        and node.inputs[k]["input_dim"] is not None else [True] * len(shape)
+        for k in node.graph.accesses
+    }
     input_to_connector = collections.OrderedDict(
-        (k, "_" + k) for k in node.graph.accesses)
-    accesses = collections.OrderedDict(
-        (k, ([True] * len(shape), [tuple(x[dimensions_to_skip:]) for x in v]))
-        for k, v in zip(input_to_connector.values(),
-                        node.graph.accesses.values()))
+        (k, "_" + k if any(dims) else k) for k, dims in input_dims.items())
+    accesses = collections.OrderedDict((conn, (input_dims[name], [
+        tuple(np.array(x[dimensions_to_skip:])[input_dims[name]])
+        for x in node.graph.accesses[name]
+    ])) for name, conn in zip(input_to_connector.keys(),
+                              input_to_connector.values()))
 
     # Map output field to output connector
     output_to_connector = collections.OrderedDict(
@@ -159,15 +176,37 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     return stencil_node, input_to_connector, output_to_connector
 
 
-def _add_pipe(sdfg, edge):
+def _get_input_parameters(input_node, global_parameters, global_vector_length):
+    """Determines the iterators and vector length for a given input."""
+    for output in input_node.outputs.values():
+        try:
+            input_pars = output["input_dim"][:]
+            vector_length = (global_vector_length
+                             if input_pars[-1] == global_parameters[-1] else 1)
+            # Just needed any output to retrieve the dimensions
+            return input_pars, vector_length
+        except (KeyError, TypeError):
+            pass  # input_dim is not defined or is None
+    return global_parameters, global_vector_length
+
+
+def _add_pipe(sdfg, edge, parameters, vector_length):
 
     stream_name = make_stream_name(edge[0].name, edge[1].name)
 
-    sdfg.add_stream(stream_name,
-                    edge[0].data_type,
-                    buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
-                    storage=StorageType.FPGA_Local,
-                    transient=True)
+    if isinstance(edge[0], stencilflow.input.Input):
+        parameters, vector_length = _get_input_parameters(
+            edge[0], parameters, vector_length)
+
+    sdfg.add_stream(
+        stream_name,
+        edge[0].data_type,
+        # Always maintain some channel depth to have greater stall tolerance
+        buffer_size=max(MINIMUM_CHANNEL_DEPTH,
+                        edge[2]["channel"]["delay_buffer"].maxsize),
+        storage=StorageType.FPGA_Local,
+        transient=True,
+        veclen=vector_length)
 
 
 def generate_sdfg(name, chain):
@@ -180,17 +219,36 @@ def generate_sdfg(name, chain):
     sdfg.add_edge(pre_state, state, InterstateEdge())
     sdfg.add_edge(state, post_state, InterstateEdge())
 
-    (dimensions_to_skip, shape, parameters, iterators, memlet_indices,
-     memcopy_accesses) = _generate_init(chain)
+    (dimensions_to_skip, shape, vector_length, parameters, iterators,
+     memcopy_indices, memcopy_accesses) = _generate_init(chain)
 
     def add_input(node):
+
+        # Collapse iterators and shape if input is lower dimensional
+        for output in node.outputs.values():
+            try:
+                input_pars = output["input_dim"][:]
+            except (KeyError, TypeError):
+                input_pars = list(parameters)  # Copy
+            break  # Just needed any output to retrieve the dimensions
+        # If scalar, just add a symbol
+        if len(input_pars) == 0:
+            sdfg.add_symbol(node.name, node.data_type, override_dtype=True)
+            return  # We're done
+        input_shape = [shape[list(parameters).index(i)] for i in input_pars]
+        input_accesses = str(functools.reduce(operator.mul, input_shape, 1))
+        # Only vectorize the read if the innermost dimensions is read
+        input_vector_length = (vector_length
+                               if input_pars[-1] == parameters[-1] else 1)
+        input_iterators = collections.OrderedDict(
+            (k, v) for k, v in iterators.items() if k in input_pars)
 
         # Host-side array, which will be an input argument
         sdfg.add_array(node.name + "_host", shape, node.data_type)
 
         # Device-side copy
         sdfg.add_array(node.name,
-                       shape,
+                       input_shape,
                        node.data_type,
                        storage=StorageType.FPGA_Global,
                        transient=True)
@@ -203,11 +261,12 @@ def generate_sdfg(name, chain):
                                   copy_fpga,
                                   memlet=Memlet.simple(
                                       copy_fpga,
-                                      ", ".join(memlet_indices),
-                                      num_accesses=memcopy_accesses))
+                                      ", ".join(memcopy_indices),
+                                      num_accesses=input_accesses,
+                                      veclen=input_vector_length))
 
         entry, exit = state.add_map("read_" + node.name,
-                                    iterators,
+                                    input_iterators,
                                     schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
@@ -221,13 +280,18 @@ def generate_sdfg(name, chain):
         tasklet = state.add_tasklet("read_" + node.name, {"memory"},
                                     out_memlets, tasklet_code)
 
+        vectorized_pars = input_pars
+        if input_vector_length > 1:
+            vectorized_pars[-1] = "{}*{}".format(input_vector_length,
+                                                 vectorized_pars[-1])
         state.add_memlet_path(access_node,
                               entry,
                               tasklet,
                               dst_conn="memory",
                               memlet=Memlet.simple(node.name,
-                                                   ", ".join(parameters),
-                                                   num_accesses=1))
+                                                   ", ".join(vectorized_pars),
+                                                   num_accesses=1,
+                                                   veclen=input_vector_length))
 
         # Add memlets to all FIFOs connecting to compute units
         for out_name, out_memlet in zip(outputs, out_memlets):
@@ -237,9 +301,11 @@ def generate_sdfg(name, chain):
                                   exit,
                                   write_node,
                                   src_conn=out_memlet,
-                                  memlet=Memlet.simple(stream_name,
-                                                       "0",
-                                                       num_accesses=1))
+                                  memlet=Memlet.simple(
+                                      stream_name,
+                                      "0",
+                                      num_accesses=1,
+                                      veclen=input_vector_length))
 
     def add_output(node):
 
@@ -254,15 +320,16 @@ def generate_sdfg(name, chain):
                        transient=True)
         write_node = state.add_write(node.name)
 
-        # Copy data to the FPGA
+        # Copy data to the host
         copy_fpga = post_state.add_read(node.name)
         copy_host = post_state.add_write(node.name + "_host")
         post_state.add_memlet_path(copy_fpga,
                                    copy_host,
                                    memlet=Memlet.simple(
                                        copy_host,
-                                       ", ".join(memlet_indices),
-                                       num_accesses=memcopy_accesses))
+                                       ", ".join(memcopy_indices),
+                                       num_accesses=memcopy_accesses,
+                                       veclen=vector_length))
 
         entry, exit = state.add_map("write_" + node.name,
                                     iterators,
@@ -280,6 +347,11 @@ def generate_sdfg(name, chain):
         tasklet = state.add_tasklet("write_" + node.name, {in_memlet},
                                     {"memory"}, tasklet_code)
 
+        vectorized_pars = parameters
+        if vector_length > 1:
+            vectorized_pars[-1] = "{}*{}".format(vector_length,
+                                                 vectorized_pars[-1])
+
         stream_name = make_stream_name(src.name, node.name)
         read_node = state.add_read(stream_name)
 
@@ -289,7 +361,8 @@ def generate_sdfg(name, chain):
                               dst_conn=in_memlet,
                               memlet=Memlet.simple(stream_name,
                                                    "0",
-                                                   num_accesses=1))
+                                                   num_accesses=1,
+                                                   veclen=vector_length))
 
         state.add_memlet_path(tasklet,
                               exit,
@@ -297,7 +370,8 @@ def generate_sdfg(name, chain):
                               src_conn="memory",
                               memlet=Memlet.simple(node.name,
                                                    ", ".join(parameters),
-                                                   num_accesses=1))
+                                                   num_accesses=1,
+                                                   veclen=vector_length))
 
     def add_kernel(node):
 
@@ -310,6 +384,20 @@ def generate_sdfg(name, chain):
         # Add read nodes and memlets
         for field_name, connector in input_to_connector.items():
 
+            # Scalars are symbols rather than data nodes
+            input_vector_length = vector_length
+            try:
+                if len(node.inputs[field_name]["input_dim"]) == 0:
+                    continue
+                else:
+                    # If the innermost dimension of this field is not the
+                    # vectorized one, read it as scalars
+                    if (node.inputs[field_name]["input_dim"][-1] !=
+                            parameters[-1]):
+                        input_vector_length = 1
+            except (KeyError, TypeError):
+                pass  # input_dim is not defined or is None
+
             stream_name = make_stream_name(field_name, node.name)
 
             # Outer memory read
@@ -320,7 +408,8 @@ def generate_sdfg(name, chain):
                                   memlet=Memlet.simple(
                                       stream_name,
                                       "0",
-                                      num_accesses=memcopy_accesses))
+                                      num_accesses=memcopy_accesses,
+                                      veclen=input_vector_length))
 
         # Add read nodes and memlets
         for output_name, connector in output_to_connector.items():
@@ -336,11 +425,12 @@ def generate_sdfg(name, chain):
                                   memlet=Memlet.simple(
                                       stream_name,
                                       "0",
-                                      num_accesses=memcopy_accesses))
+                                      num_accesses=memcopy_accesses,
+                                      veclen=vector_length))
 
     # First generate all connections between kernels and memories
     for link in chain.graph.edges(data=True):
-        _add_pipe(sdfg, link)
+        _add_pipe(sdfg, link, parameters, vector_length)
 
     # Now generate all memory access functions so arrays are registered
     for node in chain.graph.nodes():
@@ -369,10 +459,13 @@ def generate_reference(name, chain):
 
     sdfg = SDFG(name)
 
-    (dimensions_to_skip, shape, parameters, iterators, memlet_indices,
-     memcopy_accesses) = _generate_init(chain)
+    (dimensions_to_skip, shape, vector_length, parameters, iterators,
+     memcopy_indices, memcopy_accesses) = _generate_init(chain)
 
     prev_state = sdfg.add_state("init")
+
+    # Throw vectorization in the bin for the reference code
+    vector_length = 1
 
     shape = tuple(map(int, shape))
 

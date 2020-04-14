@@ -1,0 +1,56 @@
+{
+  "inputs": {
+    "in0d": {
+      "data": 0.0,
+      "data_type": "float64",
+      "dimensions": []
+    },
+    "in1d": {
+      "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "data_type": "float64",
+      "dimensions": ["k"]
+    },
+    "in2d": {
+      "data": "stencils/data/zeros_16x16_fp64.dat",
+      "data_type": "float64",
+      "dimensions": ["i", "j"]
+    },
+    "in3d": {
+      "data": "stencils/data/zeros_16x16x16_fp64.dat",
+      "data_type": "float64",
+      "dimensions": ["i", "j", "k"]
+    }
+  },
+  "outputs": [
+    "out"
+  ],
+  "dimensions": [
+    8,
+    16,
+    32
+  ],
+  "program": {
+    "out": {
+      "computation_string": "res = in0d + in0d + in1d[k-42] + in1d[k] + in1d[k+42] + in2d[i,j] + in2d[i+1,j] + in2d[i+1,j+1] + in3d[i,j,k] + in3d[i+1,j+1,k+1] + in0d",
+      "boundary_conditions": {
+        "in0d": {
+          "type": "constant",
+          "value": 1.0
+        },
+        "in1d": {
+          "type": "constant",
+          "value": 1.0
+        },
+        "in2d": {
+          "type": "constant",
+          "value": 1.0
+        },
+        "in3d": {
+          "type": "constant",
+          "value": 1.0
+        }
+      },
+      "data_type": "float32"
+    }
+  }
+}

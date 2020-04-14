@@ -44,7 +44,7 @@ class Stencil(dace.library.LibraryNode):
                  output_fields={},
                  boundary_conditions={},
                  code=""):
-        in_connectors = accesses.keys()
+        in_connectors = {k for k, v in accesses.items() if any(v[0])}
         out_connectors = output_fields.keys()
         super().__init__(label, inputs=in_connectors, outputs=out_connectors)
         self.shape = shape

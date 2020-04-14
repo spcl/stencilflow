@@ -28,6 +28,11 @@ class SubscriptConverter(ast.NodeTransformer):
 
         varname = node.value.id
         index_tuple = ast.literal_eval(node.slice.value)
+        try:
+            len(index_tuple)
+        except TypeError:
+            # Turn into a tuple
+            index_tuple = (index_tuple, )
 
         # This index has been used before
         if index_tuple in self.names[varname]:

@@ -4,6 +4,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+import stencilflow
 from stencilflow.run_program import run_program
 import stencilflow
 
@@ -21,6 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("-skip-execution",
                         dest="skip_execution",
                         action="store_true")
+    parser.add_argument("-generate-input", action="store_true")
     parser.add_argument("-plot", action="store_true")
     parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
     parser.add_argument("-print-result",

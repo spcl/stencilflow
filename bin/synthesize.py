@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import itertools
 import json
@@ -47,6 +48,10 @@ parser.add_argument("-stencil_shape",
                     type=str,
                     default="cross",
                     choices=["cross", "box"])
+parser.add_argument("-vectorize",
+                    help="Vectorization factor.",
+                    type=int,
+                    default=1)
 args = parser.parse_args()
 
 shape = []
@@ -60,7 +65,8 @@ program = {
     "outputs": [],
     "dimensions": None,
     "program": {},
-    "dimensions": shape
+    "dimensions": shape,
+    "vectorization": args.vectorize
 }
 
 
@@ -91,7 +97,14 @@ dimensions = [
     make_extent_accesses(args.size_y, args.extent_y, args.stencil_shape),
     make_extent_accesses(args.size_z, args.extent_x, args.stencil_shape)
 ]
-indices = itertools.product(*dimensions)
+if args.stencil_shape == "cross":
+    indices = []
+    for i in range(len(dimensions)):
+        indices += itertools.product(
+            *[d if j == i else [0] for j, d in enumerate(dimensions)])
+elif args.stencil_shape == "box":
+    indices = itertools.product(*dimensions)
+
 indices = [
     "i{}, j{}, k{}".format(
         ("+" + str(i) if i > 0 else "-" + str(abs(i)) if i < 0 else ""),
@@ -202,4 +215,4 @@ output_path = "_".join(map(str, vals)).replace(".", "p") + ".json"
 with open(output_path, "w") as out_file:
     out_file.write(json.dumps(program, indent=True))
 
-print("Wrote synthetic linear stencil to: {}".format(output_path))
+print("Wrote synthetic stencil to: {}".format(output_path))

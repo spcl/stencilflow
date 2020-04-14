@@ -7,6 +7,8 @@ import dace
 import numpy as np
 from .subscript_converter import SubscriptConverter
 
+JUNK_VAL = -100000
+
 
 @dace.library.expansion
 class ExpandStencilCPU(dace.library.ExpandTransformation):

@@ -37,13 +37,15 @@ __copyright__ = "Copyright 2018-2020, StencilFlow"
 __license__ = "BSD-3-Clause"
 
 import ast
+import math
+
 from typing import List, Dict, Set
 
 import networkx as nx
 
 import stencilflow.helper as helper
-from .base_node_class import BaseOperationNodeClass
-from .compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
+from stencilflow.base_node_class import BaseOperationNodeClass
+from stencilflow.compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
 
 
 class ComputeGraph:
@@ -67,13 +69,15 @@ class ComputeGraph:
             tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
             tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     """
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(self, verbose: bool = False, dimensions=3, vectorization=1) -> None:
         """
         Create new ComputeGraph with given initialization parameters.
         :param verbose: flag for console output logging
         """
         # set parameter variables
         self.verbose = verbose
+        self.dimensions = dimensions
+        self.vectorization = vectorization
         # read static parameters from config file
         self.config: Dict[str, int] = helper.parse_json("compute_graph.config")
         # initialize internal data structures
@@ -98,8 +102,7 @@ class ComputeGraph:
         )  # dictionary containing all field accesses for a specific
         # resource e.g. {"A":{[0,0,0],[0,1,0]}} for the stencil "res = A[i,j,k] + A[i,j+1,k]"
 
-    @staticmethod
-    def create_operation_node(node: ast,
+    def create_operation_node(self, node: ast,
                               number: int) -> BaseOperationNodeClass:
         """
         Create operation node of the correct type.
@@ -119,7 +122,7 @@ class ComputeGraph:
             return Output(node, number)
         elif isinstance(node,
                         ast.Subscript):  # array access (form: arr[i,j,k])
-            return Subscript(node, number)
+            return Subscript(node, number, self.dimensions)
         elif isinstance(node,
                         ast.IfExp):  # if/else clause of ternary operation
             return Ternary(node, number)
@@ -133,13 +136,12 @@ class ComputeGraph:
     def setup_internal_buffers(self, relative_to_center=True) -> None:
         """
         Set up minimum/maximum index and accesses for the internal data structures.
-        :param relative_to_center: if true, the center of the stencil is at position [0,0,0] respecively 0, if false,
+        :param relative_to_center: if true, the center of the stencil is at position [0,0,0] respectively 0, if false,
         the furthest element is at position [0,0,0] and all other accesses on the same input field are relative to that
         (i.e. negative)
         """
         # init dicts
-        self.min_index = dict(
-        )  # min_index["buffer_name"] = [i_min, j_min, k_min]
+        self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
         self.max_index = dict()
         self.buffer_size = dict()  # buffer_size["buffer_name"] = size
         # find min and max index
@@ -156,12 +158,23 @@ class ComputeGraph:
                 if inp.name not in self.accesses:  # create initial list
                     self.accesses[inp.name] = list()
                 self.accesses[inp.name].append(inp.index)  # add entry
-        # set buffer_size = max_index - min_index
-        for buffer_name in self.min_index:
-            self.buffer_size[buffer_name] = [
-                abs(a_i - b_i) for a_i, b_i in zip(self.max_index[buffer_name],
-                                                   self.min_index[buffer_name])
-            ]
+            elif isinstance(inp, Name):
+                if inp.name not in self.accesses:  # create initial list
+                    self.accesses[inp.name] = list()
+                self.accesses[inp.name].append([0]*self.dimensions)  # add entry
+        # set buffer_size = max_index - min_index + (W-1) where W=vectorization
+        for buffer_name in self.accesses:
+            if buffer_name not in self.min_index:
+                self.buffer_size[buffer_name] = [0] * self.dimensions
+            else:
+                self.buffer_size[buffer_name] = [
+                    abs(a_i - b_i)
+                    for a_i, b_i in zip(self.max_index[buffer_name],
+                                        self.min_index[buffer_name])
+                ]
+            # add vectorization buffer
+            self.buffer_size[buffer_name][2] += (self.vectorization - 1)
+
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
             for field in self.accesses:
@@ -456,12 +469,12 @@ class ComputeGraph:
         """
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         for node in self.graph.nodes:
-            if isinstance(
-                    node, Output
-            ):  # start at the output nodes and walk the tree up to the input nodes
+            if isinstance(node, Output):  # start at the output nodes and walk the tree up to the input nodes
                 node.latency = 1
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
+        # divide latency by W (vectorization parameter, #parallel units)
+        self.max_latency = math.ceil(self.max_latency / self.vectorization)
 
     def latency_tree_walk(self, node: BaseOperationNodeClass) -> None:
         """
@@ -527,7 +540,7 @@ if __name__ == "__main__":
     """
         simple debugging example
     """
-    computation = "res = -a if (a+1 > b-c) else b; b = d + e"
+    computation = "out = cos(3.14);res = A[i,j,k] if (A[i,j,k]+1 > A[i,j,k]-B[i,j,k]) else out"
     graph = ComputeGraph()
     graph.generate_graph(computation)
     graph.calculate_latency()

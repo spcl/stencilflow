@@ -5,4 +5,5 @@ h5py
 pydot
 matplotlib
 pytest
+astunparse
 mpi4py
