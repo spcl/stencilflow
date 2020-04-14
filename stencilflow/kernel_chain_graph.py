@@ -47,7 +47,7 @@ from typing import List, Dict
 
 import networkx as nx
 
-import stencilflow.helper as helper
+import stencilflow
 from stencilflow.log_level import LogLevel
 from stencilflow.kernel import Kernel
 from stencilflow.bounded_queue import BoundedQueue
@@ -91,7 +91,7 @@ class KernelChainGraph:
         self.input_nodes: Dict[str, Kernel] = dict()  # Input nodes of the graph
         self.output_nodes: Dict[str,  Kernel] = dict()  # Output nodes of the graph
         self.kernel_nodes: Dict[str, Kernel] = dict()  # Kernel nodes of the graph
-        self.config = helper.parse_json("stencil_chain.config")
+        self.config = stencilflow.parse_json("stencil_chain.config")
         self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
         self.kernel_dimensions = -1  # 2: 2D, 3: 3D
         # trigger all internal calculations
@@ -320,7 +320,7 @@ class KernelChainGraph:
         """
         Read all sections of the program input file.
         """
-        inp = helper.parse_json(self.path)
+        inp = stencilflow.parse_json(self.path)
         # get dimensions
         self.kernel_dimensions = len(inp["dimensions"])
         # get vectorization
@@ -328,6 +328,11 @@ class KernelChainGraph:
         # import program, inputs and outputs
         self.program = inp["program"]
         self.inputs = inp["inputs"]
+        for i in self.inputs.values():
+            if "input_dim" not in i:
+                i["input_dim"] = stencilflow.ITERATORS[len(stencilflow.
+                                                           ITERATORS) -
+                                                       self.kernel_dimensions:]
         self.outputs = inp["outputs"]
         # handle stencil program output dimensions
         if self.kernel_dimensions == 1:  # 1D
@@ -434,9 +439,9 @@ class KernelChainGraph:
                 # same time
                 for entry in node.input_paths[inp]:
                     name = entry[-1]
-                    max_size = helper.convert_3d_to_1d(
+                    max_size = stencilflow.convert_3d_to_1d(
                         dimensions=self.dimensions,
-                        index=helper.list_subtract_cwise(max_delay[:-1], entry[:-1]))
+                        index=stencilflow.list_subtract_cwise(max_delay[:-1], entry[:-1]))
                     node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
                     node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
             # set input node delay buffers to 1
@@ -507,7 +512,7 @@ class KernelChainGraph:
         """
         Computes the max latency critical path through the graph in scalar format.
         """
-        return helper.convert_3d_to_1d(index=self.compute_critical_path_dim(), dimensions=self.dimensions)
+        return stencilflow.convert_3d_to_1d(index=self.compute_critical_path_dim(), dimensions=self.dimensions)
 
     def report(self, name):
         print("Report of {}\n".format(name))
@@ -626,7 +631,7 @@ class KernelChainGraph:
 
             stencil_ast = ast.parse(kernel.kernel_string)
 
-            counter = helper.OpCounter()
+            counter = stencilflow.OpCounter()
             counter.visit(stencil_ast)
             num_ops = counter.operation_count
             for name, count in num_ops.items():
@@ -659,15 +664,8 @@ class KernelChainGraph:
     def runtime_lower_bound(self):
         """Returns the lower bound on number of cycles to execute the program,
            in number of cycles."""
-        max_init_cycles = 0
-        for kernel in self.graph.nodes():
-            if not isinstance(kernel, Kernel):
-                continue
-            for d in kernel.dist_to_center.values():
-                if d > max_init_cycles:
-                    max_init_cycles = d
-        return (functools.reduce(lambda a, b: a * b, self.dimensions) +
-                max_init_cycles + self.compute_critical_path())
+        return ((functools.reduce(lambda a, b: a * b, self.dimensions) +
+                 self.compute_critical_path()) // self.vectorization)
 
 
 if __name__ == "__main__":
@@ -684,7 +682,7 @@ if __name__ == "__main__":
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
     args = parser.parse_args()
-    program_description = helper.parse_json(args.stencil_file)
+    program_description = stencilflow.parse_json(args.stencil_file)
     # instantiate the KernelChainGraph
     chain = KernelChainGraph(path=args.stencil_file,
                              plot_graph=args.plot,
