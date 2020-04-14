@@ -61,6 +61,7 @@ def run_program(stencil_file,
                 input_directory=None,
                 use_cached_sdfg=None,
                 skip_execution=False,
+                generate_input=False,
                 plot=False,
                 log_level=LogLevel.BASIC,
                 print_result=False):
@@ -153,8 +154,13 @@ def run_program(stencil_file,
         print("Loading input arrays...")
     if input_directory is None:
         input_directory = os.path.dirname(stencil_file)
+    input_description = copy.copy(program_description["inputs"])
+    if generate_input:
+        # Generate some input so we don't load files off the disk
+        for k in input_description:
+            input_description[k]["data"] = "constant:1.0"
     input_arrays = stencilflow.load_input_arrays(
-        program_description["inputs"],
+        input_description,
         prefix=input_directory,
         shape=program_description["dimensions"])
 

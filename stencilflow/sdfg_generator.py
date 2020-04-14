@@ -65,6 +65,8 @@ from stencilflow.stencil.fpga import make_iterators
 
 import networkx as nx
 
+MINIMUM_CHANNEL_DEPTH = 32
+
 
 def make_stream_name(src_name, dst_name):
     return src_name + "_to_" + dst_name
@@ -196,12 +198,15 @@ def _add_pipe(sdfg, edge, parameters, vector_length):
         parameters, vector_length = _get_input_parameters(
             edge[0], parameters, vector_length)
 
-    sdfg.add_stream(stream_name,
-                    edge[0].data_type,
-                    buffer_size=edge[2]["channel"]["delay_buffer"].maxsize,
-                    storage=StorageType.FPGA_Local,
-                    transient=True,
-                    veclen=vector_length)
+    sdfg.add_stream(
+        stream_name,
+        edge[0].data_type,
+        # Always maintain some channel depth to have greater stall tolerance
+        buffer_size=max(MINIMUM_CHANNEL_DEPTH,
+                        edge[2]["channel"]["delay_buffer"].maxsize),
+        storage=StorageType.FPGA_Local,
+        transient=True,
+        veclen=vector_length)
 
 
 def generate_sdfg(name, chain):
