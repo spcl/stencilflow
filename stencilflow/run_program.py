@@ -63,6 +63,7 @@ def run_program(stencil_file,
                 skip_execution=False,
                 generate_input=False,
                 plot=False,
+                halo=0,
                 log_level=LogLevel.BASIC,
                 print_result=False):
 
@@ -212,6 +213,14 @@ def run_program(stencil_file,
     # Write results to file
     output_folder = os.path.join("results", name)
     os.makedirs(output_folder, exist_ok=True)
+    if halo > 0:
+        # Prune halos
+        for k, v in output_arrays.items():
+            output_arrays[k] = v[tuple(slice(halo, -halo) for _ in v.shape)]
+        if compare_to_reference:
+            for k, v in reference_output_arrays.items():
+                reference_output_arrays[k] = v[tuple(
+                    slice(halo, -halo) for _ in v.shape)]
     stencilflow.save_output_arrays(output_arrays, output_folder)
     print("Results saved to " + output_folder)
     if compare_to_reference:
@@ -231,7 +240,6 @@ def run_program(stencil_file,
                 print("Expected: {}".format(expected))
                 print("Got:      {}".format(got))
                 raise ValueError("Result mismatch.")
-                return 1
         print("Results verified.")
         return 0
 
