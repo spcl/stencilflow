@@ -224,10 +224,13 @@ def run_program(stencil_file,
     if compare_to_reference:
         print("Comparing to reference SDFG...")
         for outp in output_arrays:
-            if not stencilflow.arrays_are_equal(
-                    np.ravel(output_arrays[outp]),
-                    np.ravel(reference_output_arrays[outp])):
-                print("Result mismatch.")
+            got = output_arrays[outp]
+            expected = reference_output_arrays[outp]
+            if not stencilflow.arrays_are_equal(np.ravel(got),
+                                                np.ravel(expected)):
+                print("Expected: {}".format(expected))
+                print("Got:      {}".format(got))
+                raise ValueError("Result mismatch.")
                 return 1
         print("Results verified.")
         return 0
