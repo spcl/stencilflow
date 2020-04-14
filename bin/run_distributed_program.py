@@ -76,7 +76,7 @@ if __name__ == "__main__":
     my_rank = MPI.COMM_WORLD.Get_rank()
     name = MPI.Get_processor_name()
 
-       # Load program description
+    # Load program description
     program_description = helper.parse_json(stencil_file)
     stencil_name = os.path.basename(stencil_file)
     stencil_name = re.match("[^\.]+", stencil_name).group(0)
@@ -123,10 +123,7 @@ if __name__ == "__main__":
     # Change SDFG name to have different folder in `.dacecache`
 
     sdfg_name = sdfg.name
-    as_json = sdfg.to_json()
-    as_json["attributes"]["name"] = sdfg_name + "_" + str(my_rank)
-    sdfg_name = sdfg_name + "_" + str(my_rank)
-    sdfg = dace.SDFG.from_json(as_json)
+    sdfg._name = sdfg_name + "_" + str(my_rank)
     sdfg.expand_library_nodes()
 
     # Compile
