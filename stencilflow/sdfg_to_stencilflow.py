@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import ast
 import astunparse
+import collections
 import json
 import re
 import warnings
 from typing import Dict, Optional, Tuple
 
 import dace
+import stencilflow
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
 from stencilflow.stencil.stencilfusion import StencilFusion
@@ -364,6 +366,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
                     stencil_json = {}
 
+                    boundary_conditions = collections.OrderedDict()
+
                     in_edges = {e.dst_conn: e for e in state.in_edges(node)}
                     out_edges = {e.src_conn: e for e in state.out_edges(node)}
 
@@ -387,6 +391,9 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                             name = "{}_{}".format(field, versions[field])
                             print("Versioned {} to {}.".format(field, name))
                         rename_map[connector] = name
+                        boundary_conditions[name] = (
+                            node.boundary_conditions[connector]
+                            if connector in node.boundary_conditions else None)
                         if name in reads:
                             if reads[name] != dtype:
                                 raise ValueError(
@@ -405,6 +412,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         write_node = dace.sdfg.find_output_arraynode(
                             state, out_edges[connector])
                         # Rename to array node
+                        output_connector = connector
                         field = write_node.data
                         # Add new version
                         if field not in versions:
@@ -419,6 +427,13 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         rename_map[connector] = rename
                         output = rename
                         break  # Grab first and only element
+
+                    for field, bc in boundary_conditions.items():
+                        if bc is None:
+                            # Use output boundary condition
+                            boundary_conditions[
+                                field] = node.boundary_conditions[
+                                    output_connector]
 
                     if output in writes:
                         raise KeyError(
@@ -438,15 +453,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     code = astunparse.unparse(new_ast)
                     stencil_name = output
                     stencil_json["computation_string"] = code
-
-                    # Also rename boundary conditions
-                    # TODO: remove workaround due to wrongly named BCs
-                    stencil_json["boundary_conditions"] = {}
-                    for k, v in node.boundary_conditions.items():
-                        if k not in rename_map:
-                            k += "_in"
-                        k = rename_map[k]
-                        stencil_json["boundary_conditions"][k] = v
+                    stencil_json["boundary_conditions"] = boundary_conditions
 
                     result["program"][stencil_name] = stencil_json
 
