@@ -65,7 +65,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         scalars = {}  # {name: type}
         vector_lengths = {}  # {name: vector length}
         for field_name, (dim_mask, relative) in node.accesses.items():
-            relative = dace.dtypes.deduplicate(relative)
+            relative = dace.dtypes.deduplicate([tuple(r) for r in relative])
             if not any(dim_mask):
                 # This is a scalar, no buffer needed. Instead, the SDFG must
                 # take this as a symbol
