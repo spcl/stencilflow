@@ -122,8 +122,8 @@ if __name__ == "__main__":
 
     # Change SDFG name to have different folder in `.dacecache`
 
-    sdfg_name = sdfg.name
-    sdfg._name = sdfg_name + "_" + str(my_rank)
+    sdfg_name = sdfg.name + "_" + str(my_rank)
+    sdfg._name = sdfg_name
     sdfg.expand_library_nodes()
 
     # Compile
@@ -146,6 +146,7 @@ if __name__ == "__main__":
             sp.run(["make", "intelfpga_smi_" + sdfg_name + "_codegen_host", "-j4"],
                cwd=build_folder,
                check=True)
+
         # make host program
         sp.run(["make"], cwd=build_folder, check=True)
         if mode == "emulation":
