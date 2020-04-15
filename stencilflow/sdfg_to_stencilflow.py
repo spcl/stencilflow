@@ -245,7 +245,8 @@ def canonicalize_sdfg(sdfg, symbols={}):
             node.map.range = ranges
 
     # Unroll sequential K-loops
-    sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
+    if sdfg.apply_transformations_repeated([LoopUnroll], validate=False) > 0:
+        raise NotImplementedError("Unrolling does not yet work in StencilFlow")
 
     return sdfg
 
