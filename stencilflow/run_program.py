@@ -70,7 +70,7 @@ def run_program(stencil_file,
     # Load program file
     program_description = stencilflow.parse_json(stencil_file)
     name = os.path.basename(stencil_file)
-    name = re.match("([^\.]+)\.[^\.]+", name).group(1)
+    name = re.match("(.+)\.[^\.]+", name).group(1).replace(".", "_")
 
     # Create SDFG
     if log_level >= LogLevel.BASIC:
