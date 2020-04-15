@@ -231,6 +231,9 @@ def generate_sdfg(name, chain):
             except (KeyError, TypeError):
                 input_pars = list(parameters)  # Copy
             break  # Just needed any output to retrieve the dimensions
+        else:
+            raise ValueError("Input {} is not connected to anything.".format(
+                node.name))
         # If scalar, just add a symbol
         if len(input_pars) == 0:
             sdfg.add_symbol(node.name, node.data_type, override_dtype=True)
