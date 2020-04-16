@@ -11,7 +11,7 @@ import dace
 import stencilflow
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
-from stencilflow.stencil.stencilfusion import StencilFusion
+from stencilflow.stencil.stencilfusion import StencilFusion, ReplaceSubscript
 from dace.data import Array
 from dace.frontend.python.astutils import unparse, ASTFindReplace
 from dace.transformation.dataflow import MapFission
@@ -152,8 +152,42 @@ def remove_scalar_transients(top_sdfg: dace.SDFG):
     print('Cleaned up %d extra scalar transients' % removed_transients)
 
 
-def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
-                                                                   float]):
+def remove_constant_stencils(top_sdfg: dace.SDFG):
+    dprint = print  # lambda *args: pass
+    removed_transients = 0
+    for sdfg in top_sdfg.all_sdfgs_recursive():
+        transients_to_remove = {}
+        for state in sdfg.nodes():
+            for node in state.nodes():
+                if (isinstance(node, stencil.Stencil)
+                        and state.in_degree(node) == 0
+                        and state.out_degree(node) == 1):
+                    # We can remove transient, find value from tasklet
+                    if len(node.code) != 1:
+                        dprint('Cannot remove scalar stencil', node.name,
+                               '(complex code)')
+                        continue
+                    if not isinstance(node.code[0], ast.Assign):
+                        dprint('Cannot remove scalar stencil', node.name,
+                               '(complex code2)')
+                        continue
+                    val = float(eval(unparse(node.code[0].value)))
+
+                    dname = state.out_edges(node)[0].data.data
+                    dprint('Converting scalar stencil result', dname,
+                           'to constant with value', val)
+                    transients_to_remove[dname] = val
+                    # Remove initialization tasklet
+                    state.remove_node(node)
+
+        _remove_transients(sdfg, transients_to_remove, ReplaceSubscript)
+        removed_transients += len(transients_to_remove)
+    print('Cleaned up %d extra scalar stencils' % removed_transients)
+
+
+def _remove_transients(sdfg: dace.SDFG,
+                       transients_to_remove: Dict[str, float],
+                       replacer: ast.NodeTransformer = ASTFindReplace):
     """ Replaces transients with constants, removing associated access
         nodes. """
     # Remove transients
@@ -178,17 +212,14 @@ def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
                             state.remove_edge_and_connectors(e)
                             # If tasklet, replace connector name with constant
                             if isinstance(e.dst, dace.nodes.Tasklet):
-                                ASTFindReplace({
-                                    e.dst_conn: dname
-                                }).visit(e.dst.code)
+                                replacer({e.dst_conn: dname}).visit(e.dst.code)
                                 e.dst.code.as_string = None  # force regenerate
                             # If stencil, handle similarly
                             elif isinstance(e.dst, stencil.Stencil):
                                 del e.dst.accesses[e.dst_conn]
                                 for i, stmt in enumerate(e.dst.code):
-                                    e.dst.code[i] = ASTFindReplace({
-                                        e.dst_conn:
-                                        dname
+                                    e.dst.code[i] = replacer({
+                                        e.dst_conn: dname
                                     }).visit(stmt)
                                 e.dst.code.as_string = None  # force regenerate
                             # If dst is a NestedSDFG, add the dst_connector as
@@ -221,6 +252,7 @@ def canonicalize_sdfg(sdfg, symbols={}):
     # Clean up unnecessary subgraphs
     remove_scalar_transients(sdfg)
     remove_unused_sinks(sdfg)
+    remove_constant_stencils(sdfg)
     split_condition_interstate_edges(sdfg)
 
     # Fuse and nest parallel K-loops
