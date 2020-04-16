@@ -171,9 +171,17 @@ def remove_constant_stencils(top_sdfg: dace.SDFG):
                         dprint('Cannot remove scalar stencil', node.name,
                                '(complex code2)')
                         continue
+                    # Ensure no one else is writing to it
+                    onode = state.memlet_path(state.out_edges(node)[0])[-1].dst
+                    dname = state.out_edges(node)[0].data.data
+                    if any(
+                            s.in_degree(n) > 0 for s in sdfg.nodes()
+                            for n in s.nodes() if n != onode and isinstance(
+                                n, dace.nodes.AccessNode) and n.data == dname):
+
+                        continue
                     val = float(eval(unparse(node.code[0].value)))
 
-                    dname = state.out_edges(node)[0].data.data
                     dprint('Converting scalar stencil result', dname,
                            'to constant with value', val)
                     transients_to_remove[dname] = val
