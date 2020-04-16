@@ -2,6 +2,7 @@
 import ast
 import astunparse
 import collections
+import functools
 import json
 import re
 import warnings
@@ -504,9 +505,17 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         shape += s
                     else:
                         if s != shape:
-                            raise ValueError(
-                                "Stencil shape mismatch: {} vs. {}".format(
-                                    shape, s))
+                            prod_old = functools.reduce(
+                                lambda a, b: a * b, shape)
+                            prod_new = functools.reduce(lambda a, b: a * b, s)
+                            if prod_new > prod_old:
+                                updated = s
+                            else:
+                                updated = shape
+                            warnings.warn(
+                                "Stencil shape mismatch: {} vs. {}. Setting to maximum {}."
+                                .format(shape, s, updated))
+                            shape = updated
 
                 elif isinstance(node, dace.graph.nodes.Tasklet):
                     warnings.warn("Ignored tasklet {}".format(node.label))
