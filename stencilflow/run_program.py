@@ -64,6 +64,7 @@ def run_program(stencil_file,
                 generate_input=False,
                 plot=False,
                 halo=0,
+                repetitions=1,
                 log_level=LogLevel.BASIC,
                 print_result=False):
 
@@ -150,7 +151,7 @@ def run_program(stencil_file,
         reference_sdfg.expand_library_nodes()
         reference_program = reference_sdfg.compile()
 
-    if skip_execution:
+    if skip_execution or repetitions == 0:
         if log_level >= LogLevel.BASIC:
             print("Skipping execution and exiting.")
         exit()
@@ -189,9 +190,16 @@ def run_program(stencil_file,
         for key, val in itertools.chain(input_arrays.items(),
                                         output_arrays.items())
     }
-    print("Executing DaCe program...")
-    program(**dace_args)
-    print("Finished running program.")
+    if repetitions == 1:
+        print("Executing DaCe program...")
+        program(**dace_args)
+        print("Finished running program.")
+    else:
+        for i in range(repetitions):
+            print("Executing repetition {}/{}...".format(i + 1, repetitions))
+            program(**dace_args)
+            print("Finished running program.")
+
 
     if print_result:
         for key, val in output_arrays.items():
