@@ -431,7 +431,6 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                             name = field
                         else:
                             name = "{}_{}".format(field, versions[field])
-                            print("Versioned {} to {}.".format(field, name))
                         rename_map[connector] = name
                         boundary_conditions[name] = (
                             node.boundary_conditions[connector]
@@ -462,7 +461,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                             rename = field
                         else:
                             versions[field] = versions[field] + 1
-                            rename = "{}_{}".format(field, versions[field])
+                            rename = "{}__{}".format(field, versions[field])
                             print("Versioned {} to {}.".format(field, rename))
                         stencil_json["data_type"] = current_sdfg.data(
                             write_node.data).dtype.type.__name__
@@ -470,17 +469,17 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         output = rename
                         break  # Grab first and only element
 
+                    if output in writes:
+                        raise KeyError(
+                            "Multiple writes to field: {}".format(output))
+                    writes.add(output)
+
                     for field, bc in boundary_conditions.items():
                         if bc is None:
                             # Use output boundary condition
                             boundary_conditions[
                                 field] = node.boundary_conditions[
                                     output_connector]
-
-                    if output in writes:
-                        raise KeyError(
-                            "Multiple writes to field: {}".format(field))
-                    writes.add(output)
 
                     # Now we need to go rename versioned variables in the
                     # stencil code
