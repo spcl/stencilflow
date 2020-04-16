@@ -150,6 +150,11 @@ def run_program(stencil_file,
         reference_sdfg.expand_library_nodes()
         reference_program = reference_sdfg.compile()
 
+    if skip_execution:
+        if log_level >= LogLevel.BASIC:
+            print("Skipping execution and exiting.")
+        exit()
+
     # Load data from disk
     if log_level >= LogLevel.BASIC:
         print("Loading input arrays...")
@@ -177,9 +182,6 @@ def run_program(stencil_file,
     }
     if compare_to_reference:
         reference_output_arrays = copy.deepcopy(output_arrays)
-
-    if skip_execution:
-        exit()
 
     # Run program
     dace_args = {
