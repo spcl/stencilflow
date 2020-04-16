@@ -5,6 +5,7 @@ import collections
 import functools
 import json
 import re
+import os
 import warnings
 from typing import Dict, Optional, Tuple
 
@@ -16,7 +17,7 @@ from stencilflow.stencil.stencilfusion import StencilFusion, ReplaceSubscript
 from dace.data import Array
 from dace.frontend.python.astutils import unparse, ASTFindReplace
 from dace.transformation.dataflow import MapFission
-from dace.transformation.interstate import LoopUnroll, InlineSDFG, StateFusion
+from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
 
 def _specialize_symbols(iterable, symbols):
@@ -257,7 +258,7 @@ def split_condition_interstate_edges(sdfg: dace.SDFG):
                       dace.InterstateEdge(assignments=ise.data.assignments))
 
 
-def canonicalize_sdfg(sdfg, symbols={}):
+def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
     # Clean up unnecessary subgraphs
     remove_scalar_transients(sdfg)
     remove_unused_sinks(sdfg)
@@ -511,9 +512,9 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                                 updated = s
                             else:
                                 updated = shape
-                            warnings.warn(
-                                "Stencil shape mismatch: {} vs. {}. Setting to maximum {}."
-                                .format(shape, s, updated))
+                            warnings.warn("Stencil shape mismatch: {} vs. {}. "
+                                          "Setting to maximum {}.".format(
+                                              shape, s, updated))
                             shape = updated
 
                 elif isinstance(node, dace.graph.nodes.Tasklet):
