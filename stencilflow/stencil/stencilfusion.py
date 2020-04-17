@@ -13,13 +13,13 @@ from stencilflow.stencil.stencil import Stencil
 
 
 class ReplaceSubscript(ast.NodeTransformer):
-    def __init__(self, subscript: str, new_name: str):
-        self.src = subscript
-        self.dst = new_name
+    def __init__(self, repldict: Dict[str, str]):
+        self.repl = repldict
 
     def visit_Subscript(self, node: ast.Subscript):
-        if isinstance(node.value, ast.Name) and node.value.id == self.src:
-            return ast.copy_location(ast.Name(id=self.dst), node)
+        if isinstance(node.value, ast.Name) and node.value.id in self.repl:
+            return ast.copy_location(ast.Name(id=self.repl[node.value.id]),
+                                     node)
         return self.generic_visit(node)
 
 
@@ -143,16 +143,19 @@ class StencilFusion(Transformation):
         if stencil_a._code['language'] == dace.Language.Python:
             # Replace first stencil's output with connector name
             for i, stmt in enumerate(stencil_a.code):
-                stencil_a._code['code_or_block'][i] = ReplaceSubscript(
-                    intermediate_name, intermediate_name_b).visit(stmt)
+                stencil_a._code['code_or_block'][i] = ReplaceSubscript({
+                    intermediate_name:
+                    intermediate_name_b
+                }).visit(stmt)
 
             # Append second stencil's contents, using connector name instead of
             # accessing the intermediate transient
             # TODO: Use offsetted stencil
             for i, stmt in enumerate(stencil_b.code):
                 stencil_a._code['code_or_block'].append(
-                    ReplaceSubscript(intermediate_name_b,
-                                     intermediate_name_b).visit(stmt))
+                    ReplaceSubscript({
+                        intermediate_name_b: intermediate_name_b
+                    }).visit(stmt))
 
             stencil_a.code.as_string = None  # Force regeneration
 

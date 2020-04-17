@@ -63,13 +63,15 @@ def run_program(stencil_file,
                 skip_execution=False,
                 generate_input=False,
                 plot=False,
+                halo=0,
+                repetitions=1,
                 log_level=LogLevel.BASIC,
                 print_result=False):
 
     # Load program file
     program_description = stencilflow.parse_json(stencil_file)
     name = os.path.basename(stencil_file)
-    name = re.match("([^\.]+)\.[^\.]+", name).group(1)
+    name = re.match("(.+)\.[^\.]+", name).group(1).replace(".", "_")
 
     # Create SDFG
     if log_level >= LogLevel.BASIC:
@@ -149,6 +151,11 @@ def run_program(stencil_file,
         reference_sdfg.expand_library_nodes()
         reference_program = reference_sdfg.compile()
 
+    if skip_execution or repetitions == 0:
+        if log_level >= LogLevel.BASIC:
+            print("Skipping execution and exiting.")
+        exit()
+
     # Load data from disk
     if log_level >= LogLevel.BASIC:
         print("Loading input arrays...")
@@ -177,18 +184,22 @@ def run_program(stencil_file,
     if compare_to_reference:
         reference_output_arrays = copy.deepcopy(output_arrays)
 
-    if skip_execution:
-        exit()
-
     # Run program
     dace_args = {
         (key + "_host" if len(val.shape) > 0 else key): val
         for key, val in itertools.chain(input_arrays.items(),
                                         output_arrays.items())
     }
-    print("Executing DaCe program...")
-    program(**dace_args)
-    print("Finished running program.")
+    if repetitions == 1:
+        print("Executing DaCe program...")
+        program(**dace_args)
+        print("Finished running program.")
+    else:
+        for i in range(repetitions):
+            print("Executing repetition {}/{}...".format(i + 1, repetitions))
+            program(**dace_args)
+            print("Finished running program.")
+
 
     if print_result:
         for key, val in output_arrays.items():
@@ -212,6 +223,14 @@ def run_program(stencil_file,
     # Write results to file
     output_folder = os.path.join("results", name)
     os.makedirs(output_folder, exist_ok=True)
+    if halo > 0:
+        # Prune halos
+        for k, v in output_arrays.items():
+            output_arrays[k] = v[tuple(slice(halo, -halo) for _ in v.shape)]
+        if compare_to_reference:
+            for k, v in reference_output_arrays.items():
+                reference_output_arrays[k] = v[tuple(
+                    slice(halo, -halo) for _ in v.shape)]
     stencilflow.save_output_arrays(output_arrays, output_folder)
     print("Results saved to " + output_folder)
     if compare_to_reference:
@@ -224,11 +243,13 @@ def run_program(stencil_file,
     if compare_to_reference:
         print("Comparing to reference SDFG...")
         for outp in output_arrays:
-            if not stencilflow.arrays_are_equal(
-                    np.ravel(output_arrays[outp]),
-                    np.ravel(reference_output_arrays[outp])):
-                print("Result mismatch.")
-                return 1
+            got = output_arrays[outp]
+            expected = reference_output_arrays[outp]
+            if not stencilflow.arrays_are_equal(np.ravel(got),
+                                                np.ravel(expected)):
+                print("Expected: {}".format(expected))
+                print("Got:      {}".format(got))
+                raise ValueError("Result mismatch.")
         print("Results verified.")
         return 0
 

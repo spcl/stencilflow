@@ -2,8 +2,10 @@
 import ast
 import astunparse
 import collections
+import functools
 import json
 import re
+import os
 import warnings
 from typing import Dict, Optional, Tuple
 
@@ -11,11 +13,11 @@ import dace
 import stencilflow
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
-from stencilflow.stencil.stencilfusion import StencilFusion
+from stencilflow.stencil.stencilfusion import StencilFusion, ReplaceSubscript
 from dace.data import Array
 from dace.frontend.python.astutils import unparse, ASTFindReplace
 from dace.transformation.dataflow import MapFission
-from dace.transformation.interstate import LoopUnroll, InlineSDFG, StateFusion
+from dace.transformation.interstate import LoopUnroll, InlineSDFG
 
 
 def _specialize_symbols(iterable, symbols):
@@ -152,8 +154,50 @@ def remove_scalar_transients(top_sdfg: dace.SDFG):
     print('Cleaned up %d extra scalar transients' % removed_transients)
 
 
-def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
-                                                                   float]):
+def remove_constant_stencils(top_sdfg: dace.SDFG):
+    dprint = print  # lambda *args: pass
+    removed_transients = 0
+    for sdfg in top_sdfg.all_sdfgs_recursive():
+        transients_to_remove = {}
+        for state in sdfg.nodes():
+            for node in state.nodes():
+                if (isinstance(node, stencil.Stencil)
+                        and state.in_degree(node) == 0
+                        and state.out_degree(node) == 1):
+                    # We can remove transient, find value from tasklet
+                    if len(node.code) != 1:
+                        dprint('Cannot remove scalar stencil', node.name,
+                               '(complex code)')
+                        continue
+                    if not isinstance(node.code[0], ast.Assign):
+                        dprint('Cannot remove scalar stencil', node.name,
+                               '(complex code2)')
+                        continue
+                    # Ensure no one else is writing to it
+                    onode = state.memlet_path(state.out_edges(node)[0])[-1].dst
+                    dname = state.out_edges(node)[0].data.data
+                    if any(
+                            s.in_degree(n) > 0 for s in sdfg.nodes()
+                            for n in s.nodes() if n != onode and isinstance(
+                                n, dace.nodes.AccessNode) and n.data == dname):
+
+                        continue
+                    val = float(eval(unparse(node.code[0].value)))
+
+                    dprint('Converting scalar stencil result', dname,
+                           'to constant with value', val)
+                    transients_to_remove[dname] = val
+                    # Remove initialization tasklet
+                    state.remove_node(node)
+
+        _remove_transients(sdfg, transients_to_remove, ReplaceSubscript)
+        removed_transients += len(transients_to_remove)
+    print('Cleaned up %d extra scalar stencils' % removed_transients)
+
+
+def _remove_transients(sdfg: dace.SDFG,
+                       transients_to_remove: Dict[str, float],
+                       replacer: ast.NodeTransformer = ASTFindReplace):
     """ Replaces transients with constants, removing associated access
         nodes. """
     # Remove transients
@@ -178,17 +222,14 @@ def _remove_transients(sdfg: dace.SDFG, transients_to_remove: Dict[str,
                             state.remove_edge_and_connectors(e)
                             # If tasklet, replace connector name with constant
                             if isinstance(e.dst, dace.nodes.Tasklet):
-                                ASTFindReplace({
-                                    e.dst_conn: dname
-                                }).visit(e.dst.code)
+                                replacer({e.dst_conn: dname}).visit(e.dst.code)
                                 e.dst.code.as_string = None  # force regenerate
                             # If stencil, handle similarly
                             elif isinstance(e.dst, stencil.Stencil):
                                 del e.dst.accesses[e.dst_conn]
                                 for i, stmt in enumerate(e.dst.code):
-                                    e.dst.code[i] = ASTFindReplace({
-                                        e.dst_conn:
-                                        dname
+                                    e.dst.code[i] = replacer({
+                                        e.dst_conn: dname
                                     }).visit(stmt)
                                 e.dst.code.as_string = None  # force regenerate
                             # If dst is a NestedSDFG, add the dst_connector as
@@ -217,10 +258,11 @@ def split_condition_interstate_edges(sdfg: dace.SDFG):
                       dace.InterstateEdge(assignments=ise.data.assignments))
 
 
-def canonicalize_sdfg(sdfg, symbols={}):
+def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
     # Clean up unnecessary subgraphs
     remove_scalar_transients(sdfg)
     remove_unused_sinks(sdfg)
+    remove_constant_stencils(sdfg)
     split_condition_interstate_edges(sdfg)
 
     # Fuse and nest parallel K-loops
@@ -245,7 +287,8 @@ def canonicalize_sdfg(sdfg, symbols={}):
             node.map.range = ranges
 
     # Unroll sequential K-loops
-    sdfg.apply_transformations_repeated([LoopUnroll], validate=False)
+    if sdfg.apply_transformations_repeated([LoopUnroll], validate=False) > 0:
+        raise NotImplementedError("Unrolling does not yet work in StencilFlow")
 
     return sdfg
 
@@ -389,7 +432,6 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                             name = field
                         else:
                             name = "{}_{}".format(field, versions[field])
-                            print("Versioned {} to {}.".format(field, name))
                         rename_map[connector] = name
                         boundary_conditions[name] = (
                             node.boundary_conditions[connector]
@@ -420,7 +462,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                             rename = field
                         else:
                             versions[field] = versions[field] + 1
-                            rename = "{}_{}".format(field, versions[field])
+                            rename = "{}__{}".format(field, versions[field])
                             print("Versioned {} to {}.".format(field, rename))
                         stencil_json["data_type"] = current_sdfg.data(
                             write_node.data).dtype.type.__name__
@@ -428,17 +470,17 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         output = rename
                         break  # Grab first and only element
 
+                    if output in writes:
+                        raise KeyError(
+                            "Multiple writes to field: {}".format(output))
+                    writes.add(output)
+
                     for field, bc in boundary_conditions.items():
                         if bc is None:
                             # Use output boundary condition
                             boundary_conditions[
                                 field] = node.boundary_conditions[
                                     output_connector]
-
-                    if output in writes:
-                        raise KeyError(
-                            "Multiple writes to field: {}".format(field))
-                    writes.add(output)
 
                     # Now we need to go rename versioned variables in the
                     # stencil code
@@ -463,9 +505,17 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         shape += s
                     else:
                         if s != shape:
-                            raise ValueError(
-                                "Stencil shape mismatch: {} vs. {}".format(
-                                    shape, s))
+                            prod_old = functools.reduce(
+                                lambda a, b: a * b, shape)
+                            prod_new = functools.reduce(lambda a, b: a * b, s)
+                            if prod_new > prod_old:
+                                updated = s
+                            else:
+                                updated = shape
+                            warnings.warn("Stencil shape mismatch: {} vs. {}. "
+                                          "Setting to maximum {}.".format(
+                                              shape, s, updated))
+                            shape = updated
 
                 elif isinstance(node, dace.graph.nodes.Tasklet):
                     warnings.warn("Ignored tasklet {}".format(node.label))

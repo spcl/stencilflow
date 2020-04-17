@@ -84,14 +84,14 @@ class NestK(Transformation):
             if len(edge.data.subset) == 3:
                 for i, rng in enumerate(edge.data.subset.ndrange()):
                     for r in rng:
-                        if (len(r.free_symbols) == 1
-                                and pname in map(str, r.free_symbols)):
+                        if pname in map(str, r.free_symbols):
                             if dim_index is not None and dim_index != i:
                                 # k dimension must match in all memlets
                                 return False
                             if str(r) != pname:
-                                if symbolic.issymbolic(r -
-                                                       symbolic.symbol(pname)):
+                                if symbolic.issymbolic(
+                                        r - symbolic.symbol(pname),
+                                        sdfg.constants):
                                     warnings.warn('k expression is nontrivial')
                             dim_index = i
 
@@ -120,8 +120,7 @@ class NestK(Transformation):
             if len(edge.data.subset) == 3:
                 for i, rng in enumerate(edge.data.subset.ndrange()):
                     for r in rng:
-                        if (len(r.free_symbols) == 1
-                                and pname in map(str, r.free_symbols)):
+                        if (pname in map(str, r.free_symbols)):
                             dim_index = i
                             break
                     if dim_index is not None:
