@@ -413,6 +413,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
     reads = {}
     writes = set()
+    global_data = {k for k, v in sdfg.arrays.items() if not v.transient}
 
     result = {"inputs": {}, "outputs": [], "dimensions": None, "program": {}}
 
@@ -423,7 +424,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     # Has to be a list so we can pass by reference
     operation_count = [0]
 
-    def _visit(sdfg, reads, writes, result, versions, shape, operation_count):
+    def _visit(sdfg, reads, writes, global_data, result, versions, shape, operation_count):
 
         for state in dace.graph.nxutil.dfs_topological_sort(
                 sdfg, sdfg.source_nodes()):
@@ -482,14 +483,13 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         output_connector = connector
                         field = write_node.data
                         # Add new version
-                        if field not in versions:
+                        if field not in versions or field in global_data:
                             versions[field] = 0
                             rename = field
                         else:
-                            # versions[field] = versions[field] + 1
-                            # rename = "{}__{}".format(field, versions[field])
-                            # print("Versioned {} to {}.".format(field, rename))
-                            rename = field
+                            versions[field] = versions[field] + 1
+                            rename = "{}__{}".format(field, versions[field])
+                            print("Versioned {} to {}.".format(field, rename))
                         stencil_json["data_type"] = current_sdfg.data(
                             write_node.data).dtype.type.__name__
                         rename_map[connector] = rename
@@ -499,7 +499,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     if output in writes:
                         warnings.warn(
                             "Multiple writes to field: {}".format(output))
-                    writes.add((output, current_sdfg.data(output).transient))
+                    writes.add(output)
 
                     for field, bc in boundary_conditions.items():
                         if bc is None:
@@ -551,7 +551,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     pass
 
                 elif isinstance(node, dace.graph.nodes.NestedSDFG):
-                    _visit(node.sdfg, reads, writes, result, versions, shape,
+                    _visit(node.sdfg, reads, writes, global_data, result, versions, shape,
                            operation_count)
 
                 elif isinstance(node, dace.sdfg.SDFGState):
@@ -564,7 +564,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
                 # End node loop
 
-    _visit(sdfg, reads, writes, result, versions, shape, operation_count)
+    _visit(sdfg, reads, writes, global_data, result, versions, shape, operation_count)
 
     print("Found {} arithmetic operations.".format(operation_count[0]))
 
@@ -583,8 +583,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
             "data_type": container.dtype.type.__name__
         }
 
-    result["outputs"] = list(
-        sorted([i for i, transient in writes if not transient]))
+    result["outputs"] = list(sorted([i for i in writes if i in global_data]))
     if len(result["outputs"]) == 0:
         raise ValueError("SDFG has no non-transient outputs.")
     for field, dtype in reads.items():
