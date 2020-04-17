@@ -421,6 +421,8 @@ def generate_sdfg(name, chain):
 
             if is_from_memory[field_name]:
                 stream_name = "read_{}_to_{}".format(field_name, node.name)
+            else:
+                stream_name = "{}_to_{}".format(field_name, node.name)
 
             # Outer memory read
             read_node = state.add_read(stream_name)
