@@ -587,6 +587,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     if len(result["outputs"]) == 0:
         raise ValueError("SDFG has no non-transient outputs.")
     for field, dtype in reads.items():
+        if field not in global_data:
+            continue  # This is not an input
         path = "{}_{}_{}.dat".format(field,
                                      "x".join(map(str, result["dimensions"])),
                                      dtype)
