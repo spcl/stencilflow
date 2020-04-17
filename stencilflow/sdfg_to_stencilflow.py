@@ -14,6 +14,7 @@ import dace
 import stencilflow
 from stencilflow.stencil import stencil
 from stencilflow.stencil.nestk import NestK
+from stencilflow.stencil.remove_loop import RemoveLoop
 from stencilflow.stencil.stencilfusion import StencilFusion, ReplaceSubscript
 from dace.data import Array
 from dace.frontend.python.astutils import unparse, ASTFindReplace
@@ -272,6 +273,13 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
     sdfg.apply_transformations_repeated([NestK, InlineSDFG], validate=False)
     sdfg.apply_transformations_repeated([StencilFusion])
 
+    # Remove loops
+    loops_removed = sdfg.apply_transformations_repeated([RemoveLoop],
+                                                        validate=False)
+    if loops_removed > 0:
+        warnings.warn("Removed {} loop{}.".format(
+            loops_removed, "" if loops_removed == 1 else "s"))
+
     # Specialize symbols
     sdfg.specialize(symbols)
     undefined_symbols = sdfg.undefined_symbols(False)
@@ -286,10 +294,6 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
             for r in node.map.range:
                 ranges.append(_specialize_symbols(r, symbols))
             node.map.range = ranges
-
-    # Unroll sequential K-loops
-    # if sdfg.apply_transformations_repeated([LoopUnroll], validate=False) > 0:
-    #     raise NotImplementedError("Unrolling does not yet work in StencilFlow")
 
     return sdfg
 
@@ -581,6 +585,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
     result["outputs"] = list(
         sorted([i for i, transient in writes if not transient]))
+    if len(result["outputs"]) == 0:
+        raise ValueError("SDFG has no non-transient outputs.")
     for field, dtype in reads.items():
         path = "{}_{}_{}.dat".format(field,
                                      "x".join(map(str, result["dimensions"])),
@@ -588,6 +594,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
         if data_directory is not None:
             path = os.path.join(data_directory, path)
         result["inputs"][field] = {"data": path, "data_type": dtype}
+    if len(result["inputs"]) == 0:
+        raise ValueError("SDFG has no inputs.")
 
     with open(output_path, "w") as out_file:
         out_file.write(json.dumps(result, indent=True))
