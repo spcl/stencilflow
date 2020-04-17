@@ -328,7 +328,10 @@ class KernelChainGraph:
         # get dimensions
         self.kernel_dimensions = len(inp["dimensions"])
         # get constants
-        self.constants = copy.copy(inp["constants"])
+        if "constants" in inp:
+            self.constants = copy.copy(inp["constants"])
+        else:
+            self.constants = {}
         # get vectorization
         self.vectorization = int(inp["vectorization"]) if "vectorization" in inp else 1
         # import program, inputs and outputs
