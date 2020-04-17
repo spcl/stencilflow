@@ -10,6 +10,7 @@ import dace
 import numpy as np
 from .subscript_converter import SubscriptConverter
 
+# Value inserted when the output is junk and should not be used
 JUNK_VAL = -100000
 
 
@@ -37,10 +38,6 @@ def make_iterators(dimensions, halo_sizes=None, parameters=None):
         return collections.OrderedDict([(parameters[i],
                                          "0:" + str(d) + add_halo(i))
                                         for i, d in enumerate(dimensions)])
-
-
-# Value inserted when the output is junk and should not be used
-JUNK_VAL = -1000
 
 
 @dace.library.expansion
