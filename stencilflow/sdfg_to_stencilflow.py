@@ -287,8 +287,8 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
             node.map.range = ranges
 
     # Unroll sequential K-loops
-    if sdfg.apply_transformations_repeated([LoopUnroll], validate=False) > 0:
-        raise NotImplementedError("Unrolling does not yet work in StencilFlow")
+    # if sdfg.apply_transformations_repeated([LoopUnroll], validate=False) > 0:
+    #     raise NotImplementedError("Unrolling does not yet work in StencilFlow")
 
     return sdfg
 
@@ -326,10 +326,11 @@ class _OutputTransformer(ast.NodeTransformer):
 
 
 class _RenameTransformer(ast.NodeTransformer):
-    def __init__(self, rename_map, offset, accesses):
+    def __init__(self, rename_map, offset, accesses, constants):
         self._rename_map = rename_map
         self._offset = offset
         self._accesses = accesses
+        self._constants = constants
         self._operation_count = 0
 
     @property
@@ -371,6 +372,12 @@ class _RenameTransformer(ast.NodeTransformer):
     def visit_Name(self, node: ast.Name):
         if node.id in self._rename_map:
             node.id = self._rename_map[node.id]
+        elif node.id in self._constants:
+            pass
+        elif node.id in stencilflow.ITERATORS:
+            pass
+        else:
+            raise ValueError("Unrecognized variable: {}".format(node.id))
         self.generic_visit(node)
         return node
 
@@ -425,7 +432,6 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         field = read_node.data
                         dtype = current_sdfg.data(
                             read_node.data).dtype.type.__name__
-                        # Do versioning
                         if field not in versions:
                             versions[field] = 0
                         if versions[field] == 0:
@@ -461,9 +467,10 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                             versions[field] = 0
                             rename = field
                         else:
-                            versions[field] = versions[field] + 1
-                            rename = "{}__{}".format(field, versions[field])
-                            print("Versioned {} to {}.".format(field, rename))
+                            # versions[field] = versions[field] + 1
+                            # rename = "{}__{}".format(field, versions[field])
+                            # print("Versioned {} to {}.".format(field, rename))
+                            rename = field
                         stencil_json["data_type"] = current_sdfg.data(
                             write_node.data).dtype.type.__name__
                         rename_map[connector] = rename
@@ -471,7 +478,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         break  # Grab first and only element
 
                     if output in writes:
-                        raise KeyError(
+                        warnings.warn(
                             "Multiple writes to field: {}".format(output))
                     writes.add(output)
 
@@ -489,7 +496,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     new_ast = output_transformer.visit(old_ast)
                     output_offset = output_transformer.offset
                     rename_transformer = _RenameTransformer(
-                        rename_map, output_offset, node.accesses)
+                        rename_map, output_offset, node.accesses,
+                        sdfg.constants)
                     new_ast = rename_transformer.visit(new_ast)
                     operation_count[0] += rename_transformer.operation_count
                     code = astunparse.unparse(new_ast)
@@ -548,6 +556,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
     shape = tuple(map(int, shape))
     result["dimensions"] = shape
+
+    result["constants"] = copy.copy(sdfg.constants)
 
     inputs = reads.keys() - writes
     outputs = writes - reads.keys()
