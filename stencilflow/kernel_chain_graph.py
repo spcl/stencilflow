@@ -38,6 +38,7 @@ __license__ = "BSD-3-Clause"
 
 import argparse
 import ast
+import copy
 import functools
 import operator
 import re
