@@ -114,8 +114,6 @@ class KernelChainGraph:
         self.compute_delay_buffer()  # compute the delay buffer sizes
         if self.log_level >= LogLevel.BASIC:
             print("Add channels to the graph edges.")
-        self.add_channels(
-        )  # add all channels (internal buffer and delay buffer) to the edges of the graph
         # plot kernel graphs if flag set to true
         if plot_graph:
             if self.log_level >= LogLevel.BASIC:
@@ -125,9 +123,11 @@ class KernelChainGraph:
             # plot all compute graphs
             if self.log_level >= LogLevel.BASIC:
                 print("Plot computation graph of each kernel.")
-            for compute_kernel in self.kernel_nodes:
-                self.kernel_nodes[compute_kernel].graph.plot_graph(
-                    self.name + "_" + compute_kernel + ".png")
+            # for compute_kernel in self.kernel_nodes:
+            #     self.kernel_nodes[compute_kernel].graph.plot_graph(
+            #         self.name + "_" + compute_kernel + ".png")
+        self.add_channels(
+        )  # add all channels (internal buffer and delay buffer) to the edges of the graph
         # print sin/cos/tan latency warning
         for kernel in self.program:
             if "sin" in self.program[kernel]["computation_string"] \
@@ -144,6 +144,8 @@ class KernelChainGraph:
         :param save_path: path to save the image
         """
         # create drawing area
+        import matplotlib
+        matplotlib.rc('text', usetex=False)
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         ax.set_axis_off()
@@ -684,10 +686,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-stencil_file")
     parser.add_argument("-plot", action="store_true")
-    parser.add_argument("-log-level", default=LogLevel.MODERATE.value)
+    parser.add_argument("-log-level",
+                        default=LogLevel.MODERATE.value,
+                        type=int)
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
     args = parser.parse_args()
+    args.log_level = stencilflow.log_level.LogLevel(args.log_level)
     program_description = stencilflow.parse_json(args.stencil_file)
     # instantiate the KernelChainGraph
     chain = KernelChainGraph(path=args.stencil_file,
