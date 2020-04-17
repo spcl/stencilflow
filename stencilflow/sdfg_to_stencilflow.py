@@ -495,7 +495,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     if output in writes:
                         warnings.warn(
                             "Multiple writes to field: {}".format(output))
-                    writes.add(output)
+                    writes.add((output, current_sdfg.data(output).transient))
 
                     for field, bc in boundary_conditions.items():
                         if bc is None:
@@ -579,12 +579,9 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
             "data_type": container.dtype.type.__name__
         }
 
-    inputs = reads.keys() - writes
-    outputs = writes - reads.keys()
-
-    result["outputs"] = list(sorted(outputs))
-    for field in inputs:
-        dtype = reads[field]
+    result["outputs"] = list(
+        sorted([i for i, transient in writes if not transient]))
+    for field, dtype in reads.items():
         path = "{}_{}_{}.dat".format(field,
                                      "x".join(map(str, result["dimensions"])),
                                      dtype)
