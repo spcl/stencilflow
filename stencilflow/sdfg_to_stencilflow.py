@@ -277,8 +277,7 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
     loops_removed = sdfg.apply_transformations_repeated([RemoveLoop],
                                                         validate=False)
     if loops_removed > 0:
-        warnings.warn("Removed {} loop{}.".format(
-            loops_removed, "" if loops_removed == 1 else "s"))
+        raise ValueError("Control flow loops not supported.")
 
     # Specialize symbols
     sdfg.specialize(symbols)
