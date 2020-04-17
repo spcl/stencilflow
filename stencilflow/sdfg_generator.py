@@ -212,6 +212,10 @@ def _add_pipe(sdfg, edge, parameters, vector_length):
 def generate_sdfg(name, chain):
     sdfg = SDFG(name)
 
+    for k, v in chain.constants.items():
+        sdfg.add_constant(k, v["value"],
+                          stencilflow.str_to_dtype(v["data_type"]))
+
     pre_state = sdfg.add_state("initialize")
     state = sdfg.add_state("compute")
     post_state = sdfg.add_state("finalize")

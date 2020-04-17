@@ -94,6 +94,7 @@ class KernelChainGraph:
         self.config = stencilflow.parse_json("stencil_chain.config")
         self.name = os.path.splitext(os.path.basename(self.path))[0]  # name
         self.kernel_dimensions = -1  # 2: 2D, 3: 3D
+        self.constants = {}
         # trigger all internal calculations
         if self.log_level >= LogLevel.BASIC:
             print("Read input config files.")
@@ -323,6 +324,8 @@ class KernelChainGraph:
         inp = stencilflow.parse_json(self.path)
         # get dimensions
         self.kernel_dimensions = len(inp["dimensions"])
+        # get constants
+        self.constants = copy.copy(inp["constants"])
         # get vectorization
         self.vectorization = int(inp["vectorization"]) if "vectorization" in inp else 1
         # import program, inputs and outputs

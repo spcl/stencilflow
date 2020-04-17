@@ -2,6 +2,7 @@
 import ast
 import astunparse
 import collections
+import copy
 import functools
 import json
 import re
@@ -557,7 +558,12 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     shape = tuple(map(int, shape))
     result["dimensions"] = shape
 
-    result["constants"] = copy.copy(sdfg.constants)
+    result["constants"] = {}
+    for k, (container, val) in sdfg.constants_prop.items():
+        result["constants"][k] = {
+            "value": str(val),
+            "data_type": container.dtype.type.__name__
+        }
 
     inputs = reads.keys() - writes
     outputs = writes - reads.keys()
