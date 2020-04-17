@@ -144,7 +144,6 @@ def run_program(stencil_file,
     sdfg.expand_library_nodes()
     if log_level >= LogLevel.BASIC:
         print("Compiling SDFG...")
-    sdfg.save("propagation.sdfg")
     program = sdfg.compile()
     if compare_to_reference:
         if log_level >= LogLevel.BASIC:
