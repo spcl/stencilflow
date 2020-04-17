@@ -429,9 +429,11 @@ class KernelChainGraph:
         """
         # get topological order for top-down walk through of the graph
         try:
-            order = nx.topological_sort(self.graph)
+            order = list(nx.topological_sort(self.graph))
         except nx.exception.NetworkXUnfeasible:
-            raise ValueError("Cycle detected, cannot be sorted topologically!")
+            cycle = next(nx.algorithms.cycles.simple_cycles(self.graph))
+            raise ValueError("Cycle detected: {}".format(
+                [c.name for c in cycle]))
         # go through all nodes
         for node in order:
             # process delay buffer (no additional delay buffer will appear because of the topological order)
