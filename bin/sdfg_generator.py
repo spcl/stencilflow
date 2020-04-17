@@ -29,7 +29,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     name = os.path.basename(args.stencil_input)
-    name = re.match("(.+)\.[^\.]+", name).group(1)
+    name = re.match("(.+)\.[^\.]+", name).group(1).replace(".", "_")
 
     chain = KernelChainGraph(args.stencil_input)
 
