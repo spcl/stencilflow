@@ -379,6 +379,9 @@ class Kernel(BaseKernelNodeClass):
         # treat named nodes
         for n in self.graph.graph.nodes:
             if isinstance(n, Name) and n.name not in self.input_paths:
+                if len(self.graph.graph.pred[n]) == 0:
+                    # This has no inputs, and must be a constant
+                    continue
                 res.append(n.name + " = " + self.iter_comp_tree(
                     list(self.graph.graph.pred[n])[0], relative_to_center,
                     replace_negative_index, python_syntax, flatten_index,

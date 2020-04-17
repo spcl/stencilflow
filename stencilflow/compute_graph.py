@@ -158,10 +158,6 @@ class ComputeGraph:
                 if inp.name not in self.accesses:  # create initial list
                     self.accesses[inp.name] = list()
                 self.accesses[inp.name].append(inp.index)  # add entry
-            elif isinstance(inp, Name):
-                if inp.name not in self.accesses:  # create initial list
-                    self.accesses[inp.name] = list()
-                self.accesses[inp.name].append([0]*self.dimensions)  # add entry
         # set buffer_size = max_index - min_index + (W-1) where W=vectorization
         for buffer_name in self.accesses:
             if buffer_name not in self.min_index:
