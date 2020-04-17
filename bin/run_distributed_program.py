@@ -59,7 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("-compare-to-reference", action="store_true", help = "Flag for comparing the result with reference")
     parser.add_argument("-recompute-routes", action="store", help = "Recompute routes by using a topology file (meaningful for hardware execution mode)")
     parser.add_argument("-sequential-compile", action="store_true", help = "If specified compile everything sequential. Useful for CI to not overload Pauli")
-
+    parser.add_argument("-debug-specific-rank", type=int, default=-1, help="Run a specif rank. Just for debug purposes, don't execute with mpirun")
 
 
     args = parser.parse_args()
@@ -69,12 +69,15 @@ if __name__ == "__main__":
     compare_to_reference = args.compare_to_reference
     topology_file = args.recompute_routes
     sequential_compile=args.sequential_compile
+    debug_rank=args.debug_specific_rank
 
 
     # MPI: get current size, rank and name
     num_ranks = MPI.COMM_WORLD.Get_size()
     my_rank = MPI.COMM_WORLD.Get_rank()
     name = MPI.Get_processor_name()
+    if debug_rank != -1:
+        my_rank = debug_rank
 
     # Load program description
     program_description = helper.parse_json(stencil_file)
@@ -85,7 +88,7 @@ if __name__ == "__main__":
     # Load the corresponding SDFG. Please note that it will look to a file with name "*_<rank>.sdfg"
     sdfg_file = glob.glob("{}*{}.sdfg".format(sdfgs_dir, my_rank))
     if len(sdfg_file) != 1:
-        print("[Rank {}] SDFG not found ".format(my_rank))
+        print("[Rank {}] SDFG not found (searched for: {}*{}.sdfg) ".format(my_rank,sdfgs_dir, my_rank))
         exit(-1)
     sdfg = dace.SDFG.from_file(sdfg_file[0])
 

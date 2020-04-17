@@ -74,10 +74,55 @@ run_test() {
 }
 
 
+run_synthetic_test() {
+
+    #Accepts
+    #-a name
+    #-vectorization length
+    TEST_NAME=$1
+    VEC_LEN=$2
+
+    TESTS=`expr $TESTS + 1`
+    echo -e "${YELLOW}Running test ${TEST_NAME}..${NC}"
+
+    #0: cleanup
+    rm -fr .dacecache/${TEST_NAME}*
+    rm *emulated_channel* 2> /dev/null
+
+    #generate synthetic stencil
+    mkdir ${TEST_NAME}
+    cd ${TEST_NAME}
+    ${BIN_DIR}/synthesize.py float32 4 0 32 32 32 1 1 1 -vectorize ${VEC_LEN}
+    STENCIL_NAME="float32_4_0p0_32_32_32_1_1_1_0_2_2_cross"
+    ${BIN_DIR}/sdfg_generator.py ${STENCIL_NAME}_${VEC_LEN}.json ${TEST_NAME}.sdfg
+    ${BIN_DIR}/split_sdfg.py ${TEST_NAME}.sdfg b2_to_b3 0 1 0
+    mv ${TEST_NAME}_before.sdfg  ${TEST_NAME}_0.sdfg
+    mv  ${TEST_NAME}_after.sdfg  ${TEST_NAME}_1.sdfg
+
+    cd -
+    #2: Execute
+    mpirun -n 2 ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}/ ${TEST_NAME}/${STENCIL_NAME}_${VEC_LEN}.json emulation -compare-to-reference -sequential-compile
+
+    #check the result
+    if [ $? -ne 0 ]; then
+        bail "$1 (${RED}Wrong emulation result${NC})"
+    fi
+
+    # cleanup
+    rm ${TEST_NAME} -fr
+    rm -fr results/${TEST_NAME}/
+
+    cd -
+    return 0
+}
+
+
+
 run_all() {
     run_test jacobi2d_128x128 b_to_b
     run_test jacobi3d_32x32x32 b_to_b
     run_test jacobi3d_32x32x32_8itr b6_to_b7
+    run_synthetic_test test_synthetic_a 4
 }
 
 # Check if aoc is vailable
@@ -104,3 +149,4 @@ if [ $ERRORS -ne 0 ]; then
     printf "Failed tests:\n${FAILED_TESTS}"
     exit 1
 fi
+
