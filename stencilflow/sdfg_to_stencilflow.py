@@ -332,6 +332,7 @@ class _RenameTransformer(ast.NodeTransformer):
         self._offset = offset
         self._accesses = accesses
         self._constants = constants
+        self._defined = set()
         self._operation_count = 0
 
     @property
@@ -370,12 +371,25 @@ class _RenameTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_Assign(self, node: ast.Assign):
+        for target in node.targets:
+            self._defined.add(target.id)
+        self.generic_visit(node)
+        return node
+
+    def visit_Call(self, node: ast.Call):
+        self._defined.add(node.func.id)
+        self.generic_visit(node)
+        return node
+
     def visit_Name(self, node: ast.Name):
         if node.id in self._rename_map:
             node.id = self._rename_map[node.id]
         elif node.id in self._constants:
             pass
         elif node.id in stencilflow.ITERATORS:
+            pass
+        elif node.id in self._defined:
             pass
         else:
             raise ValueError("Unrecognized variable: {}".format(node.id))
