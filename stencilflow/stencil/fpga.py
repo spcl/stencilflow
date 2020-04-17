@@ -102,7 +102,6 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         for field_name, offset in node.output_fields.items():
             for e in parent_state.out_edges(node):
                 if e.src_connector == field_name:
-                    field_to_memlet[field_name] = e
                     field_to_data[
                         field_name] = dace.sdfg.find_output_arraynode(
                             parent_state, e).data
@@ -495,7 +494,11 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             stream_name_inner = field_name + "_out"
             stream_outer = parent_sdfg.arrays[data_name].clone()
             stream_outer.transient = False
-            sdfg.add_datadesc(stream_name_outer, stream_outer)
+            try:
+                sdfg.add_datadesc(stream_name_outer, stream_outer)
+            except NameError:  # Already an input
+                parent_sdfg.arrays[data_name].access = (
+                    dace.AccessType.ReadWrite)
             write_node_outer = state.add_write(stream_name_outer)
             state.add_memlet_path(nested_sdfg_tasklet,
                                   exit,

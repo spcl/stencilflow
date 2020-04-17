@@ -225,22 +225,22 @@ class KernelChainGraph:
         for src in self.graph.nodes:
             for dest in self.graph.nodes:
                 if src is not dest:  # skip src == dest case
-                    if isinstance(src, Kernel) and isinstance(
-                            dest, Kernel):  # case: KERNEL -> KERNEL
+                    # case: KERNEL -> KERNEL
+                    if isinstance(src, Kernel) and isinstance(dest, Kernel):
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # add edge
                                 self.graph.add_edge(src, dest, channel=None)
                                 break
-                    elif isinstance(src, Input) and isinstance(
-                            dest, Kernel):  # case: INPUT -> KERNEL
+                    # case: INPUT -> KERNEL
+                    elif isinstance(src, Input) and isinstance(dest, Kernel):
                         for inp in dest.graph.inputs:
                             if src.name == inp.name:
                                 # add edge
                                 self.graph.add_edge(src, dest, channel=None)
                                 break
-                    elif isinstance(dest,
-                                    Output):  # case: INPUT/KERNEL -> OUTPUT
+                    # case: KERNEL -> OUTPUT
+                    elif isinstance(src, Kernel) and isinstance(dest, Output):
                         if src.name == dest.name:
                             # add edge
                             self.graph.add_edge(src, dest, channel=None)
@@ -297,7 +297,7 @@ class KernelChainGraph:
                                 # add to edge
                                 self.graph[src][dest]['channel'] = channel
                                 break
-                    elif isinstance(dest, Output):  # case: INPUT/KERNEL -> OUTPUT
+                    elif isinstance(src, Kernel) and isinstance(dest, Output):  # case: KERNEL -> OUTPUT
                         if src.name == dest.name:
                             # create channel
                             name = src.name + "_" + dest.name

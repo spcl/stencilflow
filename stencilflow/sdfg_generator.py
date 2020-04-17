@@ -68,10 +68,6 @@ import networkx as nx
 MINIMUM_CHANNEL_DEPTH = 32
 
 
-def make_stream_name(src_name, dst_name):
-    return src_name + "_to_" + dst_name
-
-
 def _generate_init(chain):
 
     # TODO: For some reason, we put fake entries into the shape when the
@@ -114,7 +110,7 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
         for k in node.graph.accesses
     }
     input_to_connector = collections.OrderedDict(
-        (k, "_" + k if any(dims) else k) for k, dims in input_dims.items())
+        (k, k + "_in" if any(dims) else k) for k, dims in input_dims.items())
     accesses = collections.OrderedDict((conn, (input_dims[name], [
         tuple(np.array(x[dimensions_to_skip:])[input_dims[name]])
         for x in node.graph.accesses[name]
@@ -123,7 +119,7 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
 
     # Map output field to output connector
     output_to_connector = collections.OrderedDict(
-        (e[1].name, "_" + e[1].name) for e in chain.graph.out_edges(node))
+        (e[1].name, e[1].name + "_out") for e in chain.graph.out_edges(node))
     output_dict = collections.OrderedDict([
         (oc, [0] * len(shape)) for oc in output_to_connector.values()
     ])
@@ -192,11 +188,16 @@ def _get_input_parameters(input_node, global_parameters, global_vector_length):
 
 def _add_pipe(sdfg, edge, parameters, vector_length):
 
-    stream_name = make_stream_name(edge[0].name, edge[1].name)
-
+    src_name = edge[0].name
+    dst_name = edge[1].name
     if isinstance(edge[0], stencilflow.input.Input):
         parameters, vector_length = _get_input_parameters(
             edge[0], parameters, vector_length)
+        src_name = "read_" + src_name
+    if isinstance(edge[1], stencilflow.output.Output):
+        dst_name = "write_" + dst_name
+
+    stream_name = "{}_to_{}".format(src_name, dst_name)
 
     sdfg.add_stream(
         stream_name,
@@ -301,7 +302,7 @@ def generate_sdfg(name, chain):
 
         # Add memlets to all FIFOs connecting to compute units
         for out_name, out_memlet in zip(outputs, out_memlets):
-            stream_name = make_stream_name(node.name, out_name)
+            stream_name = "read_{}_to_{}".format(node.name, out_name)
             write_node = state.add_write(stream_name)
             state.add_memlet_path(tasklet,
                                   exit,
@@ -316,14 +317,19 @@ def generate_sdfg(name, chain):
     def add_output(node):
 
         # Host-side array, which will be an output argument
-        sdfg.add_array(node.name + "_host", shape, node.data_type)
+        try:
+            sdfg.add_array(node.name + "_host", shape, node.data_type)
+            sdfg.add_array(node.name,
+                           shape,
+                           node.data_type,
+                           storage=StorageType.FPGA_Global,
+                           transient=True)
+        except NameError:
+            # This array is also read
+            sdfg.data(node.name + "_host").access = dace.AccessType.ReadWrite
+            sdfg.data(node.name).access = dace.AccessType.ReadWrite
 
         # Device-side copy
-        sdfg.add_array(node.name,
-                       shape,
-                       node.data_type,
-                       storage=StorageType.FPGA_Global,
-                       transient=True)
         write_node = state.add_write(node.name)
 
         # Copy data to the host
@@ -358,7 +364,7 @@ def generate_sdfg(name, chain):
             vectorized_pars[-1] = "{}*{}".format(vector_length,
                                                  vectorized_pars[-1])
 
-        stream_name = make_stream_name(src.name, node.name)
+        stream_name = "{}_to_write_{}".format(src.name, node.name)
         read_node = state.add_read(stream_name)
 
         state.add_memlet_path(read_node,
@@ -387,6 +393,15 @@ def generate_sdfg(name, chain):
         stencil_node.implementation = "FPGA"
         state.add_node(stencil_node)
 
+        is_from_memory = {
+            e[0].name: not isinstance(e[0], stencilflow.kernel.Kernel)
+            for e in chain.graph.in_edges(node)
+        }
+        is_to_memory = {
+            e[1].name: not isinstance(e[1], stencilflow.kernel.Kernel)
+            for e in chain.graph.out_edges(node)
+        }
+
         # Add read nodes and memlets
         for field_name, connector in input_to_connector.items():
 
@@ -404,7 +419,8 @@ def generate_sdfg(name, chain):
             except (KeyError, TypeError):
                 pass  # input_dim is not defined or is None
 
-            stream_name = make_stream_name(field_name, node.name)
+            if is_from_memory[field_name]:
+                stream_name = "read_{}_to_{}".format(field_name, node.name)
 
             # Outer memory read
             read_node = state.add_read(stream_name)
@@ -421,7 +437,8 @@ def generate_sdfg(name, chain):
         for output_name, connector in output_to_connector.items():
 
             # Add write node and memlet
-            stream_name = make_stream_name(node.name, output_name)
+            if is_to_memory[output_name]:
+                stream_name = "{}_to_write_{}".format(node.name, output_name)
 
             # Outer write
             write_node = state.add_write(stream_name)
@@ -477,7 +494,10 @@ def generate_reference(name, chain):
 
     for node in chain.graph.nodes():
         if isinstance(node, Input) or isinstance(node, Output):
-            sdfg.add_array(node.name, shape, node.data_type)
+            try:
+                sdfg.add_array(node.name, shape, node.data_type)
+            except NameError:
+                sdfg.data(node.name).access = dace.dtypes.AccessType.ReadWrite
 
     for link in chain.graph.edges(data=True):
         if link[0].name not in sdfg.arrays:
