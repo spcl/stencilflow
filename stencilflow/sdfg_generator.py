@@ -441,6 +441,8 @@ def generate_sdfg(name, chain):
             # Add write node and memlet
             if is_to_memory[output_name]:
                 stream_name = "{}_to_write_{}".format(node.name, output_name)
+            else:
+                stream_name = "{}_to_{}".format(node.name, output_name)
 
             # Outer write
             write_node = state.add_write(stream_name)
