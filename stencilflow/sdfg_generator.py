@@ -138,6 +138,18 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
         def __init__(self, input_to_connector):
             self.input_to_connector = input_to_connector
 
+        @staticmethod
+        def _index_to_offset(node):
+            if isinstance(node, ast.Name):
+                return 0
+            elif isinstance(node, ast.BinOp):
+                if isinstance(node.op, ast.Sub):
+                    return -int(node.right.n)
+                elif isinstance(node.op, ast.Add):
+                    return int(node.right.n)
+            raise TypeError("Unrecognized offset: {}".format(
+                astunparse.unparse(node)))
+
         def visit_Subscript(self, node: ast.Subscript):
             # Rename to connector name
             field = node.value.id
@@ -146,12 +158,13 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
             # Convert [i, j + 1, k - 1] to [0, 1, -1]
             if isinstance(node.slice.value, ast.Tuple):
                 # Negative indices show up as a UnaryOp, others as Num
-                offsets = tuple(0 if isinstance(i, ast.Name) else i.right.n
-                                for i in node.slice.value.elts)
+                offsets = tuple(
+                    map(_StencilFlowVisitor._index_to_offset,
+                        node.slice.value.elts))
             else:
                 # One dimensional access doesn't show up as a tuple
-                offsets = (0 if isinstance(node.slice.value, ast.Name) else
-                           node.slice.value.right.n, )
+                offsets = (_StencilFlowVisitor._index_to_offset(
+                    node.slice.value), )
             t = "({})".format(", ".join(map(str, offsets)))
             node.slice.value = ast.parse(t).body[0].value
             self.generic_visit(node)
