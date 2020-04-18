@@ -521,7 +521,6 @@ def generate_reference(name, chain):
 
     shape = tuple(map(int, shape))
 
-    input_parameters = {}  # Maps inputs to which parameters they access
     input_shapes = {}  # Maps inputs to their shape tuple
 
     for node in chain.graph.nodes():
@@ -531,7 +530,6 @@ def generate_reference(name, chain):
                     pars = tuple(output["input_dim"])
                     arr_shape = tuple(s for s, p in zip(shape, parameters)
                                       if p in pars)
-                    input_parameters[node.name] = pars
                     input_shapes[node.name] = arr_shape
                     break
                 else:
@@ -550,6 +548,7 @@ def generate_reference(name, chain):
                            shape,
                            link[0].data_type,
                            transient=True)
+            input_shapes[name] = tuple(shape)
 
     input_iterators = {
         k: tuple("0:{}".format(s) for s in v)
