@@ -297,6 +297,8 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
 
         # Make transformation passes on tasklets and stencil libnodes
         if hasattr(node, 'code'):
+            node.code.as_string = None
+
             new_code = [
                 _Predicator().visit(stmt)
                 for stmt in node._code['code_or_block']
