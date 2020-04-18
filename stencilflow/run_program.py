@@ -165,7 +165,7 @@ def run_program(stencil_file,
     if generate_input:
         # Generate some input so we don't load files off the disk
         for k in input_description:
-            input_description[k]["data"] = "constant:1.0"
+            input_description[k]["data"] = "constant:0.5"
     input_arrays = stencilflow.load_input_arrays(
         input_description,
         prefix=input_directory,
