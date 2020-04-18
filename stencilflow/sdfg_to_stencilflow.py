@@ -301,6 +301,26 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
                 _Predicator().visit(stmt)
                 for stmt in node._code['code_or_block']
             ]
+
+            # min/max predication requires multiple passes (nested expressions)
+            minmax_predicated = 1
+            while minmax_predicated > 0:
+                pred = _MinMaxPredicator()
+                tmp_code = [pred.visit(stmt) for stmt in new_code]
+                minmax_predicated = pred.count
+
+                # Some of the outputs may be lists, flatten
+                new_code = []
+
+                def flatten(val):
+                    for v in val:
+                        if isinstance(v, list):
+                            flatten(v)
+                        else:
+                            new_code.append(v)
+
+                flatten(tmp_code)
+
             node._code['code_or_block'] = new_code
 
     return sdfg
@@ -328,6 +348,52 @@ class _Predicator(ast.NodeTransformer):
                                           orelse=else_assign.value))
                 return ast.copy_location(new_node, node)
         return self.generic_visit(node)
+
+
+class _MinMaxPredicator(ast.NodeTransformer):
+    def __init__(self):
+        self.count = 0
+
+    def visit_Assign(self, node: ast.Assign):
+        if not isinstance(node.value, ast.Call):
+            return self.generic_visit(node)
+        if len(node.targets) != 1:
+            return self.generic_visit(node)
+
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            return self.generic_visit(node)
+        tname: str = target.id
+
+        callnode: ast.Call = node.value
+        fname = astunparse.unparse(callnode.func)[:-1]
+        if fname not in ('min', 'max'):
+            return self.generic_visit(node)
+        if len(callnode.args) != 2:
+            raise NotImplementedError('Arguments to min/max (%d) != 2' %
+                                      len(callnode.args))
+
+        result = []
+        names = []
+        for i, arg in enumerate(callnode.args):
+            newname = '__dace_%s%d_%s' % (fname, i, tname)
+            names.append(newname)
+            result.append(ast.Assign(targets=[ast.Name(id=newname)],
+                                     value=arg))
+
+        result.append(
+            ast.Assign(
+                targets=node.targets,
+                value=ast.IfExp(
+                    test=ast.Compare(left=ast.Name(id=names[0]),
+                                     ops=[ast.Lt()],
+                                     comparators=[ast.Name(id=names[1])]),
+                    body=ast.Name(id=names[0]) if fname == 'min' else ast.Name(
+                        id=names[1]),
+                    orelse=ast.Name(id=names[1])
+                    if fname == 'min' else ast.Name(id=names[0]))))
+        self.count += 1
+        return result
 
 
 class _OutputTransformer(ast.NodeTransformer):
