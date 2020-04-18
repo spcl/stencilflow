@@ -443,7 +443,9 @@ class _RenameTransformer(ast.NodeTransformer):
 
     @staticmethod
     def _offset_to_index(node, offset, iterator):
-        if isinstance(node, ast.Num):
+        if isinstance(node, int):
+            return node
+        elif isinstance(node, ast.Num):
             num = int(node.n)
             if num == 0:
                 return iterator
