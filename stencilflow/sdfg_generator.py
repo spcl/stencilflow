@@ -46,6 +46,7 @@ import itertools
 import operator
 import os
 import re
+import warnings
 
 import dace
 import dace.codegen.targets.fpga
@@ -415,6 +416,12 @@ def generate_sdfg(name, chain):
         (stencil_node, input_to_connector,
          output_to_connector) = _generate_stencil(node, chain, shape,
                                                   dimensions_to_skip)
+
+        if len(stencil_node.output_fields) == 0:
+            warnings.warn("Ignoring stencil with no output: {}".format(
+                node.name))
+            return
+
         stencil_node.implementation = "FPGA"
         state.add_node(stencil_node)
 
