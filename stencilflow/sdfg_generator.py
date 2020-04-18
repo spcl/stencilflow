@@ -381,7 +381,7 @@ def generate_sdfg(name, chain):
                               write_node,
                               src_conn="memory",
                               memlet=Memlet.simple(node.name,
-                                                   ", ".join(parameters),
+                                                   ", ".join(vectorized_pars),
                                                    num_accesses=1,
                                                    veclen=vector_length))
 
