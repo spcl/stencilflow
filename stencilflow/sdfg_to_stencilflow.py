@@ -295,7 +295,39 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
                 ranges.append(_specialize_symbols(r, symbols))
             node.map.range = ranges
 
+        # Make transformation passes on tasklets and stencil libnodes
+        if hasattr(node, 'code'):
+            new_code = [
+                _Predicator().visit(stmt)
+                for stmt in node._code['code_or_block']
+            ]
+            node._code['code_or_block'] = new_code
+
     return sdfg
+
+
+class _Predicator(ast.NodeTransformer):
+    def visit_If(self, node: ast.If):
+        if len(node.body) == 1 and len(node.orelse) == 1:
+            if not isinstance(node.body[0], ast.Assign):
+                return self.generic_visit(node)
+            if not isinstance(node.orelse[0], ast.Assign):
+                return self.generic_visit(node)
+            if_assign: ast.Assign = node.body[0]
+            else_assign: ast.Assign = node.orelse[0]
+            if len(if_assign.targets) != 1 or len(else_assign.targets) != 1:
+                return self.generic_visit(node)
+
+            # Replace the condition with a predicated ternary expression
+            if astunparse.unparse(if_assign.targets[0]) == astunparse.unparse(
+                    else_assign.targets[0]):
+                new_node = ast.Assign(targets=if_assign.targets,
+                                      value=ast.IfExp(
+                                          test=node.test,
+                                          body=if_assign.value,
+                                          orelse=else_assign.value))
+                return ast.copy_location(new_node, node)
+        return self.generic_visit(node)
 
 
 class _OutputTransformer(ast.NodeTransformer):
@@ -424,7 +456,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     # Has to be a list so we can pass by reference
     operation_count = [0]
 
-    def _visit(sdfg, reads, writes, global_data, result, versions, shape, operation_count):
+    def _visit(sdfg, reads, writes, global_data, result, versions, shape,
+               operation_count):
 
         for state in dace.graph.nxutil.dfs_topological_sort(
                 sdfg, sdfg.source_nodes()):
@@ -551,8 +584,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     pass
 
                 elif isinstance(node, dace.graph.nodes.NestedSDFG):
-                    _visit(node.sdfg, reads, writes, global_data, result, versions, shape,
-                           operation_count)
+                    _visit(node.sdfg, reads, writes, global_data, result,
+                           versions, shape, operation_count)
 
                 elif isinstance(node, dace.sdfg.SDFGState):
                     pass
@@ -564,7 +597,8 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
 
                 # End node loop
 
-    _visit(sdfg, reads, writes, global_data, result, versions, shape, operation_count)
+    _visit(sdfg, reads, writes, global_data, result, versions, shape,
+           operation_count)
 
     print("Found {} arithmetic operations.".format(operation_count[0]))
 
