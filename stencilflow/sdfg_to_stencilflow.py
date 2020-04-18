@@ -496,12 +496,12 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                             node.boundary_conditions[connector]
                             if connector in node.boundary_conditions else None)
                         if name in reads:
-                            if reads[name] != dtype:
+                            if reads[name][0] != dtype:
                                 raise ValueError(
                                     "Type mismatch: {} vs. {}".format(
-                                        reads[name], dtype))
+                                        reads[name][0], dtype))
                         else:
-                            reads[name] = dtype
+                            reads[name] = (dtype, accesses[0])
 
                     if len(node.output_fields) != 1:
                         raise ValueError(
@@ -620,15 +620,25 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     result["outputs"] = list(sorted([i for i in writes if i in global_data]))
     if len(result["outputs"]) == 0:
         raise ValueError("SDFG has no non-transient outputs.")
-    for field, dtype in reads.items():
+    for field, (dtype, dimensions) in reads.items():
         if field not in global_data:
             continue  # This is not an input
-        path = "{}_{}_{}.dat".format(field,
-                                     "x".join(map(str, result["dimensions"])),
-                                     dtype)
+        path = "{}_{}_{}.dat".format(
+            field, "x".join(
+                map(str, [
+                    d for i, d in enumerate(result["dimensions"])
+                    if dimensions[i]
+                ])), dtype)
         if data_directory is not None:
             path = os.path.join(data_directory, path)
-        result["inputs"][field] = {"data": path, "data_type": dtype}
+        result["inputs"][field] = {
+            "data":
+            path,
+            "data_type":
+            dtype,
+            "dimensions":
+            [p for i, p in enumerate(stencilflow.ITERATORS) if dimensions[i]]
+        }
     if len(result["inputs"]) == 0:
         raise ValueError("SDFG has no inputs.")
 
