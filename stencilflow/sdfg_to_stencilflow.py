@@ -441,26 +441,40 @@ class _RenameTransformer(ast.NodeTransformer):
     def operation_count(self):
         return self._operation_count
 
+    @staticmethod
+    def _offset_to_index(node, offset, iterator):
+        if isinstance(node, ast.Num):
+            num = int(node.n)
+            if num == 0:
+                return iterator
+            else:
+                return "{} + {}".format(iterator, num)
+        elif isinstance(node, ast.UnaryOp):
+            return "{} - {}".format(iterator, int(node.operand.n))
+        raise TypeError("Unrecognized offset: {}".format(
+            astunparse.unparse(node)))
+
     def visit_Subscript(self, node: ast.Subscript):
         # Convert [0, 1, -1] to [i, j + 1, k - 1]
         offsets = [
-            offset for offset, valid in zip(self._offset, self._accesses[
-                node.value.id][0]) if valid
+            o for o, v in zip(self._offset, self._accesses[node.value.id][0])
+            if v
+        ]
+        iterators = [
+            i for i, v in zip(stencilflow.ITERATORS, self._accesses[
+                node.value.id][0]) if v
         ]
         if isinstance(node.slice.value, ast.Tuple):
             # Negative indices show up as a UnaryOp, others as Num
-            indices = (x.n if isinstance(x, ast.Num) else -x.operand.n
-                       for x in node.slice.value.elts)
+            indices = tuple(
+                _RenameTransformer._offset_to_index(n, o, i)
+                for n, o, i in zip(node.slice.value.elts, offsets, iterators))
         else:
             # One dimensional access doesn't show up as a tuple
-            indices = (node.slice.value.n if isinstance(
-                node.slice.value, ast.Num) else -node.slice.value.operand.n, )
-        indices = tuple(x - o for x, o in zip(indices, offsets))
-        t = "(" + ", ".join(
-            stencilflow.ITERATORS[i] +
-            (" + " + str(o) if o > 0 else (" - " + str(-o) if o < 0 else ""))
-            for i, o in enumerate(indices)) + ")"
-        node.slice.value = ast.parse(t).body[0].value
+            indices = (_RenameTransformer._offset_to_index(
+                node.slice.value.n, offsets[0], iterators[0]), )
+        indices = "({})".format(", ".join(map(str, indices)))
+        node.slice.value = ast.parse(str(indices)).body[0].value
         self.generic_visit(node)
         return node
 
