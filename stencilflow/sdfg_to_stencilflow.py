@@ -279,8 +279,9 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
     if loops_removed > 0:
         raise ValueError("Control flow loops not supported.")
 
-    # Specialize symbols
+    # Specialize symbols and constants
     sdfg.specialize(symbols)
+    symbols.update(sdfg.constants)
     undefined_symbols = sdfg.undefined_symbols(False)
     if len(undefined_symbols) != 0:
         raise ValueError("Missing symbols: {}".format(
