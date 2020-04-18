@@ -273,7 +273,7 @@ def generate_sdfg(name, chain):
             (k, v) for k, v in iterators.items() if k in input_pars)
 
         # Host-side array, which will be an input argument
-        sdfg.add_array(node.name + "_host", shape, node.data_type)
+        sdfg.add_array(node.name + "_host", input_shape, node.data_type)
 
         # Device-side copy
         sdfg.add_array(node.name,
@@ -290,12 +290,12 @@ def generate_sdfg(name, chain):
                                   copy_fpga,
                                   memlet=Memlet.simple(
                                       copy_fpga,
-                                      ", ".join(memcopy_indices),
+                                      ", ".join(input_iterators.values()),
                                       num_accesses=input_accesses,
                                       veclen=input_vector_length))
 
         entry, exit = state.add_map("read_" + node.name,
-                                    input_iterators,
+                                    iterators,
                                     schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
