@@ -125,27 +125,36 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     ])
 
     # Grab code from StencilFlow
-    code = node.generate_relative_access_kernel_string(
-        relative_to_center=True,
-        flatten_index=False,
-        python_syntax=True,
-        output_dimensions=len(shape))
+    code = node.kernel_string
 
     # Add writes to each output
-    code += "\n" + "\n".join(
-        "{}[{}] = {}".format(oc, ", ".join(["0"] * len(shape)), node.name)
-        for oc in output_to_connector.values())
+    code += "\n" + "\n".join("{}[{}] = {}".format(
+        oc, ", ".join(stencilflow.ITERATORS[:len(shape)]), node.name)
+                             for oc in output_to_connector.values())
 
-    # We need to rename field accesses to their input connectors
+    # We need to replace indices with relative ones, and rename field accesses
+    # to their input connectors
     class _StencilFlowVisitor(ast.NodeTransformer):
         def __init__(self, input_to_connector):
             self.input_to_connector = input_to_connector
 
         def visit_Subscript(self, node: ast.Subscript):
+            # Rename to connector name
             field = node.value.id
             if field in self.input_to_connector:
-                # Rename to connector name
                 node.value.id = input_to_connector[field]
+            # Convert [i, j + 1, k - 1] to [0, 1, -1]
+            if isinstance(node.slice.value, ast.Tuple):
+                # Negative indices show up as a UnaryOp, others as Num
+                offsets = tuple(0 if isinstance(i, ast.Name) else i.right.n
+                                for i in node.slice.value.elts)
+            else:
+                # One dimensional access doesn't show up as a tuple
+                offsets = (0 if isinstance(node.slice.value, ast.Name) else
+                           node.slice.value.right.n, )
+            t = "({})".format(", ".join(map(str, offsets)))
+            node.slice.value = ast.parse(t).body[0].value
+            self.generic_visit(node)
             return node
 
     # Transform the code using the visitor above
