@@ -490,7 +490,7 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                         if versions[field] == 0:
                             name = field
                         else:
-                            name = "{}_{}".format(field, versions[field])
+                            name = "{}__{}".format(field, versions[field])
                         rename_map[connector] = name
                         boundary_conditions[name] = (
                             node.boundary_conditions[connector]
