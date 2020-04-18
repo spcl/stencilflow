@@ -111,11 +111,14 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     }
     input_to_connector = collections.OrderedDict(
         (k, k + "_in" if any(dims) else k) for k, dims in input_dims.items())
-    accesses = collections.OrderedDict((conn, (input_dims[name], [
-        tuple(np.array(x[dimensions_to_skip:])[input_dims[name]])
-        for x in node.graph.accesses[name]
-    ])) for name, conn in zip(input_to_connector.keys(),
-                              input_to_connector.values()))
+    accesses = collections.OrderedDict()
+    for name, access_list in node.graph.accesses.items():
+        indices = input_dims[name]
+        conn = input_to_connector[name]
+        accesses[conn] = (indices, [])
+        num_dims = sum(indices, 0)
+        for access in access_list:
+            accesses[conn][1].append(tuple(access[len(access)-num_dims:]))
 
     # Map output field to output connector
     output_to_connector = collections.OrderedDict(
@@ -518,19 +521,40 @@ def generate_reference(name, chain):
 
     shape = tuple(map(int, shape))
 
+    input_parameters = {}  # Maps inputs to which parameters they access
+    input_shapes = {}  # Maps inputs to their shape tuple
+
     for node in chain.graph.nodes():
         if isinstance(node, Input) or isinstance(node, Output):
+            if isinstance(node, Input):
+                for output in node.outputs.values():
+                    pars = tuple(output["input_dim"])
+                    arr_shape = tuple(s for s, p in zip(shape, parameters)
+                                      if p in pars)
+                    input_parameters[node.name] = pars
+                    input_shapes[node.name] = arr_shape
+                    break
+                else:
+                    raise ValueError("No outputs found for input node.")
+            else:
+                arr_shape = shape
             try:
-                sdfg.add_array(node.name, shape, node.data_type)
+                sdfg.add_array(node.name, arr_shape, node.data_type)
             except NameError:
                 sdfg.data(node.name).access = dace.dtypes.AccessType.ReadWrite
 
     for link in chain.graph.edges(data=True):
-        if link[0].name not in sdfg.arrays:
-            sdfg.add_array(link[0].name,
+        name = link[0].name
+        if name not in sdfg.arrays:
+            sdfg.add_array(name,
                            shape,
                            link[0].data_type,
                            transient=True)
+
+    input_iterators = {
+        k: tuple("0:{}".format(s) for s in v)
+        for k, v in input_shapes.items()
+    }
 
     # Enforce dependencies via topological sort
     for node in nx.topological_sort(chain.graph):
@@ -554,9 +578,8 @@ def generate_reference(name, chain):
                                   stencil_node,
                                   dst_conn=connector,
                                   memlet=Memlet.simple(
-                                      field, ", ".join(
-                                          "0:{}".format(s)
-                                          for s in sdfg.data(field).shape)))
+                                      field,
+                                      ", ".join(input_iterators[field])))
 
         for _, connector in output_to_connector.items():
 
@@ -566,9 +589,8 @@ def generate_reference(name, chain):
                                   write_node,
                                   src_conn=connector,
                                   memlet=Memlet.simple(
-                                      node.name, ", ".join(
-                                          "0:{}".format(s)
-                                          for s in sdfg.data(field).shape)))
+                                      node.name, ", ".join("0:{}".format(s)
+                                                           for s in shape)))
 
         prev_state = state
 
