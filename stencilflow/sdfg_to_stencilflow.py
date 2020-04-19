@@ -538,153 +538,181 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     # Has to be a list so we can pass by reference
     operation_count = [0]
 
-    def _visit(sdfg, reads, writes, global_data, result, versions, shape,
-               operation_count):
-
+    # Retrieve topological order of all stencils present in the program
+    def _make_topological_order(sdfg, topological_order):
         for state in dace.graph.nxutil.dfs_topological_sort(
                 sdfg, sdfg.source_nodes()):
-
             for node in dace.graph.nxutil.dfs_topological_sort(
                     state, state.source_nodes()):
-
                 if isinstance(node, stencil.Stencil):
-
-                    stencil_json = {}
-
-                    boundary_conditions = collections.OrderedDict()
-
-                    in_edges = {e.dst_conn: e for e in state.in_edges(node)}
-                    out_edges = {e.src_conn: e for e in state.out_edges(node)}
-
-                    current_sdfg = sdfg
-
-                    rename_map = {}
-
-                    for connector, accesses in node.accesses.items():
-                        read_node = dace.sdfg.find_input_arraynode(
-                            state, in_edges[connector])
-                        # Use array node instead of connector name
-                        field = read_node.data
-                        dtype = current_sdfg.data(
-                            read_node.data).dtype.type.__name__
-                        if field not in versions:
-                            versions[field] = 0
-                        if versions[field] == 0:
-                            name = field
-                        else:
-                            name = "{}__{}".format(field, versions[field])
-                        rename_map[connector] = name
-                        boundary_conditions[name] = (
-                            node.boundary_conditions[connector]
-                            if connector in node.boundary_conditions else None)
-                        if name in reads:
-                            if reads[name][0] != dtype:
-                                raise ValueError(
-                                    "Type mismatch: {} vs. {}".format(
-                                        reads[name][0], dtype))
-                        else:
-                            reads[name] = (dtype, accesses[0])
-
                     if len(node.output_fields) != 1:
                         raise ValueError(
                             "Only 1 output per stencil is supported, "
                             "but {} has {} outputs.".format(
                                 node.label, len(node.output_fields)))
-
+                    out_edges = {e.src_conn: e for e in state.out_edges(node)}
                     for connector in node.output_fields:
                         write_node = dace.sdfg.find_output_arraynode(
                             state, out_edges[connector])
-                        # Rename to array node
-                        output_connector = connector
-                        field = write_node.data
-                        # Add new version
-                        if field not in versions or field in global_data:
-                            versions[field] = 0
-                            rename = field
-                        else:
-                            versions[field] = versions[field] + 1
-                            rename = "{}__{}".format(field, versions[field])
-                            print("Versioned {} to {}.".format(field, rename))
-                        stencil_json["data_type"] = current_sdfg.data(
-                            write_node.data).dtype.type.__name__
-                        rename_map[connector] = rename
-                        output = rename
+                        output = write_node.data
                         break  # Grab first and only element
-
-                    if output in writes:
-                        warnings.warn(
-                            "Multiple writes to field: {}".format(output))
-                    writes.add(output)
-
-                    for field, bc in boundary_conditions.items():
-                        if bc is None:
-                            # Use output boundary condition
-                            boundary_conditions[
-                                field] = node.boundary_conditions[
-                                    output_connector]
-
-                    # Now we need to go rename versioned variables in the
-                    # stencil code
-                    output_transformer = _OutputTransformer()
-                    old_ast = ast.parse(node.code.as_string)
-                    new_ast = output_transformer.visit(old_ast)
-                    output_offset = output_transformer.offset
-                    rename_transformer = _RenameTransformer(
-                        rename_map, output_offset, node.accesses,
-                        sdfg.constants)
-                    new_ast = rename_transformer.visit(new_ast)
-                    operation_count[0] += rename_transformer.operation_count
-                    code = astunparse.unparse(new_ast)
-                    stencil_name = output
-                    stencil_json["computation_string"] = code
-                    stencil_json["boundary_conditions"] = boundary_conditions
-
-                    if stencil_name in result["program"]:
-                        raise ValueError(
-                            "Duplicate stencil: {}".format(stencil_name))
-
-                    result["program"][stencil_name] = stencil_json
-
-                    # Extract stencil shape from stencil
-                    s = list(node.shape)
-                    if len(shape) == 0:
-                        shape += s
-                    else:
-                        if s != shape:
-                            prod_old = functools.reduce(
-                                lambda a, b: a * b, shape)
-                            prod_new = functools.reduce(lambda a, b: a * b, s)
-                            if prod_new > prod_old:
-                                updated = s
-                            else:
-                                updated = shape
-                            warnings.warn("Stencil shape mismatch: {} vs. {}. "
-                                          "Setting to maximum {}.".format(
-                                              shape, s, updated))
-                            shape = updated
-
+                    writes.add(output)  # Can have duplicates
+                    topological_order.append((node, state, sdfg, output))
                 elif isinstance(node, dace.graph.nodes.Tasklet):
                     warnings.warn("Ignored tasklet {}".format(node.label))
-
                 elif isinstance(node, dace.graph.nodes.AccessNode):
                     pass
-
                 elif isinstance(node, dace.graph.nodes.NestedSDFG):
-                    _visit(node.sdfg, reads, writes, global_data, result,
-                           versions, shape, operation_count)
-
+                    _make_topological_order(node.sdfg, topological_order)
                 elif isinstance(node, dace.sdfg.SDFGState):
                     pass
-
                 else:
                     raise TypeError("Unsupported node type in {}: {}".format(
                         state.label,
                         type(node).__name__))
 
-                # End node loop
+    topological_order = []  # [(node, state, sdfg, name of output field)]
+    _make_topological_order(sdfg, topological_order)
 
-    _visit(sdfg, reads, writes, global_data, result, versions, shape,
-           operation_count)
+    # Do versioning if writes, so that the last output has the original name
+    output_versions = {}   # {node: output_name}
+    output_fields = global_data & writes
+    temp_fields = writes - output_fields
+    if len(output_fields) == 0:
+        raise ValueError("Program has no outputs.")
+    for field in output_fields:
+        writing_nodes = [n for (n, _, _, o) in topological_order if o == field]
+        for i, n in enumerate(writing_nodes):
+            if i < len(writing_nodes) - 1:
+                rename = "{}__{}".format(field, i + 1)
+                print("Versioned write to {} to {} in {}.".format(
+                    field, rename, n))
+            else:
+                # Last write should have original field name
+                rename = field
+            output_versions[n] = rename
+    for field in temp_fields:
+        w = 0
+        for node, _, _, output in topological_order:
+            if output == field:
+                if w == 0:
+                    rename = field
+                else:
+                    rename = "{}__{}".format(field, w)
+                    print("Versioned {} to {} in {}.".format(
+                        field, rename, node))
+                output_versions[node] = rename
+                w += 1
+    # Do versioning of inputs
+    input_versions = {}  # {(node, input): input_name}
+    current_name = {}
+    for node, state, sdfg, output in topological_order:
+        in_edges = {e.dst_conn: e for e in state.in_edges(node)}
+        for connector in node.accesses:
+            field = dace.sdfg.find_input_arraynode(
+                state, in_edges[connector]).data
+            if field in current_name:
+                rename = current_name[field]  # Use version if any
+            else:
+                rename = field
+            input_versions[(node, field)] = rename
+        current_name[output] = output_versions[node]  # Progress renaming
+
+    # Now we can start doing a pass
+    for node, state, sdfg, _ in topological_order:
+
+        stencil_json = {}
+
+        boundary_conditions = collections.OrderedDict()
+
+        in_edges = {e.dst_conn: e for e in state.in_edges(node)}
+        out_edges = {e.src_conn: e for e in state.out_edges(node)}
+
+        current_sdfg = sdfg
+
+        rename_map = {}
+
+        for connector, accesses in node.accesses.items():
+            read_node = dace.sdfg.find_input_arraynode(
+                state, in_edges[connector])
+            # Use array node instead of connector name
+            field = read_node.data
+            dtype = current_sdfg.data(
+                read_node.data).dtype.type.__name__
+            name = input_versions[(node, field)]
+            rename_map[connector] = name
+            boundary_conditions[name] = (
+                node.boundary_conditions[connector]
+                if connector in node.boundary_conditions else None)
+            if name in reads:
+                if reads[name][0] != dtype:
+                    raise ValueError(
+                        "Type mismatch: {} vs. {}".format(
+                            reads[name][0], dtype))
+            else:
+                reads[name] = (dtype, accesses[0])
+
+        for connector in node.output_fields:
+            break  # Get first and only element
+        write_node = dace.sdfg.find_output_arraynode(
+            state, out_edges[connector])
+        # Rename to array node
+        output_connector = connector
+        field = write_node.data
+        # Add new version
+        rename = output_versions[node]
+        rename_map[connector] = rename
+        stencil_json["data_type"] = current_sdfg.data(
+            write_node.data).dtype.type.__name__
+        rename_map[connector] = rename
+        output = rename
+
+        for field, bc in boundary_conditions.items():
+            if bc is None:
+                # Use output boundary condition
+                boundary_conditions[
+                    field] = node.boundary_conditions[
+                        output_connector]
+
+        # Now we need to go rename versioned variables in the
+        # stencil code
+        output_transformer = _OutputTransformer()
+        old_ast = ast.parse(node.code.as_string)
+        new_ast = output_transformer.visit(old_ast)
+        output_offset = output_transformer.offset
+        rename_transformer = _RenameTransformer(
+            rename_map, output_offset, node.accesses,
+            sdfg.constants)
+        new_ast = rename_transformer.visit(new_ast)
+        operation_count[0] += rename_transformer.operation_count
+        code = astunparse.unparse(new_ast)
+        stencil_name = output
+        stencil_json["computation_string"] = code
+        stencil_json["boundary_conditions"] = boundary_conditions
+
+        if stencil_name in result["program"]:
+            raise ValueError(
+                "Duplicate stencil: {}".format(stencil_name))
+
+        result["program"][stencil_name] = stencil_json
+
+        # Extract stencil shape from stencil
+        s = list(node.shape)
+        if len(shape) == 0:
+            shape += s
+        else:
+            if s != shape:
+                prod_old = functools.reduce(
+                    lambda a, b: a * b, shape)
+                prod_new = functools.reduce(lambda a, b: a * b, s)
+                if prod_new > prod_old:
+                    updated = s
+                else:
+                    updated = shape
+                warnings.warn("Stencil shape mismatch: {} vs. {}. "
+                              "Setting to maximum {}.".format(
+                                  shape, s, updated))
+                shape = updated
 
     print("Found {} arithmetic operations.".format(operation_count[0]))
 
