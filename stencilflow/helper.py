@@ -169,7 +169,7 @@ def list_subtract_cwise(list1: List, list2: List) -> List:
         raise Exception("list2 should be of type {}, but is of type {}".format(
             type(list), type(list2)))
     # do map lambda operation over both lists
-    return list(map(lambda x, y: x - y, list1, list2))
+    return list(map(lambda x, y: x - y if x is not None and y is not None else None, list1, list2))
 
 
 def dim_to_abs_val(input: List[int], dimensions: List[int]) -> int:
