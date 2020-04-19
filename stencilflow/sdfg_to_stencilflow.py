@@ -639,6 +639,10 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
                     stencil_json["computation_string"] = code
                     stencil_json["boundary_conditions"] = boundary_conditions
 
+                    if stencil_name in result["program"]:
+                        raise ValueError(
+                            "Duplicate stencil: {}".format(stencil_name))
+
                     result["program"][stencil_name] = stencil_json
 
                     # Extract stencil shape from stencil
