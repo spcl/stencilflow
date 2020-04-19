@@ -14,13 +14,24 @@ if __name__ == "__main__":
     args.add_argument("split_stream")
     args.add_argument("send_rank")
     args.add_argument("receive_rank")
-    args.add_argument("port", type=int)
+    args.add_argument("port", type=str)
+    args.add_argument("-bytes_per_channel",
+                      type=int,
+                      help="Maximum channel width per cycle in bytes.")
     args = args.parse_args()
 
+    ports = [int(x) for x in args.port.split(",")]
+    if len(ports) == 0:
+        ports = ports[0]
+
     sdfg = dace.SDFG.from_file(args.sdfg_file)
-    sdfg_before, sdfg_after = split_sdfg(sdfg, args.split_stream,
-                                         args.send_rank, args.receive_rank,
-                                         args.port)
+    sdfg_before, sdfg_after = split_sdfg(
+        sdfg,
+        args.split_stream,
+        args.send_rank,
+        args.receive_rank,
+        ports,
+        bytes_per_channel=args.bytes_per_channel)
 
     input_file = os.path.splitext(args.sdfg_file)[0]
     before_path = input_file + "_before.sdfg"
