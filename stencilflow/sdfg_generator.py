@@ -870,62 +870,34 @@ def split_sdfg(sdfg,
         num_accesses = sum(
             (e.data.num_accesses for e in write_state.in_edges(write_node)), 0)
         write_split_name = write_node.data + "__write_split"
-        write_buffer_name = write_split_name + "_buffer"
-        sdfg.add_array(write_buffer_name, (write_desc.veclen, ),
-                       write_desc.dtype,
-                       storage=dace.dtypes.StorageType.FPGA_Local,
-                       transient=True)
-        write_buffer = write_state.add_access(write_buffer_name)
-        nodes_before.add((write_state, write_buffer))
         write_entry, write_exit = write_state.add_map(
             "{}_map".format(write_split_name),
             {"split": "0:{}".format(num_accesses)},
             schedule=dace.dtypes.ScheduleType.FPGA_Device)
         stream_to_buffer = write_state.add_read(write_node.data)
-        stream_to_buffer_tasklet = write_state.add_tasklet(
-            "{}_stream_to_buffer".format(write_split_name),
-            {"_{}".format(write_node.data)}, {"_{}".format(write_buffer_name)},
-            "_{} = _{}".format(write_buffer_name, write_node.data))
-        buffer_to_split_tasklet = write_state.add_tasklet(
-            "{}_buffer_to_split".format(write_split_name),
-            {"_{}".format(write_buffer_name)},
-            {"_{}_port_{}".format(write_split_name, p)
-             for p in ports}, "\n".join("_{}_port_{} = _{}[{}]".format(
-                 write_split_name, p, write_buffer_name, veclen_split * i)
-                                        for i, p in enumerate(ports)))
-        nodes_before |= {(write_state, write_buffer),
-                         (write_state, write_entry), (write_state, write_exit),
+        code = ""
+        for i, p in enumerate(ports):
+            for v in range(veclen_split):
+                code += "_port_{}[{}] = _{}[{}];\n".format(
+                    p, v, write_node.data, i * veclen_split + v)
+        write_gearbox_tasklet = write_state.add_tasklet(
+            "{}_gearbox".format(write_split_name),
+            {"_{}".format(write_node.data)},
+            {"_port_{}".format(p)
+             for p in ports}, code)
+        nodes_before |= {(write_state, write_entry), (write_state, write_exit),
                          (write_state, stream_to_buffer),
-                         (write_state, stream_to_buffer_tasklet),
-                         (write_state, buffer_to_split_tasklet)}
+                         (write_state, write_gearbox_tasklet)}
         # Stream to tasklet
         write_state.add_memlet_path(stream_to_buffer,
                                     write_entry,
-                                    stream_to_buffer_tasklet,
+                                    write_gearbox_tasklet,
                                     dst_conn="_{}".format(write_node.data),
                                     memlet=dace.Memlet.simple(
                                         stream_to_buffer.data,
                                         "0",
                                         veclen=write_desc.veclen,
                                         num_accesses=1))
-        # Tasklet to buffer
-        write_state.add_memlet_path(stream_to_buffer_tasklet,
-                                    write_buffer,
-                                    src_conn="_{}".format(write_buffer_name),
-                                    memlet=dace.Memlet.simple(
-                                        write_buffer.data,
-                                        "0",
-                                        veclen=write_desc.veclen,
-                                        num_accesses=1))
-        # Buffer to tasklet
-        write_state.add_memlet_path(write_buffer,
-                                    buffer_to_split_tasklet,
-                                    dst_conn="_{}".format(write_buffer_name),
-                                    memlet=dace.Memlet.simple(
-                                        write_buffer.data,
-                                        "0:{}".format(write_desc.veclen),
-                                        veclen=1,
-                                        num_accesses=write_desc.veclen))
         for i, p in enumerate(ports):
             port_stream_name = "{}_port_{}".format(write_split_name, p)
             sdfg.add_stream(port_stream_name,
@@ -939,15 +911,14 @@ def split_sdfg(sdfg,
             }
             port_write = write_state.add_write(port_stream_name)
             nodes_before.add((write_state, port_write))
-            write_state.add_memlet_path(
-                buffer_to_split_tasklet,
-                write_exit,
-                port_write,
-                src_conn="_{}_port_{}".format(write_split_name, p),
-                memlet=dace.Memlet.simple(port_write.data,
-                                          "0",
-                                          veclen=veclen_split,
-                                          num_accesses=1))
+            write_state.add_memlet_path(write_gearbox_tasklet,
+                                        write_exit,
+                                        port_write,
+                                        src_conn="_port_{}".format(p),
+                                        memlet=dace.Memlet.simple(
+                                            port_write.data,
+                                            "0",
+                                            veclen=veclen_split))
 
     # Now duplicate the SDFG, and remove all nodes that don't belong in the
     # respectively side of the split
