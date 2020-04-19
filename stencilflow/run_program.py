@@ -154,7 +154,7 @@ def run_program(stencil_file,
     if skip_execution or repetitions == 0:
         if log_level >= LogLevel.BASIC:
             print("Skipping execution and exiting.")
-        exit()
+        return
 
     # Load data from disk
     if log_level >= LogLevel.BASIC:
