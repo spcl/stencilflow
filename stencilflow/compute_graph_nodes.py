@@ -217,7 +217,8 @@ class Subscript(BaseOperationNodeClass):
     def __init__(self,
                  ast_node: ast,
                  number: int,
-                 dimensions: int) -> None:
+                 dimensions: int,
+                 inputs) -> None:
         """
         Create new Subscript node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -227,6 +228,7 @@ class Subscript(BaseOperationNodeClass):
         super().__init__(ast_node, number)
         # initialize local fields
         self.dimensions = dimensions
+        self.inputs = inputs
         self.index: List[int] = list()
         self.create_index(ast_node)
 
@@ -274,8 +276,22 @@ class Subscript(BaseOperationNodeClass):
                 # convert [i+1,j, k-1] to [1, 0, -1]
                 calculator = Calculator()
                 self.index.append(calculator.eval_expr(self._VAR_MAP, expression))
-        diff = self.dimensions - len(self.index)
-        self.index = [0]*diff + self.index
+        #diff = self.dimensions - len(self.index)
+        #self.index = [0]*diff + self.index
+        # TODO
+        if self.name in self.inputs and "dimensions" in self.inputs[self.name] and self.inputs[self.name]["dimensions"] is not None:
+            ind = [x if x in self.inputs[self.name]["dimensions"] else None for x in stencilflow.ITERATORS]
+            num_dim = stencilflow.num_dims(ind)
+            dim_index = self.index#[len(self.dimensions) - num_dim:]
+            new_ind, i = list(), 0
+            for entry in ind:
+                if entry is None:
+                    new_ind.append(None)
+                else:
+                    new_ind.append(dim_index[i])
+                    i += 1
+            self.index = new_ind #list(map(lambda x, y: y if x is not None else None, ind, new_ind))
+
 
     def generate_name(self,
                       ast_node: ast) -> str:
