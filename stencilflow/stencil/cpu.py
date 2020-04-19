@@ -141,11 +141,14 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
         for field in code_memlet_names:
 
             dtype = field_dtype[field]
-            data = sdfg.add_array(field, shape, dtype)
 
             if field in node.accesses:
                 read_node = state.add_read(field)
-                field_parameters = parameters[node.accesses[field][0]]
+                input_dims = node.accesses[field][0]
+                input_shape = tuple(s for s, v in zip(shape, input_dims) if v)
+                data = sdfg.add_array(field, input_shape, dtype)
+                field_parameters = tuple(
+                    p for p, v in zip(parameters, input_dims) if v)
                 for indices, connector in code_memlet_names[field].items():
                     access_str = ", ".join(
                         "{} + ({})".format(p, i)
@@ -160,6 +163,7 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
                                           dst_conn=connector + "_in",
                                           memlet=memlet)
             else:
+                data = sdfg.add_array(field, shape, dtype)
                 write_node = state.add_write(field)
                 for indices, connector in code_memlet_names[field].items():
                     state.add_memlet_path(tasklet,

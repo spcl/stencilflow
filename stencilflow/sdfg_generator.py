@@ -46,6 +46,7 @@ import itertools
 import operator
 import os
 import re
+import warnings
 
 import dace
 import dace.codegen.targets.fpga
@@ -111,11 +112,14 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     }
     input_to_connector = collections.OrderedDict(
         (k, k + "_in" if any(dims) else k) for k, dims in input_dims.items())
-    accesses = collections.OrderedDict((conn, (input_dims[name], [
-        tuple(np.array(x[dimensions_to_skip:])[input_dims[name]])
-        for x in node.graph.accesses[name]
-    ])) for name, conn in zip(input_to_connector.keys(),
-                              input_to_connector.values()))
+    accesses = collections.OrderedDict()
+    for name, access_list in node.graph.accesses.items():
+        indices = input_dims[name]
+        conn = input_to_connector[name]
+        accesses[conn] = (indices, [])
+        num_dims = sum(indices, 0)
+        for access in access_list:
+            accesses[conn][1].append(tuple(access[len(access)-num_dims:]))
 
     # Map output field to output connector
     output_to_connector = collections.OrderedDict(
@@ -125,27 +129,49 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     ])
 
     # Grab code from StencilFlow
-    code = node.generate_relative_access_kernel_string(
-        relative_to_center=True,
-        flatten_index=False,
-        python_syntax=True,
-        output_dimensions=len(shape))
+    code = node.kernel_string
 
     # Add writes to each output
-    code += "\n" + "\n".join(
-        "{}[{}] = {}".format(oc, ", ".join(["0"] * len(shape)), node.name)
-        for oc in output_to_connector.values())
+    code += "\n" + "\n".join("{}[{}] = {}".format(
+        oc, ", ".join(stencilflow.ITERATORS[:len(shape)]), node.name)
+                             for oc in output_to_connector.values())
 
-    # We need to rename field accesses to their input connectors
+    # We need to replace indices with relative ones, and rename field accesses
+    # to their input connectors
     class _StencilFlowVisitor(ast.NodeTransformer):
         def __init__(self, input_to_connector):
             self.input_to_connector = input_to_connector
 
+        @staticmethod
+        def _index_to_offset(node):
+            if isinstance(node, ast.Name):
+                return 0
+            elif isinstance(node, ast.BinOp):
+                if isinstance(node.op, ast.Sub):
+                    return -int(node.right.n)
+                elif isinstance(node.op, ast.Add):
+                    return int(node.right.n)
+            raise TypeError("Unrecognized offset: {}".format(
+                astunparse.unparse(node)))
+
         def visit_Subscript(self, node: ast.Subscript):
+            # Rename to connector name
             field = node.value.id
             if field in self.input_to_connector:
-                # Rename to connector name
                 node.value.id = input_to_connector[field]
+            # Convert [i, j + 1, k - 1] to [0, 1, -1]
+            if isinstance(node.slice.value, ast.Tuple):
+                # Negative indices show up as a UnaryOp, others as Num
+                offsets = tuple(
+                    map(_StencilFlowVisitor._index_to_offset,
+                        node.slice.value.elts))
+            else:
+                # One dimensional access doesn't show up as a tuple
+                offsets = (_StencilFlowVisitor._index_to_offset(
+                    node.slice.value), )
+            t = "({})".format(", ".join(map(str, offsets)))
+            node.slice.value = ast.parse(t).body[0].value
+            self.generic_visit(node)
             return node
 
     # Transform the code using the visitor above
@@ -247,11 +273,9 @@ def generate_sdfg(name, chain):
         # Only vectorize the read if the innermost dimensions is read
         input_vector_length = (vector_length
                                if input_pars[-1] == parameters[-1] else 1)
-        input_iterators = collections.OrderedDict(
-            (k, v) for k, v in iterators.items() if k in input_pars)
 
         # Host-side array, which will be an input argument
-        sdfg.add_array(node.name + "_host", shape, node.data_type)
+        sdfg.add_array(node.name + "_host", input_shape, node.data_type)
 
         # Device-side copy
         sdfg.add_array(node.name,
@@ -268,12 +292,13 @@ def generate_sdfg(name, chain):
                                   copy_fpga,
                                   memlet=Memlet.simple(
                                       copy_fpga,
-                                      ", ".join(memcopy_indices),
+                                      ", ".join("0:{}".format(s)
+                                                for s in input_shape),
                                       num_accesses=input_accesses,
                                       veclen=input_vector_length))
 
         entry, exit = state.add_map("read_" + node.name,
-                                    input_iterators,
+                                    iterators,
                                     schedule=ScheduleType.FPGA_Device)
 
         # Sort to get deterministic output
@@ -390,6 +415,16 @@ def generate_sdfg(name, chain):
         (stencil_node, input_to_connector,
          output_to_connector) = _generate_stencil(node, chain, shape,
                                                   dimensions_to_skip)
+
+        if len(stencil_node.output_fields) == 0:
+            if len(input_to_connector) == 0:
+                warnings.warn("Ignoring orphan stencil: {}".format(
+                    node.name))
+            else:
+                raise ValueError("Orphan stencil with inputs: {}".format(
+                    node.name))
+            return
+
         stencil_node.implementation = "FPGA"
         state.add_node(stencil_node)
 
@@ -496,19 +531,39 @@ def generate_reference(name, chain):
 
     shape = tuple(map(int, shape))
 
+    input_shapes = {}  # Maps inputs to their shape tuple
+
     for node in chain.graph.nodes():
         if isinstance(node, Input) or isinstance(node, Output):
+            if isinstance(node, Input):
+                for output in node.outputs.values():
+                    pars = tuple(output["input_dim"])
+                    arr_shape = tuple(s for s, p in zip(shape, parameters)
+                                      if p in pars)
+                    input_shapes[node.name] = arr_shape
+                    break
+                else:
+                    raise ValueError("No outputs found for input node.")
+            else:
+                arr_shape = shape
             try:
-                sdfg.add_array(node.name, shape, node.data_type)
+                sdfg.add_array(node.name, arr_shape, node.data_type)
             except NameError:
                 sdfg.data(node.name).access = dace.dtypes.AccessType.ReadWrite
 
     for link in chain.graph.edges(data=True):
-        if link[0].name not in sdfg.arrays:
-            sdfg.add_array(link[0].name,
+        name = link[0].name
+        if name not in sdfg.arrays:
+            sdfg.add_array(name,
                            shape,
                            link[0].data_type,
                            transient=True)
+            input_shapes[name] = tuple(shape)
+
+    input_iterators = {
+        k: tuple("0:{}".format(s) for s in v)
+        for k, v in input_shapes.items()
+    }
 
     # Enforce dependencies via topological sort
     for node in nx.topological_sort(chain.graph):
@@ -532,9 +587,8 @@ def generate_reference(name, chain):
                                   stencil_node,
                                   dst_conn=connector,
                                   memlet=Memlet.simple(
-                                      field, ", ".join(
-                                          "0:{}".format(s)
-                                          for s in sdfg.data(field).shape)))
+                                      field,
+                                      ", ".join(input_iterators[field])))
 
         for _, connector in output_to_connector.items():
 
@@ -544,9 +598,8 @@ def generate_reference(name, chain):
                                   write_node,
                                   src_conn=connector,
                                   memlet=Memlet.simple(
-                                      node.name, ", ".join(
-                                          "0:{}".format(s)
-                                          for s in sdfg.data(field).shape)))
+                                      node.name, ", ".join("0:{}".format(s)
+                                                           for s in shape)))
 
         prev_state = state
 

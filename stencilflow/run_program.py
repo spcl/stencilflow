@@ -154,7 +154,7 @@ def run_program(stencil_file,
     if skip_execution or repetitions == 0:
         if log_level >= LogLevel.BASIC:
             print("Skipping execution and exiting.")
-        exit()
+        return
 
     # Load data from disk
     if log_level >= LogLevel.BASIC:
@@ -165,7 +165,7 @@ def run_program(stencil_file,
     if generate_input:
         # Generate some input so we don't load files off the disk
         for k in input_description:
-            input_description[k]["data"] = "constant:1.0"
+            input_description[k]["data"] = "constant:0.5"
     input_arrays = stencilflow.load_input_arrays(
         input_description,
         prefix=input_directory,

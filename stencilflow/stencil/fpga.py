@@ -140,7 +140,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         # Create a initialization phase corresponding to the highest distance
         # to the center
         init_sizes = [
-            (buffer_sizes[key] - vector_length - val[2]) // vector_length
+            (buffer_sizes[key] - vector_lengths[key] - val[2]) // vector_length
             for key, val in buffer_accesses.items()
         ]
         init_size_max = int(np.max(init_sizes))
@@ -466,7 +466,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                         buffer_accesses[field_name][1]):
                 memlet_name = code_memlet_names[field_name][tuple(relative)]
                 if vector_length > 1:
-                    offset = "{} + i_unroll".format(offset)
+                    if vector_lengths[field_name] > 1:
+                        offset = "{} + i_unroll".format(offset)
+                    else:
+                        offset = str(offset)
                     path = [
                         compute_read, compute_unroll_entry, compute_tasklet
                     ]

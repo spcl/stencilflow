@@ -295,7 +295,107 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
                 ranges.append(_specialize_symbols(r, symbols))
             node.map.range = ranges
 
+        # Make transformation passes on tasklets and stencil libnodes
+        if hasattr(node, 'code'):
+            node.code.as_string = None
+
+            new_code = [
+                _Predicator().visit(stmt)
+                for stmt in node._code['code_or_block']
+            ]
+
+            # min/max predication requires multiple passes (nested expressions)
+            minmax_predicated = 1
+            while minmax_predicated > 0:
+                pred = _MinMaxPredicator()
+                tmp_code = [pred.visit(stmt) for stmt in new_code]
+                minmax_predicated = pred.count
+
+                # Some of the outputs may be lists, flatten
+                new_code = []
+
+                def flatten(val):
+                    for v in val:
+                        if isinstance(v, list):
+                            flatten(v)
+                        else:
+                            new_code.append(v)
+
+                flatten(tmp_code)
+
+            node._code['code_or_block'] = new_code
+
     return sdfg
+
+
+class _Predicator(ast.NodeTransformer):
+    def visit_If(self, node: ast.If):
+        if len(node.body) == 1 and len(node.orelse) == 1:
+            if not isinstance(node.body[0], ast.Assign):
+                return self.generic_visit(node)
+            if not isinstance(node.orelse[0], ast.Assign):
+                return self.generic_visit(node)
+            if_assign: ast.Assign = node.body[0]
+            else_assign: ast.Assign = node.orelse[0]
+            if len(if_assign.targets) != 1 or len(else_assign.targets) != 1:
+                return self.generic_visit(node)
+
+            # Replace the condition with a predicated ternary expression
+            if astunparse.unparse(if_assign.targets[0]) == astunparse.unparse(
+                    else_assign.targets[0]):
+                new_node = ast.Assign(targets=if_assign.targets,
+                                      value=ast.IfExp(
+                                          test=node.test,
+                                          body=if_assign.value,
+                                          orelse=else_assign.value))
+                return ast.copy_location(new_node, node)
+        return self.generic_visit(node)
+
+
+class _MinMaxPredicator(ast.NodeTransformer):
+    def __init__(self):
+        self.count = 0
+
+    def visit_Assign(self, node: ast.Assign):
+        if not isinstance(node.value, ast.Call):
+            return self.generic_visit(node)
+        if len(node.targets) != 1:
+            return self.generic_visit(node)
+
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            return self.generic_visit(node)
+        tname: str = target.id
+
+        callnode: ast.Call = node.value
+        fname = astunparse.unparse(callnode.func)[:-1]
+        if fname not in ('min', 'max'):
+            return self.generic_visit(node)
+        if len(callnode.args) != 2:
+            raise NotImplementedError('Arguments to min/max (%d) != 2' %
+                                      len(callnode.args))
+
+        result = []
+        names = []
+        for i, arg in enumerate(callnode.args):
+            newname = '__dace_%s%d_%s' % (fname, i, tname)
+            names.append(newname)
+            result.append(ast.Assign(targets=[ast.Name(id=newname)],
+                                     value=arg))
+
+        result.append(
+            ast.Assign(
+                targets=node.targets,
+                value=ast.IfExp(
+                    test=ast.Compare(left=ast.Name(id=names[0]),
+                                     ops=[ast.Lt()],
+                                     comparators=[ast.Name(id=names[1])]),
+                    body=ast.Name(id=names[0]) if fname == 'min' else ast.Name(
+                        id=names[1]),
+                    orelse=ast.Name(id=names[1])
+                    if fname == 'min' else ast.Name(id=names[0]))))
+        self.count += 1
+        return result
 
 
 class _OutputTransformer(ast.NodeTransformer):
@@ -343,26 +443,40 @@ class _RenameTransformer(ast.NodeTransformer):
     def operation_count(self):
         return self._operation_count
 
+    @staticmethod
+    def _offset_to_index(node, offset, iterator):
+        if isinstance(node, ast.Num):
+            num = int(node.n)
+            if num == 0:
+                return iterator
+            else:
+                return "{} + {}".format(iterator, num)
+        elif isinstance(node, ast.UnaryOp):
+            return "{} - {}".format(iterator, int(node.operand.n))
+        raise TypeError("Unrecognized offset: {}".format(
+            astunparse.unparse(node)))
+
     def visit_Subscript(self, node: ast.Subscript):
         # Convert [0, 1, -1] to [i, j + 1, k - 1]
         offsets = [
-            offset for offset, valid in zip(self._offset, self._accesses[
-                node.value.id][0]) if valid
+            o for o, v in zip(self._offset, self._accesses[node.value.id][0])
+            if v
+        ]
+        iterators = [
+            i for i, v in zip(stencilflow.ITERATORS, self._accesses[
+                node.value.id][0]) if v
         ]
         if isinstance(node.slice.value, ast.Tuple):
             # Negative indices show up as a UnaryOp, others as Num
-            indices = (x.n if isinstance(x, ast.Num) else -x.operand.n
-                       for x in node.slice.value.elts)
+            indices = tuple(
+                _RenameTransformer._offset_to_index(n, o, i)
+                for n, o, i in zip(node.slice.value.elts, offsets, iterators))
         else:
             # One dimensional access doesn't show up as a tuple
-            indices = (node.slice.value.n if isinstance(
-                node.slice.value, ast.Num) else -node.slice.value.operand.n, )
-        indices = tuple(x - o for x, o in zip(indices, offsets))
-        t = "(" + ", ".join(
-            stencilflow.ITERATORS[i] +
-            (" + " + str(o) if o > 0 else (" - " + str(-o) if o < 0 else ""))
-            for i, o in enumerate(indices)) + ")"
-        node.slice.value = ast.parse(t).body[0].value
+            indices = (_RenameTransformer._offset_to_index(
+                node.slice.value, offsets[0], iterators[0]), )
+        indices = "({})".format(", ".join(map(str, indices)))
+        node.slice.value = ast.parse(str(indices)).body[0].value
         self.generic_visit(node)
         return node
 
@@ -401,7 +515,10 @@ class _RenameTransformer(ast.NodeTransformer):
         return node
 
 
-def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
+def sdfg_to_stencilflow(sdfg,
+                        output_path,
+                        vector_length=1,
+                        data_directory=None):
 
     if not isinstance(sdfg, dace.SDFG):
         sdfg = dace.SDFG.from_file(sdfg)
@@ -415,7 +532,13 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     writes = set()
     global_data = {k for k, v in sdfg.arrays.items() if not v.transient}
 
-    result = {"inputs": {}, "outputs": [], "dimensions": None, "program": {}}
+    result = {
+        "inputs": {},
+        "outputs": [],
+        "dimensions": None,
+        "vectorization": vector_length,
+        "program": {}
+    }
 
     versions = {}  # {field: count}
 
@@ -424,147 +547,181 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     # Has to be a list so we can pass by reference
     operation_count = [0]
 
-    def _visit(sdfg, reads, writes, global_data, result, versions, shape, operation_count):
-
+    # Retrieve topological order of all stencils present in the program
+    def _make_topological_order(sdfg, topological_order):
         for state in dace.graph.nxutil.dfs_topological_sort(
                 sdfg, sdfg.source_nodes()):
-
             for node in dace.graph.nxutil.dfs_topological_sort(
                     state, state.source_nodes()):
-
                 if isinstance(node, stencil.Stencil):
-
-                    stencil_json = {}
-
-                    boundary_conditions = collections.OrderedDict()
-
-                    in_edges = {e.dst_conn: e for e in state.in_edges(node)}
-                    out_edges = {e.src_conn: e for e in state.out_edges(node)}
-
-                    current_sdfg = sdfg
-
-                    rename_map = {}
-
-                    for connector, accesses in node.accesses.items():
-                        read_node = dace.sdfg.find_input_arraynode(
-                            state, in_edges[connector])
-                        # Use array node instead of connector name
-                        field = read_node.data
-                        dtype = current_sdfg.data(
-                            read_node.data).dtype.type.__name__
-                        if field not in versions:
-                            versions[field] = 0
-                        if versions[field] == 0:
-                            name = field
-                        else:
-                            name = "{}_{}".format(field, versions[field])
-                        rename_map[connector] = name
-                        boundary_conditions[name] = (
-                            node.boundary_conditions[connector]
-                            if connector in node.boundary_conditions else None)
-                        if name in reads:
-                            if reads[name] != dtype:
-                                raise ValueError(
-                                    "Type mismatch: {} vs. {}".format(
-                                        reads[name], dtype))
-                        else:
-                            reads[name] = dtype
-
                     if len(node.output_fields) != 1:
                         raise ValueError(
                             "Only 1 output per stencil is supported, "
                             "but {} has {} outputs.".format(
                                 node.label, len(node.output_fields)))
-
+                    out_edges = {e.src_conn: e for e in state.out_edges(node)}
                     for connector in node.output_fields:
                         write_node = dace.sdfg.find_output_arraynode(
                             state, out_edges[connector])
-                        # Rename to array node
-                        output_connector = connector
-                        field = write_node.data
-                        # Add new version
-                        if field not in versions or field in global_data:
-                            versions[field] = 0
-                            rename = field
-                        else:
-                            versions[field] = versions[field] + 1
-                            rename = "{}__{}".format(field, versions[field])
-                            print("Versioned {} to {}.".format(field, rename))
-                        stencil_json["data_type"] = current_sdfg.data(
-                            write_node.data).dtype.type.__name__
-                        rename_map[connector] = rename
-                        output = rename
+                        output = write_node.data
                         break  # Grab first and only element
-
-                    if output in writes:
-                        warnings.warn(
-                            "Multiple writes to field: {}".format(output))
-                    writes.add(output)
-
-                    for field, bc in boundary_conditions.items():
-                        if bc is None:
-                            # Use output boundary condition
-                            boundary_conditions[
-                                field] = node.boundary_conditions[
-                                    output_connector]
-
-                    # Now we need to go rename versioned variables in the
-                    # stencil code
-                    output_transformer = _OutputTransformer()
-                    old_ast = ast.parse(node.code.as_string)
-                    new_ast = output_transformer.visit(old_ast)
-                    output_offset = output_transformer.offset
-                    rename_transformer = _RenameTransformer(
-                        rename_map, output_offset, node.accesses,
-                        sdfg.constants)
-                    new_ast = rename_transformer.visit(new_ast)
-                    operation_count[0] += rename_transformer.operation_count
-                    code = astunparse.unparse(new_ast)
-                    stencil_name = output
-                    stencil_json["computation_string"] = code
-                    stencil_json["boundary_conditions"] = boundary_conditions
-
-                    result["program"][stencil_name] = stencil_json
-
-                    # Extract stencil shape from stencil
-                    s = list(node.shape)
-                    if len(shape) == 0:
-                        shape += s
-                    else:
-                        if s != shape:
-                            prod_old = functools.reduce(
-                                lambda a, b: a * b, shape)
-                            prod_new = functools.reduce(lambda a, b: a * b, s)
-                            if prod_new > prod_old:
-                                updated = s
-                            else:
-                                updated = shape
-                            warnings.warn("Stencil shape mismatch: {} vs. {}. "
-                                          "Setting to maximum {}.".format(
-                                              shape, s, updated))
-                            shape = updated
-
+                    writes.add(output)  # Can have duplicates
+                    topological_order.append((node, state, sdfg, output))
                 elif isinstance(node, dace.graph.nodes.Tasklet):
                     warnings.warn("Ignored tasklet {}".format(node.label))
-
                 elif isinstance(node, dace.graph.nodes.AccessNode):
                     pass
-
                 elif isinstance(node, dace.graph.nodes.NestedSDFG):
-                    _visit(node.sdfg, reads, writes, global_data, result, versions, shape,
-                           operation_count)
-
+                    _make_topological_order(node.sdfg, topological_order)
                 elif isinstance(node, dace.sdfg.SDFGState):
                     pass
-
                 else:
                     raise TypeError("Unsupported node type in {}: {}".format(
                         state.label,
                         type(node).__name__))
 
-                # End node loop
+    topological_order = []  # [(node, state, sdfg, name of output field)]
+    _make_topological_order(sdfg, topological_order)
 
-    _visit(sdfg, reads, writes, global_data, result, versions, shape, operation_count)
+    # Do versioning if writes, so that the last output has the original name
+    output_versions = {}   # {node: output_name}
+    output_fields = global_data & writes
+    temp_fields = writes - output_fields
+    if len(output_fields) == 0:
+        raise ValueError("Program has no outputs.")
+    for field in output_fields:
+        writing_nodes = [n for (n, _, _, o) in topological_order if o == field]
+        for i, n in enumerate(writing_nodes):
+            if i < len(writing_nodes) - 1:
+                rename = "{}__{}".format(field, i + 1)
+                print("Versioned write to {} to {} in {}.".format(
+                    field, rename, n))
+            else:
+                # Last write should have original field name
+                rename = field
+            output_versions[n] = rename
+    for field in temp_fields:
+        w = 0
+        for node, _, _, output in topological_order:
+            if output == field:
+                if w == 0:
+                    rename = field
+                else:
+                    rename = "{}__{}".format(field, w)
+                    print("Versioned {} to {} in {}.".format(
+                        field, rename, node))
+                output_versions[node] = rename
+                w += 1
+    # Do versioning of inputs
+    input_versions = {}  # {(node, input): input_name}
+    current_name = {}
+    for node, state, sdfg, output in topological_order:
+        in_edges = {e.dst_conn: e for e in state.in_edges(node)}
+        for connector in node.accesses:
+            field = dace.sdfg.find_input_arraynode(
+                state, in_edges[connector]).data
+            if field in current_name:
+                rename = current_name[field]  # Use version if any
+            else:
+                rename = field
+            input_versions[(node, field)] = rename
+        current_name[output] = output_versions[node]  # Progress renaming
+
+    # Now we can start doing a pass
+    for node, state, sdfg, _ in topological_order:
+
+        stencil_json = {}
+
+        boundary_conditions = collections.OrderedDict()
+
+        in_edges = {e.dst_conn: e for e in state.in_edges(node)}
+        out_edges = {e.src_conn: e for e in state.out_edges(node)}
+
+        current_sdfg = sdfg
+
+        rename_map = {}
+
+        for connector, accesses in node.accesses.items():
+            read_node = dace.sdfg.find_input_arraynode(
+                state, in_edges[connector])
+            # Use array node instead of connector name
+            field = read_node.data
+            dtype = current_sdfg.data(
+                read_node.data).dtype.type.__name__
+            name = input_versions[(node, field)]
+            rename_map[connector] = name
+            boundary_conditions[name] = (
+                node.boundary_conditions[connector]
+                if connector in node.boundary_conditions else None)
+            if name in reads:
+                if reads[name][0] != dtype:
+                    raise ValueError(
+                        "Type mismatch: {} vs. {}".format(
+                            reads[name][0], dtype))
+            else:
+                reads[name] = (dtype, accesses[0])
+
+        for connector in node.output_fields:
+            break  # Get first and only element
+        write_node = dace.sdfg.find_output_arraynode(
+            state, out_edges[connector])
+        # Rename to array node
+        output_connector = connector
+        field = write_node.data
+        # Add new version
+        rename = output_versions[node]
+        rename_map[connector] = rename
+        stencil_json["data_type"] = current_sdfg.data(
+            write_node.data).dtype.type.__name__
+        rename_map[connector] = rename
+        output = rename
+
+        for field, bc in boundary_conditions.items():
+            if bc is None:
+                # Use output boundary condition
+                boundary_conditions[
+                    field] = node.boundary_conditions[
+                        output_connector]
+
+        # Now we need to go rename versioned variables in the
+        # stencil code
+        output_transformer = _OutputTransformer()
+        old_ast = ast.parse(node.code.as_string)
+        new_ast = output_transformer.visit(old_ast)
+        output_offset = output_transformer.offset
+        rename_transformer = _RenameTransformer(
+            rename_map, output_offset, node.accesses,
+            sdfg.constants)
+        new_ast = rename_transformer.visit(new_ast)
+        operation_count[0] += rename_transformer.operation_count
+        code = astunparse.unparse(new_ast)
+        stencil_name = output
+        stencil_json["computation_string"] = code
+        stencil_json["boundary_conditions"] = boundary_conditions
+
+        if stencil_name in result["program"]:
+            raise ValueError(
+                "Duplicate stencil: {}".format(stencil_name))
+
+        result["program"][stencil_name] = stencil_json
+
+        # Extract stencil shape from stencil
+        s = list(node.shape)
+        if len(shape) == 0:
+            shape += s
+        else:
+            if s != shape:
+                prod_old = functools.reduce(
+                    lambda a, b: a * b, shape)
+                prod_new = functools.reduce(lambda a, b: a * b, s)
+                if prod_new > prod_old:
+                    updated = s
+                else:
+                    updated = shape
+                warnings.warn("Stencil shape mismatch: {} vs. {}. "
+                              "Setting to maximum {}.".format(
+                                  shape, s, updated))
+                shape = updated
 
     print("Found {} arithmetic operations.".format(operation_count[0]))
 
@@ -586,15 +743,25 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     result["outputs"] = list(sorted([i for i in writes if i in global_data]))
     if len(result["outputs"]) == 0:
         raise ValueError("SDFG has no non-transient outputs.")
-    for field, dtype in reads.items():
+    for field, (dtype, dimensions) in reads.items():
         if field not in global_data:
             continue  # This is not an input
-        path = "{}_{}_{}.dat".format(field,
-                                     "x".join(map(str, result["dimensions"])),
-                                     dtype)
+        path = "{}_{}_{}.dat".format(
+            field, "x".join(
+                map(str, [
+                    d for i, d in enumerate(result["dimensions"])
+                    if dimensions[i]
+                ])), dtype)
         if data_directory is not None:
             path = os.path.join(data_directory, path)
-        result["inputs"][field] = {"data": path, "data_type": dtype}
+        result["inputs"][field] = {
+            "data":
+            path,
+            "data_type":
+            dtype,
+            "dimensions":
+            [p for i, p in enumerate(stencilflow.ITERATORS) if dimensions[i]]
+        }
     if len(result["inputs"]) == 0:
         raise ValueError("SDFG has no inputs.")
 
