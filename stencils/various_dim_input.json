@@ -13,7 +13,7 @@
     "in2d": {
       "data": "stencils/data/zeros_16x16_fp64.dat",
       "data_type": "float64",
-      "dimensions": ["i", "j"]
+      "dimensions": ["i", "k"]
     },
     "in3d": {
       "data": "stencils/data/zeros_16x16x16_fp64.dat",
@@ -31,7 +31,7 @@
   ],
   "program": {
     "out": {
-      "computation_string": "res = in0d + in0d + in1d[k-42] + in1d[k] + in1d[k+42] + in2d[i,j] + in2d[i+1,j] + in2d[i+1,j+1] + in3d[i,j,k] + in3d[i+1,j+1,k+1] + in0d",
+      "computation_string": "res = in0d + in1d[k] + in1d[k+42] + in2d[i, k] + in2d[i+1, k] + in3d[i, j, k] + in3d[i+1, j+1, k+1]",
       "boundary_conditions": {
         "in0d": {
           "type": "constant",

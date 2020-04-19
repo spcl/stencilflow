@@ -379,7 +379,9 @@ class KernelChainGraph:
                 dimensions=self.dimensions,
                 data_type=self.program[kernel]['data_type'],
                 boundary_conditions=self.program[kernel]['boundary_conditions'],
-                vectorization=self.vectorization)
+                raw_inputs=self.inputs,
+                vectorization=self.vectorization,
+            )
             self.graph.add_node(new_node)
             self.kernel_nodes[kernel] = new_node
         # create all input nodes (without data, we will add data in the simulator if necessary)
@@ -473,10 +475,7 @@ class KernelChainGraph:
                     # add latency, internal_buffer, delay_buffer
                     internal_buffer = [0] * 3
                     for item in node.graph.accesses:
-                        internal_buffer = max(
-                            node.graph.accesses[item]) if max(
-                            node.graph.accesses[item]
-                        ) > internal_buffer else internal_buffer
+                        internal_buffer = max(node.graph.accesses[item]) if KernelChainGraph.greater(max(node.graph.accesses[item]), internal_buffer) else internal_buffer
                     # latency
                     latency = self.kernel_nodes[node.name].graph.max_latency
                     # compute delay buffer and create entry
@@ -488,7 +487,7 @@ class KernelChainGraph:
                         delay_buffer = max(node.input_paths[entry][:])
                         # merge them together
                         total = [
-                            i + d
+                            i + d if i is not None else d
                             for i, d in zip(internal_buffer, delay_buffer)
                         ]
                         # add the latency too
@@ -498,6 +497,21 @@ class KernelChainGraph:
                         succ.input_paths[entry].append(total)
                 else:  # NodeType.OUTPUT: do nothing
                     continue
+
+    @staticmethod
+    def greater(a, b):
+        if len(a) == 0 or len(b) == 0:
+            return False
+        elif a[0] is None:
+            return False
+        elif b[0] is None:
+            return True
+        elif a[0] > b[0]:
+            return True
+        elif a[0] < b[0]:
+            return False
+        else:
+            return KernelChainGraph.greater(a[1:], b[1:])
 
     def compute_critical_path_dim(self) -> List[int]:
         """

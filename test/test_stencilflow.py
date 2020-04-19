@@ -249,7 +249,12 @@ class KernelTest(unittest.TestCase):
             boundary_conditions={"a": {
                 "type": "constant",
                 "value": 1.0
-            }})
+            }},
+            raw_inputs= {
+    "a": {
+      "dimensions": ["k", "j", "k"]
+    }}
+        )
         # check if the string matches
         self.assertEqual(
             kernel.generate_relative_access_kernel_string(),
