@@ -418,8 +418,12 @@ def generate_sdfg(name, chain):
                                                   dimensions_to_skip)
 
         if len(stencil_node.output_fields) == 0:
-            warnings.warn("Ignoring stencil with no output: {}".format(
-                node.name))
+            if len(input_to_connector) == 0:
+                warnings.warn("Ignoring orphan stencil: {}".format(
+                    node.name))
+            else:
+                raise ValueError("Orphan stencil with inputs: {}".format(
+                    node.name))
             return
 
         stencil_node.implementation = "FPGA"
