@@ -788,13 +788,14 @@ def split_sdfg(sdfg,
         read_buffer_name = read_split_name + "_buffer"
         sdfg.add_array(read_buffer_name, (read_desc.veclen, ),
                        read_desc.dtype,
-                       storage=dace.dtypes.StorageType.FPGA_Remote,
+                       storage=dace.dtypes.StorageType.FPGA_Local,
                        transient=True)
         read_buffer = read_state.add_access(read_buffer_name)
         nodes_after.add((read_state, read_buffer))
         read_entry, read_exit = read_state.add_map(
             "{}_map".format(read_split_name),
-            {"split": "0:{}".format(num_accesses)})
+            {"split": "0:{}".format(num_accesses)},
+            schedule=dace.dtypes.ScheduleType.FPGA_Device)
         buffer_to_stream = read_state.add_write(read_node.data)
         split_to_buffer_tasklet = read_state.add_tasklet(
             "{}_split_to_buffer".format(read_split_name),
@@ -836,9 +837,10 @@ def split_sdfg(sdfg,
             sdfg.add_stream(port_stream_name,
                             read_desc.dtype,
                             veclen=veclen_split,
-                            storage=dace.dtypes.StorageType.FPGA_Remote)
+                            storage=dace.dtypes.StorageType.FPGA_Remote,
+                            transient=True)
             sdfg.data(port_stream_name).location = {
-                "rcv_rank": receive_rank,
+                "send_rank": send_rank,
                 "port": p
             }
             port_read = read_state.add_read(port_stream_name)
@@ -871,13 +873,14 @@ def split_sdfg(sdfg,
         write_buffer_name = write_split_name + "_buffer"
         sdfg.add_array(write_buffer_name, (write_desc.veclen, ),
                        write_desc.dtype,
-                       storage=dace.dtypes.StorageType.FPGA_Remote,
+                       storage=dace.dtypes.StorageType.FPGA_Local,
                        transient=True)
         write_buffer = write_state.add_access(write_buffer_name)
         nodes_before.add((write_state, write_buffer))
         write_entry, write_exit = write_state.add_map(
             "{}_map".format(write_split_name),
-            {"split": "0:{}".format(num_accesses)})
+            {"split": "0:{}".format(num_accesses)},
+            schedule=dace.dtypes.ScheduleType.FPGA_Device)
         stream_to_buffer = write_state.add_read(write_node.data)
         stream_to_buffer_tasklet = write_state.add_tasklet(
             "{}_stream_to_buffer".format(write_split_name),
@@ -928,9 +931,10 @@ def split_sdfg(sdfg,
             sdfg.add_stream(port_stream_name,
                             write_desc.dtype,
                             veclen=veclen_split,
-                            storage=dace.dtypes.StorageType.FPGA_Remote)
+                            storage=dace.dtypes.StorageType.FPGA_Remote,
+                            transient=True)
             sdfg.data(port_stream_name).location = {
-                "snd_rank": send_rank,
+                "rcv_rank": receive_rank,
                 "port": p
             }
             port_write = write_state.add_write(port_stream_name)
