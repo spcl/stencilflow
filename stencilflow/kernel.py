@@ -63,6 +63,7 @@ class Kernel(BaseKernelNodeClass):
                  dimensions: List[int],
                  data_type: dace.dtypes.typeclass,
                  boundary_conditions: Dict[str, Dict[str, str]],
+                 raw_inputs,
                  vectorization: int = 1,
                  plot_graph: bool = False,
                  verbose: bool = False) -> None:
@@ -81,6 +82,7 @@ class Kernel(BaseKernelNodeClass):
                          data_type)
         # store arguments
         self.kernel_string: str = kernel_string  # raw kernel string input
+        self.raw_inputs = raw_inputs
         self.dimensions: List[
             int] = dimensions  # input array dimensions [dimX, dimY, dimZ]
         self.boundary_conditions: Dict[str, Dict[
@@ -94,7 +96,7 @@ class Kernel(BaseKernelNodeClass):
         self.all_available = False
         self.not_available = set()
         # analyze input
-        self.graph: ComputeGraph = ComputeGraph(vectorization=vectorization)
+        self.graph: ComputeGraph = ComputeGraph(vectorization=vectorization, dimensions=dimensions, raw_inputs=raw_inputs)
         self.graph.generate_graph(kernel_string)  # generate the ast computation graph from the mathematical expression
         self.graph.calculate_latency(
         )  # calculate the latency in the computation tree to find the critical path
@@ -260,14 +262,11 @@ class Kernel(BaseKernelNodeClass):
                     node.index, self.graph.max_index[node.name])
             # break down index from 3D (i.e. [X,Y,Z]) to 1D
             if flatten_index:
-                if node.name in self.input_paths and self.inputs[
-                        node.name]["input_dim"] is not None:
-                    ind = [
-                        x if x in self.inputs[node.name]["input_dim"] else None
-                        for x in stencilflow.ITERATORS
-                    ]
+                # TODO
+                if node.name in self.input_paths and self.inputs[node.name]["input_dim"] is not None:
+                    ind = [x if x in self.inputs[node.name]["input_dim"] else None for x in stencilflow.ITERATORS]
                     num_dim = stencilflow.num_dims(ind)
-                    dim_index = dim_index[len(self.dimensions) - num_dim:]
+                    #dim_index = dim_index[len(self.dimensions) - num_dim:]
                     new_ind, i = list(), 0
                     for entry in ind:
                         if entry is None:
@@ -275,11 +274,8 @@ class Kernel(BaseKernelNodeClass):
                         else:
                             new_ind.append(dim_index[i])
                             i += 1
-                    dim_index = list(
-                        map(lambda x, y: y
-                            if x is not None else None, ind, new_ind))
-                word_index = stencilflow.convert_3d_to_1d(
-                    dimensions=self.dimensions, index=dim_index)
+                    dim_index = dim_index #list(map(lambda x, y: y if x is not None else None, ind, new_ind))
+                word_index = stencilflow.convert_3d_to_1d(dimensions=self.dimensions, index=dim_index)
                 # replace negative sign if the flag is set
                 if replace_negative_index and word_index < 0:
                     return node.name + "[" + "n" + str(abs(word_index)) + "]"
