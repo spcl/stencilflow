@@ -119,7 +119,8 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
         accesses[conn] = (indices, [])
         num_dims = sum(indices, 0)
         for access in access_list:
-            accesses[conn][1].append(tuple(access[len(access)-num_dims:]))
+            accesses[conn][1].append(
+                tuple(a for a, v in zip(access, indices) if v))
 
     # Map output field to output connector
     output_to_connector = collections.OrderedDict(
