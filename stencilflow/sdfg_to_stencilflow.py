@@ -515,7 +515,10 @@ class _RenameTransformer(ast.NodeTransformer):
         return node
 
 
-def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
+def sdfg_to_stencilflow(sdfg,
+                        output_path,
+                        vector_length=1,
+                        data_directory=None):
 
     if not isinstance(sdfg, dace.SDFG):
         sdfg = dace.SDFG.from_file(sdfg)
@@ -529,7 +532,13 @@ def sdfg_to_stencilflow(sdfg, output_path, data_directory=None):
     writes = set()
     global_data = {k for k, v in sdfg.arrays.items() if not v.transient}
 
-    result = {"inputs": {}, "outputs": [], "dimensions": None, "program": {}}
+    result = {
+        "inputs": {},
+        "outputs": [],
+        "dimensions": None,
+        "vectorization": vector_length,
+        "program": {}
+    }
 
     versions = {}  # {field: count}
 
