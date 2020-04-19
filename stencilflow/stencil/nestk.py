@@ -171,8 +171,10 @@ class NestK(Transformation):
         if stencil._code['language'] != dace.Language.Python:
             raise ValueError(
                 'For NestK to work, Stencil code language must be Python')
-        stencil.code = DimensionAdder(add_dims,
-                                      dim_index).visit(stencil.code[0])
+        for i, stmt in enumerate(stencil._code['code_or_block']):
+            stencil._code['code_or_block'][i] = DimensionAdder(
+                add_dims, dim_index).visit(stmt)
+
         stencil.code.as_string = None  # Force regeneration
 
 
