@@ -273,8 +273,6 @@ def generate_sdfg(name, chain):
         # Only vectorize the read if the innermost dimensions is read
         input_vector_length = (vector_length
                                if input_pars[-1] == parameters[-1] else 1)
-        input_iterators = collections.OrderedDict(
-            (k, v) for k, v in iterators.items() if k in input_pars)
 
         # Host-side array, which will be an input argument
         sdfg.add_array(node.name + "_host", input_shape, node.data_type)
@@ -294,7 +292,8 @@ def generate_sdfg(name, chain):
                                   copy_fpga,
                                   memlet=Memlet.simple(
                                       copy_fpga,
-                                      ", ".join(input_iterators.values()),
+                                      ", ".join("0:{}".format(s)
+                                                for s in input_shape),
                                       num_accesses=input_accesses,
                                       veclen=input_vector_length))
 
