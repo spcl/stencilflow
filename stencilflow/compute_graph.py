@@ -69,7 +69,7 @@ class ComputeGraph:
             tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
             tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     """
-    def __init__(self, verbose: bool = False, dimensions=3, vectorization=1) -> None:
+    def __init__(self, verbose: bool = False, dimensions=3, vectorization=1, raw_inputs=set()) -> None:
         """
         Create new ComputeGraph with given initialization parameters.
         :param verbose: flag for console output logging
@@ -78,6 +78,7 @@ class ComputeGraph:
         self.verbose = verbose
         self.dimensions = dimensions
         self.vectorization = vectorization
+        self.raw_inputs = raw_inputs
         # read static parameters from config file
         self.config: Dict[str, int] = helper.parse_json("compute_graph.config")
         # initialize internal data structures
@@ -122,7 +123,7 @@ class ComputeGraph:
             return Output(node, number)
         elif isinstance(node,
                         ast.Subscript):  # array access (form: arr[i,j,k])
-            return Subscript(node, number, self.dimensions)
+            return Subscript(node, number, self.dimensions, self.raw_inputs)
         elif isinstance(node,
                         ast.IfExp):  # if/else clause of ternary operation
             return Ternary(node, number)
@@ -158,18 +159,26 @@ class ComputeGraph:
                 if inp.name not in self.accesses:  # create initial list
                     self.accesses[inp.name] = list()
                 self.accesses[inp.name].append(inp.index)  # add entry
+            if isinstance(inp, Name) and inp.name in self.raw_inputs:  # 0d array
+                self.min_index[inp.name], self.max_index[inp.name] = [0, 0, 0], [0, 0, 0]
+                self.accesses[inp.name] = list()
+                self.accesses[inp.name].append([0, 0, 0])
+
         # set buffer_size = max_index - min_index + (W-1) where W=vectorization
         for buffer_name in self.accesses:
             if buffer_name not in self.min_index:
                 self.buffer_size[buffer_name] = [0] * self.dimensions
             else:
                 self.buffer_size[buffer_name] = [
-                    abs(a_i - b_i)
+                    abs(a_i - b_i) if a_i is not None and b_i is not None else None
                     for a_i, b_i in zip(self.max_index[buffer_name],
                                         self.min_index[buffer_name])
                 ]
             # add vectorization buffer
-            self.buffer_size[buffer_name][2] += (self.vectorization - 1)
+            if self.buffer_size[buffer_name][2] is not None:
+                self.buffer_size[buffer_name][2] += (self.vectorization - 1)
+            else:
+                self.buffer_size[buffer_name][2] = (self.vectorization - 1)
 
         # update access to have [0,0,0] for the max_index (subtract it from all)
         if not relative_to_center:
