@@ -419,8 +419,7 @@ def generate_sdfg(name, chain):
 
         if len(stencil_node.output_fields) == 0:
             if len(input_to_connector) == 0:
-                warnings.warn("Ignoring orphan stencil: {}".format(
-                    node.name))
+                warnings.warn("Ignoring orphan stencil: {}".format(node.name))
             else:
                 raise ValueError("Orphan stencil with inputs: {}".format(
                     node.name))
@@ -555,10 +554,7 @@ def generate_reference(name, chain):
     for link in chain.graph.edges(data=True):
         name = link[0].name
         if name not in sdfg.arrays:
-            sdfg.add_array(name,
-                           shape,
-                           link[0].data_type,
-                           transient=True)
+            sdfg.add_array(name, shape, link[0].data_type, transient=True)
             input_shapes[name] = tuple(shape)
 
     input_iterators = {
@@ -689,14 +685,40 @@ def _remove_nodes_and_states(sdfg, states_to_keep, nodes_to_keep):
                     state.remove_node(node)
 
 
-def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
+def _num_channels_needed(desc, bytes_per_channel, ports):
+    data_width = desc.veclen * dace.dtypes._BYTES[desc.dtype.type]
+    if bytes_per_channel is None:
+        return data_width, 1
+    if data_width <= bytes_per_channel:
+        return data_width, 1
+    num_streams = int(np.ceil(data_width / bytes_per_channel))
+    print("Using {} parallel streams to transmit data.".format(num_streams))
+    try:
+        num_ports = len(ports)
+    except TypeError:
+        num_ports = 1
+    if num_ports != num_streams:
+        raise ValueError("{} port numbers required, got {}.".format(
+            num_streams, num_ports))
+    if desc.veclen % num_streams != 0:
+        raise ValueError("Can only split into even chunks.")
+    return data_width, num_streams
+
+
+def split_sdfg(sdfg,
+               remote_stream,
+               send_rank,
+               receive_rank,
+               ports,
+               bytes_per_channel=None):
     """Split the input SDFG into two SDFGs connected by remote streams,
        to be executed in a multi-FPGA setup using SMI.
         :param sdfg: SDFG to split into two SDFGs.
         :param remote_stream: Stream data name (not node) to split on
         :param send_rank: Rank that will send
         :param receive_rank: Rank that will receive
-        :param port: Port identifier
+        :param ports: One or more port identifiers
+        :param bytes_per_channel: Maximum bytes to write on a channel per cycle.
         :return: The two resulting SDFGs
     """
 
@@ -740,21 +762,146 @@ def split_sdfg(sdfg, remote_stream, send_rank, receive_rank, port):
             "Node does not perfectly split SDFG, intersection is: {}".format(
                 intersection))
 
-    # Turn splitting stream into remote access nodes
-    sdfg.data(read_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
-    sdfg.data(read_node.data).location["snd_rank"] = send_rank
-    sdfg.data(read_node.data).location["port"] = port
-    sdfg.data(write_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
-    sdfg.data(write_node.data).location["rcv_rank"] = receive_rank
-    sdfg.data(write_node.data).location["port"] = port
+    read_desc = sdfg.data(read_node.data)
+    write_desc = sdfg.data(write_node.data)
+
+    data_width, num_channels = _num_channels_needed(read_desc,
+                                                    bytes_per_channel, ports)
+    veclen_split = read_desc.veclen // num_channels
+
+    if num_channels == 1:
+        # Turn splitting stream into remote access nodes
+        sdfg.data(read_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
+        sdfg.data(read_node.data).location["snd_rank"] = send_rank
+        sdfg.data(read_node.data).location["port"] = ports
+        sdfg.data(
+            write_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
+        sdfg.data(write_node.data).location["rcv_rank"] = receive_rank
+        sdfg.data(write_node.data).location["port"] = ports
+    else:
+        #######################################################################
+        # Reading part
+        #######################################################################
+        num_accesses = sum(
+            (e.data.num_accesses
+             for e in read_state.out_edges(read_node)), 0) // read_desc.veclen
+        read_split_name = read_node.data + "__read_split"
+        read_entry, read_exit = read_state.add_map(
+            "{}_map".format(read_split_name),
+            {"split": "0:{}".format(num_accesses)},
+            schedule=dace.dtypes.ScheduleType.FPGA_Device)
+        buffer_to_stream = read_state.add_write(read_node.data)
+        code = ""
+        for i, p in enumerate(ports):
+            for v in range(veclen_split):
+                code += "_{}[{}] = _port_{}[{}];\n".format(
+                    read_node.data, i * veclen_split + v, p, v)
+        read_gearbox_tasklet = read_state.add_tasklet(
+            "{}_gearbox".format(read_split_name),
+            {"_port_{}".format(p) for p in ports},
+            {"_{}".format(read_node.data)}, code)
+        nodes_after |= {(read_state, read_entry),
+                        (read_state, read_exit),
+                        (read_state, buffer_to_stream),
+                        (read_state, read_gearbox_tasklet)}
+        for i, p in enumerate(ports):
+            port_stream_name = "{}_port_{}".format(read_split_name, p)
+            sdfg.add_stream(port_stream_name,
+                            read_desc.dtype,
+                            veclen=veclen_split,
+                            storage=dace.dtypes.StorageType.FPGA_Remote,
+                            transient=True)
+            sdfg.data(port_stream_name).location = {
+                "snd_rank": send_rank,
+                "rcv_rank": receive_rank,
+                "port": p
+            }
+            port_read = read_state.add_read(port_stream_name)
+            nodes_after.add((read_state, port_read))
+            read_state.add_memlet_path(
+                port_read,
+                read_entry,
+                read_gearbox_tasklet,
+                dst_conn="_port_{}".format(p),
+                memlet=dace.Memlet.simple(port_read.data,
+                                          "0",
+                                          veclen=veclen_split,
+                                          num_accesses=1))
+        # Tasklet to stream
+        read_state.add_memlet_path(
+            read_gearbox_tasklet,
+            read_exit,
+            buffer_to_stream,
+            src_conn="_{}".format(buffer_to_stream.data),
+            memlet=dace.Memlet.simple(buffer_to_stream.data,
+                                      "0",
+                                      veclen=read_desc.veclen,
+                                      num_accesses=1))
+        #######################################################################
+        # Writing part
+        #######################################################################
+        num_accesses = sum(
+            (e.data.num_accesses for e in write_state.in_edges(write_node)),
+            0) // write_desc.veclen
+        write_split_name = write_node.data + "__write_split"
+        write_entry, write_exit = write_state.add_map(
+            "{}_map".format(write_split_name),
+            {"split": "0:{}".format(num_accesses)},
+            schedule=dace.dtypes.ScheduleType.FPGA_Device)
+        stream_to_buffer = write_state.add_read(write_node.data)
+        code = ""
+        for i, p in enumerate(ports):
+            for v in range(veclen_split):
+                code += "_port_{}[{}] = _{}[{}];\n".format(
+                    p, v, write_node.data, i * veclen_split + v)
+        write_gearbox_tasklet = write_state.add_tasklet(
+            "{}_gearbox".format(write_split_name),
+            {"_{}".format(write_node.data)},
+            {"_port_{}".format(p)
+             for p in ports}, code)
+        nodes_before |= {(write_state, write_entry), (write_state, write_exit),
+                         (write_state, stream_to_buffer),
+                         (write_state, write_gearbox_tasklet)}
+        # Stream to tasklet
+        write_state.add_memlet_path(stream_to_buffer,
+                                    write_entry,
+                                    write_gearbox_tasklet,
+                                    dst_conn="_{}".format(write_node.data),
+                                    memlet=dace.Memlet.simple(
+                                        stream_to_buffer.data,
+                                        "0",
+                                        veclen=write_desc.veclen,
+                                        num_accesses=1))
+        for i, p in enumerate(ports):
+            port_stream_name = "{}_port_{}".format(write_split_name, p)
+            sdfg.add_stream(port_stream_name,
+                            write_desc.dtype,
+                            veclen=veclen_split,
+                            storage=dace.dtypes.StorageType.FPGA_Remote,
+                            transient=True)
+            sdfg.data(port_stream_name).location = {
+                "snd_rank": send_rank,
+                "rcv_rank": receive_rank,
+                "port": p
+            }
+            port_write = write_state.add_write(port_stream_name)
+            nodes_before.add((write_state, port_write))
+            write_state.add_memlet_path(write_gearbox_tasklet,
+                                        write_exit,
+                                        port_write,
+                                        src_conn="_port_{}".format(p),
+                                        memlet=dace.Memlet.simple(
+                                            port_write.data,
+                                            "0",
+                                            veclen=veclen_split))
 
     # Now duplicate the SDFG, and remove all nodes that don't belong in the
     # respectively side of the split
     name = sdfg.name
     sdfg_before = copy.deepcopy(sdfg)
     sdfg_after = copy.deepcopy(sdfg)
-    sdfg_before._name = name + "_before"
-    sdfg_after._name = name + "_after"
+    sdfg_before._name = name
+    sdfg_after._name = name
     nodes_before = set(
         (sdfg.node_id(s), s.node_id(n)) for s, n in nodes_before)
     nodes_after = set((sdfg.node_id(s), s.node_id(n)) for s, n in nodes_after)

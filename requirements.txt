@@ -6,3 +6,4 @@ pydot
 matplotlib
 pytest
 astunparse
+mpi4py
