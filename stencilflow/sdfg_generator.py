@@ -801,10 +801,11 @@ def split_sdfg(sdfg,
                     read_node.data, i * veclen_split + v, p, v)
         read_gearbox_tasklet = read_state.add_tasklet(
             "{}_gearbox".format(read_split_name),
-            {"_port_{}".format(p) for p in ports},
-            {"_{}".format(read_node.data)}, code)
-        nodes_after |= {(read_state, read_entry),
-                        (read_state, read_exit),
+            {"_port_{}".format(p)
+             for p in ports}, {"_{}".format(read_node.data)},
+            code,
+            language=dace.dtypes.Language.CPP)
+        nodes_after |= {(read_state, read_entry), (read_state, read_exit),
                         (read_state, buffer_to_stream),
                         (read_state, read_gearbox_tasklet)}
         for i, p in enumerate(ports):
@@ -821,15 +822,15 @@ def split_sdfg(sdfg,
             }
             port_read = read_state.add_read(port_stream_name)
             nodes_after.add((read_state, port_read))
-            read_state.add_memlet_path(
-                port_read,
-                read_entry,
-                read_gearbox_tasklet,
-                dst_conn="_port_{}".format(p),
-                memlet=dace.Memlet.simple(port_read.data,
-                                          "0",
-                                          veclen=veclen_split,
-                                          num_accesses=1))
+            read_state.add_memlet_path(port_read,
+                                       read_entry,
+                                       read_gearbox_tasklet,
+                                       dst_conn="_port_{}".format(p),
+                                       memlet=dace.Memlet.simple(
+                                           port_read.data,
+                                           "0",
+                                           veclen=veclen_split,
+                                           num_accesses=1))
         # Tasklet to stream
         read_state.add_memlet_path(
             read_gearbox_tasklet,
@@ -861,7 +862,9 @@ def split_sdfg(sdfg,
             "{}_gearbox".format(write_split_name),
             {"_{}".format(write_node.data)},
             {"_port_{}".format(p)
-             for p in ports}, code)
+             for p in ports},
+            code,
+            language=dace.dtypes.Language.CPP)
         nodes_before |= {(write_state, write_entry), (write_state, write_exit),
                          (write_state, stream_to_buffer),
                          (write_state, write_gearbox_tasklet)}
