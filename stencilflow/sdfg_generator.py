@@ -537,7 +537,10 @@ def generate_reference(name, chain):
         if isinstance(node, Input) or isinstance(node, Output):
             if isinstance(node, Input):
                 for output in node.outputs.values():
-                    pars = tuple(output["input_dim"])
+                    pars = tuple(
+                        output["input_dim"]
+                    ) if "input_dim" in output and output[
+                        "input_dim"] is not None else tuple(parameters)
                     arr_shape = tuple(s for s, p in zip(shape, parameters)
                                       if p in pars)
                     input_shapes[node.name] = arr_shape
