@@ -840,7 +840,8 @@ def split_sdfg(sdfg,
                             storage=dace.dtypes.StorageType.FPGA_Remote,
                             transient=True)
             sdfg.data(port_stream_name).location = {
-                "send_rank": send_rank,
+                "snd_rank": send_rank,
+                "rcv_rank": receive_rank,
                 "port": p
             }
             port_read = read_state.add_read(port_stream_name)
@@ -906,6 +907,7 @@ def split_sdfg(sdfg,
                             storage=dace.dtypes.StorageType.FPGA_Remote,
                             transient=True)
             sdfg.data(port_stream_name).location = {
+                "snd_rank": send_rank,
                 "rcv_rank": receive_rank,
                 "port": p
             }
