@@ -66,7 +66,7 @@ from stencilflow.stencil.fpga import make_iterators
 
 import networkx as nx
 
-MINIMUM_CHANNEL_DEPTH = 32
+MINIMUM_CHANNEL_DEPTH = 1024
 
 
 def _generate_init(chain):
@@ -237,7 +237,7 @@ def _add_pipe(sdfg, edge, parameters, vector_length):
         veclen=vector_length)
 
 
-def generate_sdfg(name, chain):
+def generate_sdfg(name, chain, synthetic_reads=False):
     sdfg = SDFG(name)
 
     for k, v in chain.constants.items():
@@ -275,56 +275,70 @@ def generate_sdfg(name, chain):
         input_vector_length = (vector_length
                                if input_pars[-1] == parameters[-1] else 1)
 
-        # Host-side array, which will be an input argument
-        sdfg.add_array(node.name + "_host", input_shape, node.data_type)
-
-        # Device-side copy
-        sdfg.add_array(node.name,
-                       input_shape,
-                       node.data_type,
-                       storage=StorageType.FPGA_Global,
-                       transient=True)
-        access_node = state.add_read(node.name)
-
-        # Copy data to the FPGA
-        copy_host = pre_state.add_read(node.name + "_host")
-        copy_fpga = pre_state.add_write(node.name)
-        pre_state.add_memlet_path(copy_host,
-                                  copy_fpga,
-                                  memlet=Memlet.simple(
-                                      copy_fpga,
-                                      ", ".join("0:{}".format(s)
-                                                for s in input_shape),
-                                      num_accesses=input_accesses,
-                                      veclen=input_vector_length))
-
-        entry, exit = state.add_map("read_" + node.name,
-                                    iterators,
-                                    schedule=ScheduleType.FPGA_Device)
-
         # Sort to get deterministic output
         outputs = sorted([e[1].name for e in chain.graph.out_edges(node)])
 
         out_memlets = ["_" + o for o in outputs]
 
-        tasklet_code = "\n".join(
-            ["{} = memory".format(o) for o in out_memlets])
+        entry, exit = state.add_map("read_" + node.name,
+                                    iterators,
+                                    schedule=ScheduleType.FPGA_Device)
 
-        tasklet = state.add_tasklet("read_" + node.name, {"memory"},
-                                    out_memlets, tasklet_code)
+        if not synthetic_reads:  # Generate synthetic inputs without memory
 
-        vectorized_pars = input_pars
-        if input_vector_length > 1:
-            vectorized_pars[-1] = "{}*{}".format(input_vector_length,
-                                                 vectorized_pars[-1])
-        state.add_memlet_path(access_node,
-                              entry,
-                              tasklet,
-                              dst_conn="memory",
-                              memlet=Memlet.simple(node.name,
-                                                   ", ".join(vectorized_pars),
-                                                   num_accesses=1,
-                                                   veclen=input_vector_length))
+            # Host-side array, which will be an input argument
+            sdfg.add_array(node.name + "_host", input_shape, node.data_type)
+
+            # Device-side copy
+            sdfg.add_array(node.name,
+                           input_shape,
+                           node.data_type,
+                           storage=StorageType.FPGA_Global,
+                           transient=True)
+            access_node = state.add_read(node.name)
+
+            # Copy data to the FPGA
+            copy_host = pre_state.add_read(node.name + "_host")
+            copy_fpga = pre_state.add_write(node.name)
+            pre_state.add_memlet_path(copy_host,
+                                      copy_fpga,
+                                      memlet=Memlet.simple(
+                                          copy_fpga,
+                                          ", ".join("0:{}".format(s)
+                                                    for s in input_shape),
+                                          num_accesses=input_accesses,
+                                          veclen=input_vector_length))
+
+            tasklet_code = "\n".join(
+                ["{} = memory".format(o) for o in out_memlets])
+
+            tasklet = state.add_tasklet("read_" + node.name, {"memory"},
+                                        out_memlets, tasklet_code)
+
+            vectorized_pars = input_pars
+            if input_vector_length > 1:
+                vectorized_pars[-1] = "{}*{}".format(input_vector_length,
+                                                     vectorized_pars[-1])
+            state.add_memlet_path(access_node,
+                                  entry,
+                                  tasklet,
+                                  dst_conn="memory",
+                                  memlet=Memlet.simple(node.name,
+                                                       ", ".join(vectorized_pars),
+                                                       num_accesses=1,
+                                                       veclen=input_vector_length))
+
+        else:
+
+            tasklet_code = "\n".join([
+                "{} = {}".format(o, float(synthetic_reads))
+                for o in out_memlets
+            ])
+
+            tasklet = state.add_tasklet("read_" + node.name, {},
+                                        out_memlets, tasklet_code)
+
+            state.add_memlet_path(entry, tasklet, memlet=dace.EmptyMemlet())
 
         # Add memlets to all FIFOs connecting to compute units
         for out_name, out_memlet in zip(outputs, out_memlets):

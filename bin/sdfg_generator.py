@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("sdfg_output", help="Output SDFG file (.sdfg)")
     parser.add_argument("--plot-graph", dest="plot-graph", action="store_true")
     parser.add_argument("--cpu-sdfg", dest="cpu-sdfg", action="store_true")
+    parser.add_argument("--synthetic-reads", type=float, default=None)
     parser.add_argument("--expand", dest="expand", action="store_true")
     parser.add_argument(
         "--compile",
@@ -37,9 +38,11 @@ if __name__ == "__main__":
         chain.plot_graph(name + ".pdf")
 
     if getattr(args, "cpu-sdfg"):
-        sdfg = generate_sdfg_cpu(name, chain)
+        sdfg = generate_sdfg_cpu(name,
+                                 chain,
+                                 synthetic_reads=args.synthetic_reads)
     else:
-        sdfg = generate_sdfg(name, chain)
+        sdfg = generate_sdfg(name, chain, synthetic_reads=args.synthetic_reads)
 
     if args.expand:
         sdfg.expand_library_nodes()
