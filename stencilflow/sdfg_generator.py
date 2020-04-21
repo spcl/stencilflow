@@ -319,14 +319,65 @@ def generate_sdfg(name, chain, synthetic_reads=False):
             if input_vector_length > 1:
                 vectorized_pars[-1] = "{}*{}".format(input_vector_length,
                                                      vectorized_pars[-1])
-            state.add_memlet_path(access_node,
-                                  entry,
-                                  tasklet,
-                                  dst_conn="memory",
-                                  memlet=Memlet.simple(node.name,
-                                                       ", ".join(vectorized_pars),
-                                                       num_accesses=1,
-                                                       veclen=input_vector_length))
+
+            # Lower-dimensional arrays should buffer values and send them
+            # multiple times
+            is_lower_dim = len(input_shape) != len(shape)
+            if is_lower_dim:
+                buffer_name = node.name + "_buffer"
+                sdfg.add_array(buffer_name,
+                               input_shape,
+                               node.data_type,
+                               storage=StorageType.FPGA_Local,
+                               transient=True)
+                buffer_node = state.add_access(buffer_name)
+                buffer_entry, buffer_exit = state.add_map(
+                    "buffer_" + node.name, {
+                        k: "0:{}".format(v)
+                        for k, v in zip(input_pars, input_shape)
+                    },
+                    schedule=dace.ScheduleType.FPGA_Device)
+                buffer_tasklet = state.add_tasklet("buffer_" + node.name,
+                                                   {"memory"}, {"buffer"},
+                                                   "buffer = memory")
+                state.add_memlet_path(access_node,
+                                      buffer_entry,
+                                      buffer_tasklet,
+                                      dst_conn="memory",
+                                      memlet=dace.Memlet.simple(
+                                          access_node.data,
+                                          ", ".join(vectorized_pars),
+                                          num_accesses=1,
+                                          veclen=input_vector_length))
+                state.add_memlet_path(buffer_tasklet,
+                                      buffer_exit,
+                                      buffer_node,
+                                      src_conn="buffer",
+                                      memlet=dace.Memlet.simple(
+                                          buffer_node.data,
+                                          ", ".join(input_pars),
+                                          num_accesses=1,
+                                          veclen=input_vector_length))
+                state.add_memlet_path(buffer_node,
+                                      entry,
+                                      tasklet,
+                                      dst_conn="memory",
+                                      memlet=dace.Memlet.simple(
+                                          buffer_node.data,
+                                          ", ".join(input_pars),
+                                          num_accesses=1,
+                                          veclen=input_vector_length))
+            else:
+
+                state.add_memlet_path(access_node,
+                                      entry,
+                                      tasklet,
+                                      dst_conn="memory",
+                                      memlet=Memlet.simple(
+                                          node.name,
+                                          ", ".join(vectorized_pars),
+                                          num_accesses=1,
+                                          veclen=input_vector_length))
 
         else:
 
