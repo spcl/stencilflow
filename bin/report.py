@@ -49,5 +49,5 @@ print("Number of memory accesses per cycle: {} operands".format(
     sum(vector_length if len(i["input_dim"]) == len(shape) else 1
         for i in chain.inputs.values()) + vector_length * len(chain.outputs)))
 print("Lower bound communication volume: {} MB".format(1e-6 * min_comm_volume))
-print("Upper bound bandwidth: {} GB/s".format(
+print("Required bandwidth: {} GB/s".format(
     1e-9 * min_comm_volume / (min_runtime / (1e6 * args.frequency))))
