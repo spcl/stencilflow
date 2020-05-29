@@ -74,7 +74,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 continue
             # Find the corresponding input memlets
             for e in in_edges:
-                if e.dst_connector == field_name:
+                if e.dst_conn == field_name:
                     field_to_memlet[field_name] = e
                     field_to_data[field_name] = dace.sdfg.find_input_arraynode(
                         parent_state, e).data
@@ -101,7 +101,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         # Find output connectors
         for field_name, offset in node.output_fields.items():
             for e in parent_state.out_edges(node):
-                if e.src_connector == field_name:
+                if e.src_conn == field_name:
                     field_to_data[
                         field_name] = dace.sdfg.find_output_arraynode(
                             parent_state, e).data
@@ -155,7 +155,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         # Manually add pipeline entry and exit nodes
         pipeline_range = dace.properties.SubsetProperty.from_string(', '.join(
             iterators.values()))
-        pipeline = dace.codegen.targets.fpga.Pipeline(
+        pipeline = dace.sdfg.nodes.Pipeline(
             "compute_" + node.label,
             list(iterators.keys()),
             pipeline_range,
@@ -165,14 +165,14 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             init_overlap=False,
             drain_size=init_size_max,
             drain_overlap=True)
-        entry = dace.codegen.targets.fpga.PipelineEntry(pipeline)
-        exit = dace.codegen.targets.fpga.PipelineExit(pipeline)
+        entry = dace.sdfg.nodes.PipelineEntry(pipeline)
+        exit = dace.sdfg.nodes.PipelineExit(pipeline)
         state.add_nodes_from([entry, exit])
 
         # Add nested SDFG to do 1) shift buffers 2) read from input 3) compute
         nested_sdfg = dace.SDFG(node.label + "_inner", parent=state)
         nested_sdfg._parent_sdfg = sdfg  # TODO: This should not be necessary
-        nested_sdfg_tasklet = dace.graph.nodes.NestedSDFG(
+        nested_sdfg_tasklet = dace.sdfg.nodes.NestedSDFG(
             nested_sdfg.label,
             nested_sdfg,
             # Input connectors
@@ -305,9 +305,9 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
         # Connect the three nested states
         nested_sdfg.add_edge(shift_state, update_state,
-                             dace.graph.edges.InterstateEdge())
+                             dace.sdfg.InterstateEdge())
         nested_sdfg.add_edge(update_state, compute_state,
-                             dace.graph.edges.InterstateEdge())
+                             dace.sdfg.InterstateEdge())
 
         # First, grab scalar variables
         for scalar, scalar_type in scalars.items():
@@ -317,7 +317,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                                  init_sizes):
 
             data_name = field_to_data[field_name]
-            connector = field_to_memlet[field_name].dst_connector
+            connector = field_to_memlet[field_name].dst_conn
 
             # Outer memory read
             stream_name_outer = connector

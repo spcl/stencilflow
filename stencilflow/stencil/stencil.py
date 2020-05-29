@@ -34,7 +34,7 @@ class Stencil(dace.library.LibraryNode):
         default=collections.OrderedDict())
     code = dace.properties.CodeProperty(
         desc="Stencil code using all inputs to produce all outputs",
-        default="")
+        default=dace.properties.CodeBlock(""))
 
 
     def __init__(self,

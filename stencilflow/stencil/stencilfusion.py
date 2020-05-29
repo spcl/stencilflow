@@ -8,7 +8,7 @@ import warnings
 
 from dace import registry, sdfg as sd, symbolic
 from dace.properties import make_properties
-from dace.graph import nodes, nxutil, labeling
+from dace.sdfg import nodes, utils
 from stencilflow.stencil.stencil import Stencil
 
 
@@ -36,9 +36,9 @@ class StencilFusion(Transformation):
     @staticmethod
     def expressions():
         return [
-            nxutil.node_path_graph(StencilFusion._stencil_a,
-                                   StencilFusion._tmp_array,
-                                   StencilFusion._stencil_b)
+            utils.node_path_graph(StencilFusion._stencil_a,
+                                  StencilFusion._tmp_array,
+                                  StencilFusion._stencil_b)
         ]
 
     @staticmethod

@@ -8,7 +8,7 @@ import warnings
 
 from dace import registry, sdfg as sd, symbolic
 from dace.properties import make_properties
-from dace.graph import nodes, nxutil, labeling
+from dace.sdfg import nodes, utils, propagation
 from stencilflow.stencil.stencil import Stencil
 
 
@@ -49,7 +49,7 @@ class NestK(Transformation):
 
     @staticmethod
     def expressions():
-        return [nxutil.node_path_graph(NestK._map_entry, NestK._stencil)]
+        return [utils.node_path_graph(NestK._map_entry, NestK._stencil)]
 
     @staticmethod
     def match_to_str(graph, candidate):
@@ -136,16 +136,16 @@ class NestK(Transformation):
             # Find matching internal edges
             tree = graph.memlet_tree(edge)
             for child in tree.children:
-                memlet = labeling.propagate_memlet(graph, child.edge.data,
-                                                   map_entry, False)
+                memlet = propagation.propagate_memlet(graph, child.edge.data,
+                                                      map_entry, False)
                 graph.add_edge(edge.src, edge.src_conn, stencil,
                                child.edge.dst_conn, memlet)
         for edge in graph.out_edges(map_exit):
             # Find matching internal edges
             tree = graph.memlet_tree(edge)
             for child in tree.children:
-                memlet = labeling.propagate_memlet(graph, child.edge.data,
-                                                   map_entry, False)
+                memlet = propagation.propagate_memlet(graph, child.edge.data,
+                                                      map_entry, False)
                 graph.add_edge(stencil, child.edge.src_conn, edge.dst,
                                edge.dst_conn, memlet)
 

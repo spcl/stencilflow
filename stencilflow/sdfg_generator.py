@@ -51,7 +51,7 @@ import warnings
 import dace
 import dace.codegen.targets.fpga
 import numpy as np
-from dace.graph.edges import InterstateEdge
+from dace.sdfg.sdfg import InterstateEdge
 from dace.memlet import Memlet
 from dace.sdfg import SDFG
 from dace.dtypes import ScheduleType, StorageType, Language
@@ -386,8 +386,8 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                 for o in out_memlets
             ])
 
-            tasklet = state.add_tasklet("read_" + node.name, {},
-                                        out_memlets, tasklet_code)
+            tasklet = state.add_tasklet("read_" + node.name, {}, out_memlets,
+                                        tasklet_code)
 
             state.add_memlet_path(entry, tasklet, memlet=dace.EmptyMemlet())
 
