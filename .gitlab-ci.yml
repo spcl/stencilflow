@@ -9,7 +9,10 @@ test:
   script:
     - source /opt/intelFPGA_pro/19.1/hld/init_opencl.sh
     - source /opt/rh/devtoolset-6/enable
-    - source setup_virtualenv.sh
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install --user -r requirements.txt
+    - pip install --user --editable dace
     - python test/test_stencilflow.py
 
 test_distributed:
@@ -18,6 +21,9 @@ test_distributed:
     - export PYTHONPATH=$(pwd)/dace:$PYTHONPATH
     - source /opt/intelFPGA_pro/19.1/hld/init_stratix.sh
     - source /opt/rh/llvm-toolset-7.0/enable
-    - source setup_virtualenv.sh
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install --user -r requirements.txt
+    - pip install --user --editable dace
     - test/test_distributed_program.sh
 
