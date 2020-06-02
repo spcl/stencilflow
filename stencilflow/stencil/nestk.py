@@ -129,7 +129,7 @@ class NestK(Transformation):
                     break
         ###
 
-        map_exit = graph.exit_nodes(map_entry)[0]
+        map_exit = graph.exit_node(map_entry)
 
         # Reconnect external edges directly to stencil node
         for edge in graph.in_edges(map_entry):
@@ -168,14 +168,12 @@ class NestK(Transformation):
                     add_dims.add(edge.src_conn)
                 stencil.output_fields[edge.src_conn][0][dim_index] = True
         # Change all instances in the code as well
-        if stencil._code['language'] != dace.Language.Python:
+        if stencil.code.language != dace.Language.Python:
             raise ValueError(
                 'For NestK to work, Stencil code language must be Python')
-        for i, stmt in enumerate(stencil._code['code_or_block']):
-            stencil._code['code_or_block'][i] = DimensionAdder(
+        for i, stmt in enumerate(stencil.code.code):
+            stencil.code.code[i] = DimensionAdder(
                 add_dims, dim_index).visit(stmt)
-
-        stencil.code.as_string = None  # Force regeneration
 
 
 if __name__ == '__main__':
