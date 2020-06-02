@@ -13,7 +13,7 @@
 	"dimensions": [3, 3],
 	"program": {
 		"kernelA": {
-			"computation_string": "res = arrA[j,k] + arrB[j,k]",
+			"computation_string": "kernelA = arrA[j,k] + arrB[j,k]",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -27,7 +27,7 @@
 			"data_type": "float64"
 		},
 		"kernelB": {
-			"computation_string": "res = kernelA[j,k] * 2.0",
+			"computation_string": "kernelB = kernelA[j,k] * 2.0",
 			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
@@ -37,7 +37,7 @@
 			"data_type": "float64"
 		},
 		"kernelC": {
-			"computation_string": "res = kernelB[j-1,k] + kernelB[j,k-1] + kernelB[j,k] + kernelB[j,k+1] + kernelB[j+1,k]",
+			"computation_string": "kernelC = kernelB[j-1,k] + kernelB[j,k-1] + kernelB[j,k] + kernelB[j,k+1] + kernelB[j+1,k]",
 			"boundary_conditions": {
 				"kernelB": {
 					"type": "constant",

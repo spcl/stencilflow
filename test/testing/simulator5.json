@@ -9,7 +9,7 @@
 	"dimensions": [3, 3],
 	"program": {
 		"kernelA": {
-			"computation_string": "res = arrA[j-1,k] + arrA[j,k-1] + arrA[j,k] + arrA[j,k+1] + arrA[j+1,k]",
+			"computation_string": "kernelA = arrA[j-1,k] + arrA[j,k-1] + arrA[j,k] + arrA[j,k+1] + arrA[j+1,k]",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -19,7 +19,7 @@
 			"data_type": "float64"
 		},
 		"kernelB": {
-			"computation_string": "res = kernelA[j,k] + 1.0",
+			"computation_string": "kernelB = kernelA[j,k] + 1.0",
 			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",

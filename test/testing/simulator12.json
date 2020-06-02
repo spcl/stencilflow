@@ -23,7 +23,7 @@
 	"dimensions": [3, 3, 3],
 	"program": {
 		"kernelA": {
-			"computation_string": "res = arrA[i,j,k] + arrA[i,j,k] + arrB[i,j,k-1] + arrB[i,j,k] + arrB[i+1,j+1,k+1]",
+			"computation_string": "kernelA = arrA[i,j,k] + arrA[i,j,k] + arrB[i,j,k-1] + arrB[i,j,k] + arrB[i+1,j+1,k+1]",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -37,7 +37,7 @@
 			"data_type": "float64"
 		},
 		"kernelB": {
-			"computation_string": "res = arrA[i,j,k] if arrA[i,j,k] > 0.0 else (kernelA[i,j,k] + kernelA[i,j,k+1] + kernelA[i,j,k+2] + kernelA[i,j+1,k] + kernelA[i,j+1,k+1] + kernelA[i,j,k-1] + kernelA[i,j-1,k])",
+			"computation_string": "kernelB = arrA[i,j,k] if arrA[i,j,k] > 0.0 else (kernelA[i,j,k] + kernelA[i,j,k+1] + kernelA[i,j,k+2] + kernelA[i,j+1,k] + kernelA[i,j+1,k+1] + kernelA[i,j,k-1] + kernelA[i,j-1,k])",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -51,7 +51,7 @@
 			"data_type": "float64"
 		},
 		"kernelC": {
-			"computation_string": "res = arrC[i,j,k] + (2.25 * kernelB[i,j,k]) + kernelB[i,j+1,k] + kernelB[i,j+1,k] + kernelB[i,j+1,k+1] + kernelB[i,j+1,k]",
+			"computation_string": "kernelC = arrC[i,j,k] + (2.25 * kernelB[i,j,k]) + kernelB[i,j+1,k] + kernelB[i,j+1,k] + kernelB[i,j+1,k+1] + kernelB[i,j+1,k]",
 			"boundary_conditions": {
 				"arrC": {
 					"type": "constant",
@@ -65,7 +65,7 @@
 			"data_type": "float64"
 		},
         "kernelD": {
-			"computation_string": "res = kernelA[i,j,k] + kernelB[i,j,k]",
+			"computation_string": "kernelD = kernelA[i,j,k] + kernelB[i,j,k]",
 			"boundary_conditions": {
 				"kernelA": {
 					"type": "constant",
@@ -79,7 +79,7 @@
 			"data_type": "float64"
 		},
 		"kernelE": {
-			"computation_string": "res = kernelD[i,j,k] + arrB[i,j,k]",
+			"computation_string": "kernelE = kernelD[i,j,k] + arrB[i,j,k]",
 			"boundary_conditions": {
 				"arrB": {
 					"type": "constant",

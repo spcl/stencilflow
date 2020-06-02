@@ -9,7 +9,7 @@
 	"dimensions": [3, 3],
 	"program": {
 		"kA": {
-			"computation_string": "res = arrA[j,k] + 1.0",
+			"computation_string": "kA = arrA[j,k] + 1.0",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
@@ -19,7 +19,7 @@
 			"data_type": "float64"
 		},
       "kB": {
-			"computation_string": "res = kA[j,k-100] + kA[j,k+2]",
+			"computation_string": "kB = kA[j,k-100] + kA[j,k+2]",
 			"boundary_conditions": {
 				"kA": {
 					"type": "constant",
