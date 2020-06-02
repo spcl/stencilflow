@@ -29,11 +29,14 @@ for name, (count, count_total) in operations.items():
     if vector_length == 1:
         print("Operations per cycle multiplied by vector length {}".format(
             vector_length))
-    count *= vector_length
-    print("{}: {} per cycle ({} for program)".format(name, count, count_total))
+    print("{}: {}{} per cycle ({} for program)".format(
+        name, "{}*".format(vector_length) if vector_length != 1 else "", count,
+        count_total))
     op_sum += count
     op_sum_total += count_total
-print("Total: {} per cycle ({} for program)".format(op_sum, op_sum_total))
+print("Total: {}{} per cycle ({} for program)".format(
+    "{}*".format(vector_length) if vector_length != 1 else "", op_sum,
+    op_sum_total))
 print("Upper bound on performance at {} MHz: {} GOp/s".format(
     args.frequency, 1e-9 * op_sum_total / min_runtime * args.frequency * 1e6))
 print("Peak performance at {} MHz: {} GOp/s".format(

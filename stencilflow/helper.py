@@ -374,6 +374,13 @@ class OpCounter(ast.NodeVisitor):
             self._operation_count[op_name] += 1
         self.generic_visit(node)
 
+    def visit_Call(self, node: ast.Call):
+        op_name = node.func.id
+        if op_name not in self._operation_count:
+            self._operation_count[op_name] = 0
+        self._operation_count[op_name] += 1
+        self.generic_visit(node)
+
 
 if __name__ == "__main__":
     """
