@@ -1,0 +1,3 @@
+[submodule "dace"]
+	path = dace
+	url = git@github.com:spcl/dace.git
