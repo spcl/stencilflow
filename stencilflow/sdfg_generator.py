@@ -727,7 +727,7 @@ def _nodes_before_or_after(sdfg, split_state, split_data, after):
                         local_nodes = _nodes_reachable_from(
                             state, n, split_data, True, False)
                     for la in local_nodes:
-                        if isinstance(la, dace.graph.nodes.AccessNode):
+                        if isinstance(la, dace.sdfg.nodes.AccessNode):
                             data_names.add(la.data)
                     nodes |= set((state, ln) for ln in local_nodes)
             fixed_point = num_names == len(data_names)
@@ -802,7 +802,7 @@ def split_sdfg(sdfg,
     write_node = None
     write_state = None
     for node, state in sdfg.all_nodes_recursive():
-        if isinstance(node, dace.graph.nodes.AccessNode):
+        if isinstance(node, dace.sdfg.nodes.AccessNode):
             if node.data != remote_stream:
                 continue
             if node.access == dace.AccessType.ReadOnly:
