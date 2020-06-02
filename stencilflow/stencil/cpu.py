@@ -28,12 +28,12 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
         # Find outer data descriptor
         field_dtype = {}
         for e in parent_state.in_edges(node):
-            field = e.dst_connector
+            field = e.dst_conn
             if field in node.accesses:
                 field_dtype[field] = parent_sdfg.data(
                     dace.sdfg.find_input_arraynode(parent_state, e).data).dtype
         for e in parent_state.out_edges(node):
-            field = e.src_connector
+            field = e.src_conn
             if field in node.output_fields:
                 field_dtype[field] = parent_sdfg.data(
                     dace.sdfg.find_output_arraynode(parent_state,

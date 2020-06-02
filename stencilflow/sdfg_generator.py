@@ -119,6 +119,8 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
         accesses[conn] = (indices, [])
         num_dims = sum(indices, 0)
         for access in access_list:
+            if len(access) > num_dims:
+                access = access[len(access) - num_dims:]  # Trim
             accesses[conn][1].append(
                 tuple(a for a, v in zip(access, indices) if v))
 
@@ -140,8 +142,9 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     # We need to replace indices with relative ones, and rename field accesses
     # to their input connectors
     class _StencilFlowVisitor(ast.NodeTransformer):
-        def __init__(self, input_to_connector):
+        def __init__(self, input_to_connector, num_dims):
             self.input_to_connector = input_to_connector
+            self.num_dims = num_dims
 
         @staticmethod
         def _index_to_offset(node):
@@ -162,10 +165,13 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
                 node.value.id = input_to_connector[field]
             # Convert [i, j + 1, k - 1] to [0, 1, -1]
             if isinstance(node.slice.value, ast.Tuple):
+                indices = node.slice.value.elts
+                if len(indices) > self.num_dims:
+                    # Cut off extra dimensions added by analysis
+                    indices = indices[len(indices) - self.num_dims:]
                 # Negative indices show up as a UnaryOp, others as Num
                 offsets = tuple(
-                    map(_StencilFlowVisitor._index_to_offset,
-                        node.slice.value.elts))
+                    map(_StencilFlowVisitor._index_to_offset, indices))
             else:
                 # One dimensional access doesn't show up as a tuple
                 offsets = (_StencilFlowVisitor._index_to_offset(
@@ -176,7 +182,7 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
             return node
 
     # Transform the code using the visitor above
-    ast_visitor = _StencilFlowVisitor(input_to_connector)
+    ast_visitor = _StencilFlowVisitor(input_to_connector, len(shape))
     old_ast = ast.parse(code)
     new_ast = ast_visitor.visit(old_ast)
     code = astunparse.unparse(new_ast)
