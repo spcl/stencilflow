@@ -19,7 +19,7 @@ Running
 To run the end-to-end flow on an input JSON file, the executable
 `bin/run_program.py` can be used. Example usage:
 
-```
+```bash
 bin/run_program.py test/testing/jacobi3d_32x32x32_8itr_8vec.json emulation -compare-to-reference
 ```
 
@@ -29,8 +29,8 @@ a reference CPU program, run both, and verify that the results match.
 The generated program will be located in `.dacecache/<kernel name>`, with the
 kernel source files themselves in:
 
-```
-.dacecache/<kernel name>/src/intel_fpga/device`.
+```bash
+.dacecache/<kernel name>/src/intel_fpga/device
 ```
 
 Tests
@@ -39,7 +39,7 @@ Tests
 The repository ships with a number of tests that verify various aspects of
 functionality. These can be run with:
 
-```
+```bash
 test/test_stencil.py
 ```
 
