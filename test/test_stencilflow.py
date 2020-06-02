@@ -252,7 +252,7 @@ class KernelTest(unittest.TestCase):
             }},
             raw_inputs= {
     "a": {
-      "dimensions": ["k", "j", "k"]
+      "dimensions": ["i", "j", "k"]
     }}
         )
         # check if the string matches
