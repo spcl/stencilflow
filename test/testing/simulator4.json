@@ -9,7 +9,7 @@
 	"dimensions": [3, 3],
 	"program": {
 		"inter": {
-			"computation_string": "res = arrA[j,k] + 1.0",
+			"computation_string": "inter = arrA[j,k] + 1.0",
 			"boundary_conditions": {
 				"arrA": {
 					"type": "constant",
