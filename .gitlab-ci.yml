@@ -10,7 +10,7 @@ test:
     - source /opt/intelFPGA_pro/19.1/hld/init_opencl.sh
     - source /opt/rh/devtoolset-6/enable
     - source setup_virtualenv.sh
-    - python test/test_stencilflow.py
+    - venv/bin/python test/test_stencilflow.py
 
 test_distributed:
   stage: test
@@ -19,5 +19,5 @@ test_distributed:
     - source /opt/intelFPGA_pro/19.1/hld/init_stratix.sh
     - source /opt/rh/llvm-toolset-7.0/enable
     - source setup_virtualenv.sh
-    - test/test_distributed_program.sh
+    - PATH=`pwd`/venv/bin:$PATH test/test_distributed_program.sh
 
