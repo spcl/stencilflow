@@ -32,3 +32,17 @@ kernel source files themselves in:
 ```
 .dacecache/<kernel name>/src/intel_fpga/device`.
 ```
+
+Tests
+=====
+
+The repository ships with a number of tests that verify various aspects of
+functionality. These can be run with:
+
+```
+test/test_stencil.py
+```
+
+It is a known issue that launching Intel FPGA kernels can sometimes fail
+sporadically, seemingly due to file I/O issues. Running individual programs
+should never fail.
