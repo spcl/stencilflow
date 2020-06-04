@@ -59,7 +59,6 @@ run_test() {
 
     #2: Execute
     mpirun -n 2 ${BIN_DIR}/run_distributed_program.py ${TEST_NAME}/ ${STENCILS_DIR}/${TEST_NAME}.json emulation -compare-to-reference -sequential-compile
-
     #check the result
     if [ $? -ne 0 ]; then
         bail "$1 (${RED}Wrong emulation result${NC})"
@@ -108,7 +107,7 @@ run_synthetic_test() {
         bail "$1 (${RED}Wrong emulation result${NC})"
     fi
 
-    # cleanup
+    #cleanup
     rm ${TEST_NAME} -fr
     rm -fr results/${TEST_NAME}/
 
@@ -119,8 +118,8 @@ run_synthetic_test() {
 
 
 run_all() {
-    run_test jacobi2d_128x128 b_to_b
-    run_test jacobi3d_32x32x32 b_to_b
+    run_test jacobi2d_128x128 b_to_write_b
+    run_test jacobi3d_32x32x32 b_to_write_b
     run_test jacobi3d_32x32x32_8itr b6_to_b7
     run_synthetic_test test_synthetic_a 4
 }
@@ -149,4 +148,3 @@ if [ $ERRORS -ne 0 ]; then
     printf "Failed tests:\n${FAILED_TESTS}"
     exit 1
 fi
-
