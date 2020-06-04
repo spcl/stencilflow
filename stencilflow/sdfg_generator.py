@@ -987,6 +987,20 @@ def split_sdfg(sdfg,
     _remove_nodes_and_states(sdfg_before, states_before, nodes_before)
     _remove_nodes_and_states(sdfg_after, states_after, nodes_after)
 
+    # Purge now unused containers
+    containers_before = {
+        n.data
+        for n in nodes_before if isinstance(n, dace.sdfg.nodes.AccessNode)
+    }
+    for name in containers_before:
+        sdfg_after.remove_data(name)
+    containers_after = {
+        n.data
+        for n in nodes_after if isinstance(n, dace.sdfg.nodes.AccessNode)
+    }
+    for name in containers_after:
+        sdfg_before.remove_data(name)
+
     sdfg_before.validate()
     sdfg_after.validate()
 
