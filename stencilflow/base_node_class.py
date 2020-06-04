@@ -1,42 +1,3 @@
-#!/usr/bin/env python3
-# encoding: utf-8
-
-"""
-BSD 3-Clause License
-
-Copyright (c) 2018-2020, Andreas Kuster
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-__author__ = "Andreas Kuster"
-__copyright__ = "Copyright 2018-2020, StencilFlow"
-__license__ = "BSD-3-Clause"
-
 import ast
 from abc import ABCMeta, abstractmethod
 from enum import Enum
@@ -64,7 +25,8 @@ class BoundaryCondition(Enum):
         elif text == "copy":
             return BoundaryCondition.COPY
         else:
-            raise Exception("{} is not a valid boundary condition string".format(text))
+            raise Exception(
+                "{} is not a valid boundary condition string".format(text))
 
 
 class BaseKernelNodeClass:
@@ -75,7 +37,8 @@ class BaseKernelNodeClass:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name: str,
+    def __init__(self,
+                 name: str,
                  data_queue: BoundedQueue,
                  data_type: dace.dtypes.typeclass,
                  verbose: bool = False) -> None:
@@ -90,14 +53,20 @@ class BaseKernelNodeClass:
         self.name: str = name
         self.data_queue: BoundedQueue = data_queue
         self.data_type = data_type
-        if not isinstance(data_type, dace.dtypes.typeclass):  # check type of input
-            raise TypeError("Expected dace.dtypes.typeclass, got: " + type(data_type).__name__)
+        if not isinstance(data_type,
+                          dace.dtypes.typeclass):  # check type of input
+            raise TypeError("Expected dace.dtypes.typeclass, got: " +
+                            type(data_type).__name__)
         self.verbose = verbose
         # define basic node structures
-        self.input_paths: Dict[str, List] = dict()  # contains all paths to the source arrays
+        self.input_paths: Dict[
+            str, List] = dict()  # contains all paths to the source arrays
         self.inputs: Dict[str, Dict] = dict()  # contains all predecessors
-        self.outputs: Dict[str, BoundedQueue] = dict()  # contains all successors
-        self.delay_buffer: Dict[str, BoundedQueue] = dict()  # contains the delay buffers for all inputs
+        self.outputs: Dict[str,
+                           BoundedQueue] = dict()  # contains all successors
+        self.delay_buffer: Dict[
+            str,
+            BoundedQueue] = dict()  # contains the delay buffers for all inputs
         self.program_counter = 0  # progress program counter for simulation
 
     def generate_label(self) -> str:  # wrapper for customizations
@@ -134,15 +103,17 @@ class BaseOperationNodeClass:
         self.latency: int = -1
 
     @abstractmethod
-    def generate_name(self,
-                      ast_node: ast) -> str:  # every subclass must implement this
+    def generate_name(
+            self, ast_node: ast) -> str:  # every subclass must implement this
         """
         Base class basic implementation of the generate_label method.
         :returns generated label
         """
         return str(self.name)
 
-    def generate_label(self) -> str:  # subclass can, if necessary, override the default implementation
+    def generate_label(
+        self
+    ) -> str:  # subclass can, if necessary, override the default implementation
         """
         Generates the node label.
         :returns generated label

@@ -1,41 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
-"""
-BSD 3-Clause License
-
-Copyright (c) 2018-2020, Andreas Kuster
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-__author__ = "Andreas Kuster"
-__copyright__ = "Copyright 2018-2020, StencilFlow"
-__license__ = "BSD-3-Clause"
-
 import functools
 import operator
 from typing import List, Dict
@@ -78,8 +41,7 @@ class Kernel(BaseKernelNodeClass):
         :param verbose: flag for console output logging
         """
         # initialize the superclass
-        super().__init__(name, BoundedQueue(name="dummy", maxsize=0),
-                         data_type)
+        super().__init__(name, BoundedQueue(name="dummy", maxsize=0), data_type)
         # store arguments
         self.kernel_string: str = kernel_string  # raw kernel string input
         self.raw_inputs = raw_inputs
@@ -96,11 +58,16 @@ class Kernel(BaseKernelNodeClass):
         self.all_available = False
         self.not_available = set()
         # analyze input
-        self.graph: ComputeGraph = ComputeGraph(vectorization=vectorization, dimensions=dimensions, raw_inputs=raw_inputs)
-        self.graph.generate_graph(kernel_string)  # generate the ast computation graph from the mathematical expression
+        self.graph: ComputeGraph = ComputeGraph(vectorization=vectorization,
+                                                dimensions=dimensions,
+                                                raw_inputs=raw_inputs)
+        self.graph.generate_graph(
+            kernel_string
+        )  # generate the ast computation graph from the mathematical expression
         self.graph.calculate_latency(
         )  # calculate the latency in the computation tree to find the critical path
-        self.graph.determine_inputs_outputs()  # sort out input nodes (field accesses and constant values) and output
+        self.graph.determine_inputs_outputs(
+        )  # sort out input nodes (field accesses and constant values) and output
         # nodes
         self.graph.setup_internal_buffers()
         # set plot path (if plot is set to True)
@@ -176,8 +143,7 @@ class Kernel(BaseKernelNodeClass):
             buffer = self.inputs[input]
             self.max_del_buf_usage[input] = max(
                 self.max_del_buf_usage[input],
-                len([x for x in buffer['delay_buffer'].queue
-                     if x is not None]))
+                len([x for x in buffer['delay_buffer'].queue if x is not None]))
             self.buf_usage_num[input] += 1
             self.buf_usage_sum[input] += len(
                 [x for x in buffer['delay_buffer'].queue if x is not None])
@@ -186,8 +152,7 @@ class Kernel(BaseKernelNodeClass):
             buffer = self.outputs[output]
             self.max_del_buf_usage[output] = max(
                 self.max_del_buf_usage[output],
-                len([x for x in buffer['delay_buffer'].queue
-                     if x is not None]))
+                len([x for x in buffer['delay_buffer'].queue if x is not None]))
             self.buf_usage_num[output] += 1
             self.buf_usage_sum[output] += len(
                 [x for x in buffer['delay_buffer'].queue if x is not None])
@@ -231,16 +196,13 @@ class Kernel(BaseKernelNodeClass):
                 rhs = pred[1]  # right hand side
             # recursively compute the child string
             lhs_str = self.iter_comp_tree(lhs, index_relative_to_center,
-                                          replace_negative_index,
-                                          python_syntax, flatten_index,
-                                          output_dimensions)
+                                          replace_negative_index, python_syntax,
+                                          flatten_index, output_dimensions)
             rhs_str = self.iter_comp_tree(rhs, index_relative_to_center,
-                                          replace_negative_index,
-                                          python_syntax, flatten_index,
-                                          output_dimensions)
+                                          replace_negative_index, python_syntax,
+                                          flatten_index, output_dimensions)
             # return formatted string
-            return "({} {} {})".format(lhs_str, node.generate_op_sym(),
-                                       rhs_str)
+            return "({} {} {})".format(lhs_str, node.generate_op_sym(), rhs_str)
         elif isinstance(node, Call):  # function call
             # extract expression element
             expr = pred[0]
@@ -263,8 +225,12 @@ class Kernel(BaseKernelNodeClass):
             # break down index from 3D (i.e. [X,Y,Z]) to 1D
             if flatten_index:
                 # TODO
-                if node.name in self.input_paths and self.inputs[node.name]["input_dim"] is not None:
-                    ind = [x if x in self.inputs[node.name]["input_dim"] else None for x in stencilflow.ITERATORS]
+                if node.name in self.input_paths and self.inputs[
+                        node.name]["input_dim"] is not None:
+                    ind = [
+                        x if x in self.inputs[node.name]["input_dim"] else None
+                        for x in stencilflow.ITERATORS
+                    ]
                     num_dim = stencilflow.num_dims(ind)
                     #dim_index = dim_index[len(self.dimensions) - num_dim:]
                     new_ind, i = list(), 0
@@ -274,8 +240,9 @@ class Kernel(BaseKernelNodeClass):
                         else:
                             new_ind.append(dim_index[i])
                             i += 1
-                    dim_index = dim_index #list(map(lambda x, y: y if x is not None else None, ind, new_ind))
-                word_index = stencilflow.convert_3d_to_1d(dimensions=self.dimensions, index=dim_index)
+                    dim_index = dim_index  #list(map(lambda x, y: y if x is not None else None, ind, new_ind))
+                word_index = stencilflow.convert_3d_to_1d(
+                    dimensions=self.dimensions, index=dim_index)
                 # replace negative sign if the flag is set
                 if replace_negative_index and word_index < 0:
                     return node.name + "[" + "n" + str(abs(word_index)) + "]"
@@ -303,19 +270,16 @@ class Kernel(BaseKernelNodeClass):
             lhs = [x for x in pred if type(x) != Compare][0]  # left hand side
             rhs = [x for x in pred if type(x) != Compare][1]  # right hand side
             # recursively compute the child string
-            compare_str = self.iter_comp_tree(compare,
-                                              index_relative_to_center,
+            compare_str = self.iter_comp_tree(compare, index_relative_to_center,
                                               replace_negative_index,
                                               python_syntax, flatten_index,
                                               output_dimensions)
             lhs_str = self.iter_comp_tree(lhs, index_relative_to_center,
-                                          replace_negative_index,
-                                          python_syntax, flatten_index,
-                                          output_dimensions)
+                                          replace_negative_index, python_syntax,
+                                          flatten_index, output_dimensions)
             rhs_str = self.iter_comp_tree(rhs, index_relative_to_center,
-                                          replace_negative_index,
-                                          python_syntax, flatten_index,
-                                          output_dimensions)
+                                          replace_negative_index, python_syntax,
+                                          flatten_index, output_dimensions)
             # return formatted string
             if python_syntax:
                 return "(({}) if ({}) else ({}))".format(
@@ -329,13 +293,11 @@ class Kernel(BaseKernelNodeClass):
             rhs = pred[1]
             # recursively compute the child string
             lhs_str = self.iter_comp_tree(lhs, index_relative_to_center,
-                                          replace_negative_index,
-                                          python_syntax, flatten_index,
-                                          output_dimensions)
+                                          replace_negative_index, python_syntax,
+                                          flatten_index, output_dimensions)
             rhs_str = self.iter_comp_tree(rhs, index_relative_to_center,
-                                          replace_negative_index,
-                                          python_syntax, flatten_index,
-                                          output_dimensions)
+                                          replace_negative_index, python_syntax,
+                                          flatten_index, output_dimensions)
             # return formatted string
             return "{} {} {}".format(lhs_str, str(node.name), rhs_str)
         elif isinstance(node, UnaryOp):  # unary operations e.g. negation
@@ -578,8 +540,7 @@ class Kernel(BaseKernelNodeClass):
         if pos == -1:  # delay buffer
             return self.inputs[inp.name]["delay_buffer"].try_peek_last()
         elif pos >= 0:  # internal buffer
-            return self.inputs[
-                inp.name]["internal_buffer"][pos].try_peek_last()
+            return self.inputs[inp.name]["internal_buffer"][pos].try_peek_last()
 
     def test_availability(self):
         """
@@ -840,6 +801,5 @@ if __name__ == "__main__":
     print("dimensions are: {}".format(dim))
     print(kernel.kernel_string)
     print(
-        kernel.generate_relative_access_kernel_string(
-            relative_to_center=False))
+        kernel.generate_relative_access_kernel_string(relative_to_center=False))
     print()

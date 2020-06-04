@@ -1,41 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
-"""
-BSD 3-Clause License
-
-Copyright (c) 2018-2020, Andreas Kuster
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-__author__ = "Andreas Kuster"
-__copyright__ = "Copyright 2018-2020, StencilFlow"
-__license__ = "BSD-3-Clause"
-
 import functools
 import operator
 import os
@@ -65,7 +28,8 @@ class Simulator:
     """
     def __init__(self, program_name: str, program_description: Dict,
                  input_nodes: Dict, kernel_nodes: Dict, output_nodes: Dict,
-                 dimensions: List, write_output: bool, log_level: LogLevel) -> None:
+                 dimensions: List, write_output: bool,
+                 log_level: LogLevel) -> None:
         """
         Create new Simulator class with given initialization parameters.
         :param program_name: name of the program
@@ -255,9 +219,8 @@ class Simulator:
 
     def diagnostics(self, exception):
         if exception is not None:
-            print(
-                "Error: Exception {} has been risen. Run diagnostics.".format(
-                    exception.__traceback__))
+            print("Error: Exception {} has been risen. Run diagnostics.".format(
+                exception.__traceback__))
         if self.log_level >= LogLevel.BASIC:
             print("Run diagnostics of {}.".format(self.program_name))
         # print info about all inputs

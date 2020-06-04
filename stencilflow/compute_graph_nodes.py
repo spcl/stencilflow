@@ -1,42 +1,3 @@
-#!/usr/bin/env python3
-# encoding: utf-8
-
-"""
-BSD 3-Clause License
-
-Copyright (c) 2018-2020, Andreas Kuster
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-__author__ = "Andreas Kuster"
-__copyright__ = "Copyright 2018-2020, StencilFlow"
-__license__ = "BSD-3-Clause"
-
 import ast
 import operator
 from typing import List, Dict
@@ -51,10 +12,7 @@ class Name(BaseOperationNodeClass):
         The Name class is a subclass of the BaseOperationNodeClass and represents the variable name node in the computation
         tree.
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new Name node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -63,8 +21,7 @@ class Name(BaseOperationNodeClass):
         # initialize superclass
         super().__init__(ast_node, number)
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Variable name implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -77,10 +34,7 @@ class Num(BaseOperationNodeClass):
     """
         The Name class is a subclass of the BaseOperationNodeClass and represents the numeral node in the computation tree.
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new Num node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -89,8 +43,7 @@ class Num(BaseOperationNodeClass):
         # initialize superclass
         super().__init__(ast_node, number)
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Numeral implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -104,10 +57,7 @@ class Binop(BaseOperationNodeClass):
         The Name class is a subclass of the BaseOperationNodeClass and represents the binary operation node in the
         computation tree.
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new Binop node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -126,7 +76,6 @@ class Binop(BaseOperationNodeClass):
         ast.Div: "div",
         ast.Invert: "neg"
     }
-
     """
         Mapping between the string name of the operation and its symbol.
     """
@@ -138,8 +87,7 @@ class Binop(BaseOperationNodeClass):
         "neg": "-"
     }
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Binary operation implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -160,10 +108,7 @@ class Call(BaseOperationNodeClass):
         The Call class is a subclass of the BaseOperationNodeClass and represents the function calls (e.g. sin/cos,..) node
         in the computation tree.
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new Function (call) node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -172,8 +117,7 @@ class Call(BaseOperationNodeClass):
         # initialize superclass
         super().__init__(ast_node, number)
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Function call implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -186,10 +130,7 @@ class Output(BaseOperationNodeClass):
     """
         The Output class is a subclass of the BaseOperationNodeClass and represents the output node in the computation tree.
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new Output node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -198,8 +139,7 @@ class Output(BaseOperationNodeClass):
         # initialize superclass
         super().__init__(ast_node, number)
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Output implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -213,11 +153,7 @@ class Subscript(BaseOperationNodeClass):
         The Subscript class is a subclass of the BaseOperationNodeClass and represents the array field access node in the
         computation tree.
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int,
-                 dimensions: int,
+    def __init__(self, ast_node: ast, number: int, dimensions: int,
                  inputs) -> None:
         """
         Create new Subscript node with given initialization parameters.
@@ -236,17 +172,12 @@ class Subscript(BaseOperationNodeClass):
         Mapping between the index of the operation and its position (actually always 0).
     """
     _VAR_MAP: Dict[str, int] = {i: 0 for i in stencilflow.ITERATORS}
-
     """
         Mapping between the operation and its symbol.
     """
-    _OP_SYM_MAP: Dict[type(ast), str] = {
-        ast.Add: "+",
-        ast.Sub: "-"
-    }
+    _OP_SYM_MAP: Dict[type(ast), str] = {ast.Add: "+", ast.Sub: "-"}
 
-    def create_index(self,
-                     ast_node: ast) -> None:
+    def create_index(self, ast_node: ast) -> None:
         """
         Create the numerical index of the array field access e.g. convert [i+2, j-3, k] to [2,-3,0]
         :param ast_node: abstract syntax tree node of the computation
@@ -261,10 +192,12 @@ class Subscript(BaseOperationNodeClass):
                 elif isinstance(slice, ast.BinOp):
                     # note: only support for index variations [i, j+3,..]
                     # read index expression
-                    expression = str(slice.left.id) + self._OP_SYM_MAP[type(slice.op)] + str(slice.right.n)
+                    expression = str(slice.left.id) + self._OP_SYM_MAP[type(
+                        slice.op)] + str(slice.right.n)
                     # convert [i+1,j, k-1] to [1, 0, -1]
                     calculator = Calculator()
-                    self.index.append(calculator.eval_expr(self._VAR_MAP, expression))
+                    self.index.append(
+                        calculator.eval_expr(self._VAR_MAP, expression))
         else:
             slice = ast_node.slice.value
             if isinstance(slice, ast.Name):
@@ -272,17 +205,23 @@ class Subscript(BaseOperationNodeClass):
             elif isinstance(slice, ast.BinOp):
                 # note: only support for index variations [i, j+3,..]
                 # read index expression
-                expression = str(slice.left.id) + self._OP_SYM_MAP[type(slice.op)] + str(slice.right.n)
+                expression = str(slice.left.id) + self._OP_SYM_MAP[type(
+                    slice.op)] + str(slice.right.n)
                 # convert [i+1,j, k-1] to [1, 0, -1]
                 calculator = Calculator()
-                self.index.append(calculator.eval_expr(self._VAR_MAP, expression))
+                self.index.append(
+                    calculator.eval_expr(self._VAR_MAP, expression))
         #diff = self.dimensions - len(self.index)
         #self.index = [0]*diff + self.index
         # TODO
-        if self.name in self.inputs and "dimensions" in self.inputs[self.name] and self.inputs[self.name]["dimensions"] is not None:
-            ind = [x if x in self.inputs[self.name]["dimensions"] else None for x in stencilflow.ITERATORS]
+        if self.name in self.inputs and "dimensions" in self.inputs[
+                self.name] and self.inputs[self.name]["dimensions"] is not None:
+            ind = [
+                x if x in self.inputs[self.name]["dimensions"] else None
+                for x in stencilflow.ITERATORS
+            ]
             num_dim = stencilflow.num_dims(ind)
-            dim_index = self.index#[len(self.dimensions) - num_dim:]
+            dim_index = self.index  #[len(self.dimensions) - num_dim:]
             new_ind, i = list(), 0
             for entry in ind:
                 if entry is None:
@@ -290,11 +229,9 @@ class Subscript(BaseOperationNodeClass):
                 else:
                     new_ind.append(dim_index[i])
                     i += 1
-            self.index = new_ind #list(map(lambda x, y: y if x is not None else None, ind, new_ind))
+            self.index = new_ind  #list(map(lambda x, y: y if x is not None else None, ind, new_ind))
 
-
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Subscript (array field access) implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -315,10 +252,7 @@ class Ternary(BaseOperationNodeClass):
         The Ternary operator class is a subclass of the BaseOperationNodeClass and represents ternary operation of the
         form: expression_true if comparison_expression else expression_false
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new Ternary node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -327,8 +261,7 @@ class Ternary(BaseOperationNodeClass):
         # initialize superclass
         super().__init__(ast_node, number)
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Ternary operator implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -341,10 +274,7 @@ class Compare(BaseOperationNodeClass):
     """
         The Comparison operator class is a subclass of the BaseOperationNodeClass and represents the comparison of two
     """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new Compare node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -365,7 +295,6 @@ class Compare(BaseOperationNodeClass):
         ast.GtE: operator.ge,
         ast.Eq: operator.eq
     }
-
     """
         Mapping between the operator comparison operator and its mathematical string symbol.
     """
@@ -377,8 +306,7 @@ class Compare(BaseOperationNodeClass):
         operator.eq: "=="
     }
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Comparison operator implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation
@@ -392,10 +320,7 @@ class UnaryOp(BaseOperationNodeClass):
          The UnaryOp operator class is a subclass of the BaseOperationNodeClass and represents unary operations. In our
          case we only support negation (mathematical - sign) as unary operation.
      """
-
-    def __init__(self,
-                 ast_node: ast,
-                 number: int) -> None:
+    def __init__(self, ast_node: ast, number: int) -> None:
         """
         Create new unary operation node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
@@ -409,26 +334,17 @@ class UnaryOp(BaseOperationNodeClass):
     """
         Mapping between the ast unary operation and the operator operation.
     """
-    _UNARYOP_MAP: Dict[type(ast), type(operator)] = {
-        ast.USub: operator.sub
-    }
-
+    _UNARYOP_MAP: Dict[type(ast), type(operator)] = {ast.USub: operator.sub}
     """
         Mapping between the operator unary operator and its mathematical string.
     """
-    _UNARYOP_SYM: Dict[type(operator), str] = {
-        operator.sub: "neg"
-    }
-
+    _UNARYOP_SYM: Dict[type(operator), str] = {operator.sub: "neg"}
     """
          Mapping between the mathematical string and its symbol.
      """
-    _UNARYOP_SYM_NAME = {
-        "neg": "-"
-    }
+    _UNARYOP_SYM_NAME = {"neg": "-"}
 
-    def generate_name(self,
-                      ast_node: ast) -> str:
+    def generate_name(self, ast_node: ast) -> str:
         """
         Unary operator implementation of generate_name.
         :param ast_node: abstract syntax tree node of the computation

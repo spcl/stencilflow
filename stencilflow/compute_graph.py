@@ -1,41 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
-"""
-BSD 3-Clause License
-
-Copyright (c) 2018-2020, Andreas Kuster
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-__author__ = "Andreas Kuster"
-__copyright__ = "Copyright 2018-2020, StencilFlow"
-__license__ = "BSD-3-Clause"
-
 import ast
 import math
 
@@ -69,7 +32,11 @@ class ComputeGraph:
             tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
             tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
     """
-    def __init__(self, verbose: bool = False, dimensions=3, vectorization=1, raw_inputs=set()) -> None:
+    def __init__(self,
+                 verbose: bool = False,
+                 dimensions=3,
+                 vectorization=1,
+                 raw_inputs=set()) -> None:
         """
         Create new ComputeGraph with given initialization parameters.
         :param verbose: flag for console output logging
@@ -121,11 +88,9 @@ class ComputeGraph:
             return Call(node, number)
         elif isinstance(node, ast.Assign):  # assign operator (var = expr;)
             return Output(node, number)
-        elif isinstance(node,
-                        ast.Subscript):  # array access (form: arr[i,j,k])
+        elif isinstance(node, ast.Subscript):  # array access (form: arr[i,j,k])
             return Subscript(node, number, self.dimensions, self.raw_inputs)
-        elif isinstance(node,
-                        ast.IfExp):  # if/else clause of ternary operation
+        elif isinstance(node, ast.IfExp):  # if/else clause of ternary operation
             return Ternary(node, number)
         elif isinstance(node, ast.Compare):  # comparison of ternary operation
             return Compare(node, number)
@@ -142,7 +107,8 @@ class ComputeGraph:
         (i.e. negative)
         """
         # init dicts
-        self.min_index = dict()  # min_index["buffer_name"] = [i_min, j_min, k_min]
+        self.min_index = dict(
+        )  # min_index["buffer_name"] = [i_min, j_min, k_min]
         self.max_index = dict()
         self.buffer_size = dict()  # buffer_size["buffer_name"] = size
         # find min and max index
@@ -159,8 +125,11 @@ class ComputeGraph:
                 if inp.name not in self.accesses:  # create initial list
                     self.accesses[inp.name] = list()
                 self.accesses[inp.name].append(inp.index)  # add entry
-            if isinstance(inp, Name) and inp.name in self.raw_inputs:  # 0d array
-                self.min_index[inp.name], self.max_index[inp.name] = [0, 0, 0], [0, 0, 0]
+            if isinstance(inp,
+                          Name) and inp.name in self.raw_inputs:  # 0d array
+                self.min_index[inp.name], self.max_index[inp.name] = [
+                    0, 0, 0
+                ], [0, 0, 0]
                 self.accesses[inp.name] = list()
                 self.accesses[inp.name].append([0, 0, 0])
 
@@ -170,7 +139,8 @@ class ComputeGraph:
                 self.buffer_size[buffer_name] = [0] * self.dimensions
             else:
                 self.buffer_size[buffer_name] = [
-                    abs(a_i - b_i) if a_i is not None and b_i is not None else None
+                    abs(a_i -
+                        b_i) if a_i is not None and b_i is not None else None
                     for a_i, b_i in zip(self.max_index[buffer_name],
                                         self.min_index[buffer_name])
                 ]
@@ -248,14 +218,13 @@ class ComputeGraph:
                         # only contract if the indices and the names match
                         self.contract_edge(outp, inp)
                     elif isinstance(
-                            outp, Name
-                    ) and outp is not inp and outp.name == inp.name:
+                            outp,
+                            Name) and outp is not inp and outp.name == inp.name:
                         # contract nodes if the names match
                         self.contract_edge(outp, inp)
         # test if graph is now a single component (for directed graph: each non-output must have at least one successor)
         for node in self.graph.nodes:
-            if not isinstance(node, Output) and len(
-                    self.graph.succ[node]) == 0:
+            if not isinstance(node, Output) and len(self.graph.succ[node]) == 0:
                 raise RuntimeError(
                     "Kernel-internal data flow is not single component (must be connected in the sense "
                     "of a DAG).")
@@ -384,8 +353,8 @@ class ComputeGraph:
                 ops.append(node)
             elif isinstance(node, Output):  # outputs
                 outs.append(node)
-            elif isinstance(node, Ternary) or isinstance(
-                    node, Compare):  # comparison
+            elif isinstance(node, Ternary) or isinstance(node,
+                                                         Compare):  # comparison
                 comp.append(node)
 
         # define drawing size
@@ -474,7 +443,9 @@ class ComputeGraph:
         """
         # idea: do a longest-path tree-walk (since the graph is a DAG (directed acyclic graph) we can do that
         for node in self.graph.nodes:
-            if isinstance(node, Output):  # start at the output nodes and walk the tree up to the input nodes
+            if isinstance(
+                    node, Output
+            ):  # start at the output nodes and walk the tree up to the input nodes
                 node.latency = 1
                 self.try_set_max_latency(node.latency)
                 self.latency_tree_walk(node)
@@ -536,8 +507,7 @@ class ComputeGraph:
                 self.latency_tree_walk(child)
         else:
             raise NotImplementedError(
-                "Node type {} has not been implemented yet.".format(
-                    type(node)))
+                "Node type {} has not been implemented yet.".format(type(node)))
         self.try_set_max_latency(node.latency)
 
 

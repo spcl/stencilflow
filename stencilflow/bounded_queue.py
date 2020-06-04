@@ -1,42 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
-
-"""
-BSD 3-Clause License
-
-Copyright (c) 2018-2020, Andreas Kuster
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-__author__ = "Andreas Kuster"
-__copyright__ = "Copyright 2018-2020, StencilFlow"
-__license__ = "BSD-3-Clause"
-
 import collections
 from typing import List
 
@@ -55,7 +17,6 @@ class BoundedQueue:
                                             it and raise an exception.
             - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
     """
-
     def __init__(self,
                  name: str,
                  maxsize: int,
@@ -74,7 +35,8 @@ class BoundedQueue:
         self.maxsize: int = maxsize if maxsize > 0 else 1  # maxsize must be at least 1 to correctly forward data
         self.name: str = name
         # create queue
-        self.queue: collection.dequeue = collections.deque(collection, self.maxsize)
+        self.queue: collection.dequeue = collections.deque(
+            collection, self.maxsize)
         # init current size
         self.current_size: int = len(collection)
         # indication of where the buffer is located (slow memory or fast memory)
@@ -88,7 +50,8 @@ class BoundedQueue:
 
     def __str__(self):
         # return an useful and human readable info string from the queue
-        return "BoundedQueue: {}, current size: {}, max size: {}".format(self.name, self.current_size, self.maxsize)
+        return "BoundedQueue: {}, current size: {}, max size: {}".format(
+            self.name, self.current_size, self.maxsize)
 
     def import_data(self, data):
         """
@@ -97,10 +60,12 @@ class BoundedQueue:
         :return: nothing
         """
         if self.maxsize < len(data):
-            raise RuntimeError("max size of queue ({}) is smaller than the data collection size ({})"
-                               .format(self.maxsize, len(data)))
+            raise RuntimeError(
+                "max size of queue ({}) is smaller than the data collection size ({})"
+                .format(self.maxsize, len(data)))
         else:
-            self.queue: collections.deque = collections.deque(data, self.maxsize)
+            self.queue: collections.deque = collections.deque(
+                data, self.maxsize)
             self.current_size = len(data)
 
     def export_data(self):
@@ -207,7 +172,9 @@ class BoundedQueue:
         """
         # check bound
         if self.current_size <= index:
-            raise RuntimeError("buffer {} index out of bound access occurred".format(self.name))
+            raise RuntimeError(
+                "buffer {} index out of bound access occurred".format(
+                    self.name))
         else:
             return self.queue[index]
 
@@ -217,9 +184,7 @@ if __name__ == "__main__":
         Simple debugging example
     """
     # create dummy queue
-    queue = BoundedQueue(name="debug",
-                         maxsize=5,
-                         collection=[1, 2, 3, 4, 5])
+    queue = BoundedQueue(name="debug", maxsize=5, collection=[1, 2, 3, 4, 5])
     # do some basic function calls and check if it crashes
     try:
         print("Enqueue element into full queue, should throw an exception.")
