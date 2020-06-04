@@ -46,7 +46,7 @@ import dace.dtypes
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-TEST_FOLDER = os.path.join(os.path.dirname(__file__), "testing")
+TEST_FOLDER = os.path.join(os.path.dirname(__file__), "stencils")
 
 from stencilflow.bounded_queue import BoundedQueue
 
@@ -175,7 +175,7 @@ class HelperTest(unittest.TestCase):
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(os.path.dirname(__file__), "testing",
+                    os.path.join(os.path.dirname(__file__), "stencils",
                                  "helper_test.csv"),
                     "data_type":
                     helper.str_to_dtype("float64")
@@ -184,7 +184,7 @@ class HelperTest(unittest.TestCase):
             list(
                 helper.load_array({
                     "data":
-                    os.path.join(os.path.dirname(__file__), "testing",
+                    os.path.join(os.path.dirname(__file__), "stencils",
                                  "helper_test.dat"),
                     "data_type":
                     helper.str_to_dtype("float64")
@@ -409,7 +409,7 @@ def _run_program(*args, **kwargs):
 
 class ProgramTest(unittest.TestCase):
     def test_and_simulate(self):
-        test_directory = os.path.join(os.path.dirname(__file__), "testing")
+        test_directory = os.path.join(os.path.dirname(__file__), "stencils")
         for stencil_file in [
                 "simulator", "simulator2", "simulator3", "simulator4",
                 "simulator5", "simulator6", "simulator8", "simulator9",
@@ -426,7 +426,7 @@ class ProgramTest(unittest.TestCase):
                          input_directory=os.path.abspath(test_directory))
 
     def test_program(self):
-        test_directory = os.path.join(os.path.dirname(__file__), "testing")
+        test_directory = os.path.join(os.path.dirname(__file__), "stencils")
         for stencil_file in [
                 "jacobi2d_128x128",
                 "jacobi2d_128x128_8vec",

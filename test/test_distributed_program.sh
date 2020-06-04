@@ -13,7 +13,7 @@ PYTHON_BINARY="${PYTHON_BINARY:-python3}"
 # where bin utilites are located
 BIN_DIR=$SCRIPTPATH/../bin/
 # where stencil description files are locate
-STENCILS_DIR=$SCRIPTPATH/testing
+STENCILS_DIR=$SCRIPTPATH/stencils
 ERRORS=0
 FAILED_TESTS=""
 TESTS=0

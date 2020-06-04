@@ -348,7 +348,7 @@ class OpCounter(ast.NodeVisitor):
 
 if __name__ == "__main__":
     """
-        Basic helper function test. Comprehensive testing is implemented in 'testing.py'.
+        Basic helper function test.
     """
 
     test = num_dims([1, None, 1])

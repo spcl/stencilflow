@@ -1,3 +1,11 @@
+Introduction
+============
+
+This repository implements an end-to-end stack that compiles a high-level
+description of a stencil program to hardware. Dependencies between stencil
+operators are resolved by streaming fine-grained results directly between
+processing elements on the chip. 
+
 Prequisites
 ===========
 
