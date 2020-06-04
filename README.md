@@ -32,7 +32,7 @@ To run the end-to-end flow on an input JSON file, the executable
 `bin/run_program.py` can be used. Example usage:
 
 ```bash
-bin/run_program.py test/testing/jacobi3d_32x32x32_8itr_8vec.json emulation -compare-to-reference
+bin/run_program.py test/stencils/jacobi3d_32x32x32_8itr_8vec.json emulation -compare-to-reference
 ```
 
 This will compile the FPGA kernel for Intel's emulation flow, execute it, build
@@ -44,6 +44,18 @@ kernel source files themselves in:
 ```bash
 .dacecache/<kernel name>/src/intel_fpga/device
 ```
+
+Program description
+-------------------
+
+Examples of program descriptions are located in `test/stencils`, including for
+2D and 3D stencils, vectorization, and lower dimensional inputs.
+
+Executables
+-----------
+
+All executables are included in the `bin` subfolder, and have documented command
+line interfaces.
 
 Tests
 =====
