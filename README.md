@@ -10,8 +10,12 @@ To run the code, the following software must be available:
 Setup
 =====
 
-Running the script `setup_virtualenv.sh` will setup a virtualenv with all the
-modules required to run StencilFlow, including the relevant version of DaCe. 
+Sourcing the script `setup_virtualenv.sh` will setup a virtualenv with all the
+modules required to run StencilFlow, including the relevant version of DaCe:
+
+```bash
+source setup_virtualenv.sh
+```
 
 Running
 =======
