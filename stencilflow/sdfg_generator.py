@@ -117,9 +117,9 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
         indices = input_dims[name]
         conn = input_to_connector[name]
         accesses[conn] = (indices, [])
-        num_dims = sum(indices, 0)
+        num_dims = len(indices)
         for access in access_list:
-            if len(access) > num_dims:
+            if len(access) > len(indices):
                 access = access[len(access) - num_dims:]  # Trim
             accesses[conn][1].append(
                 tuple(a for a, v in zip(access, indices) if v))
