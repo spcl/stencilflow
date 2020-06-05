@@ -67,6 +67,6 @@ functionality. These can be run with:
 test/test_stencil.py
 ```
 
-It is a known issue that launching Intel FPGA kernels can sometimes fail
-sporadically, seemingly due to file I/O issues. Running individual programs
-should never fail.
+It is a known issue that launching multiple Intel FPGA kernels in quick
+succession (such as is done in the tests) can sometimes fail sporadically,
+seemingly due to file I/O issues. Running individual programs should never fail.
