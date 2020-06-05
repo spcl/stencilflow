@@ -45,6 +45,14 @@ kernel source files themselves in:
 .dacecache/<kernel name>/src/intel_fpga/device
 ```
 
+Verification
+------------
+
+For programs using the "shrink" boundary conditions, the borders will
+intentionally have invalid results in them. To do validation in this scenario,
+use the `-halo=3` flag to specify how large of a halo should be ignored in
+validation in each dimension.
+
 Program description
 -------------------
 
