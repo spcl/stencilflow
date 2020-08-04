@@ -341,7 +341,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             field_dtype = parent_sdfg.data(data_name).dtype
             _, desc_outer = sdfg.add_array(
                 buffer_name_outer, (size, ),
-                field_dtype,
+                field_dtype.base_type,
                 storage=dace.dtypes.StorageType.FPGA_Local,
                 transient=True)
 
@@ -424,7 +424,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             update_read = update_state.add_read(stream_name_inner)
             update_write = update_state.add_write(buffer_name_inner_write)
             update_tasklet = update_state.add_tasklet(
-                "read_wavefront", {"wavefront_in"}, {"buffer_out"},
+                "read_wavefront", {"wavefront_in"},
+                {"buffer_out": stream_outer.dtype},
                 "if {it} >= {begin} and {it} < {end}:\n"
                 "\tbuffer_out = wavefront_in\n".format(
                     it=pipeline.iterator_str(),
@@ -438,12 +439,14 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                              "0",
                                              num_accesses=-1),
                                          dst_conn="wavefront_in")
+            # TODO: DaCe codegen fucks this up
             update_state.add_memlet_path(
                 update_tasklet,
                 update_write,
                 memlet=dace.memlet.Memlet.simple(
-                    update_write.data, "{} - {}".format(
-                        size, vector_lengths[field_name]) if size > 1 else "0"),
+                    update_write.data,
+                    "{} - {}".format(size, vector_lengths[field_name])
+                    if size > 1 else "0"),
                 src_conn="buffer_out")
 
             # Make compute state
@@ -502,8 +505,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             # Intermediate buffer, mostly relevant for vectorization
             output_buffer_name = field_name + "_output_buffer"
             nested_sdfg.add_array(output_buffer_name, (1, ),
-                                  dace.vector(stream_inner.dtype,
-                                              vector_length),
+                                  stream_inner.dtype,
                                   storage=dace.StorageType.FPGA_Registers,
                                   transient=True)
             output_buffer = compute_state.add_access(output_buffer_name)
