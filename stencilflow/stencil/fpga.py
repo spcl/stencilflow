@@ -76,14 +76,13 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             for e in in_edges:
                 if e.dst_conn == field_name:
                     field_to_memlet[field_name] = e
-                    field_to_data[field_name] = dace.sdfg.find_input_arraynode(
-                        parent_state, e).data
-                    vector_lengths[field_name] = e.data.veclen
+                    data = dace.sdfg.find_input_arraynode(parent_state, e).data
+                    field_to_data[field_name] = data
+                    vector_lengths[field_name] = parent_sdfg.data(data).veclen
                     break
             else:
-                raise KeyError(
-                    "Input connector {} was not found for {}".format(
-                        connector, field_name, node.label))
+                raise KeyError("Input connector {} was not found for {}".format(
+                    connector, field_name, node.label))
             # Deduplicate, as we can have multiple accesses to the same index
             abs_indices = (
                 [dim_to_abs_val(i, shape[dim_mask]) for i in relative] +
@@ -102,10 +101,9 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         for field_name, offset in node.output_fields.items():
             for e in parent_state.out_edges(node):
                 if e.src_conn == field_name:
-                    field_to_data[
-                        field_name] = dace.sdfg.find_output_arraynode(
-                            parent_state, e).data
-                    vector_lengths[field_name] = e.data.veclen
+                    data = dace.sdfg.find_output_arraynode(parent_state, e).data
+                    field_to_data[field_name] = data
+                    vector_lengths[field_name] = parent_sdfg.data(data).veclen
                     break
             else:
                 raise KeyError(
@@ -116,9 +114,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         vector_length = max(vector_lengths.values())
         for field_name in node.output_fields:
             if vector_lengths[field_name] != vector_length:
-                raise ValueError(
-                    "{} has vector length {}, should be {}".format(
-                        field_name, vector_lengths[field_name], vector_length))
+                raise ValueError("{} has vector length {}, should be {}".format(
+                    field_name, vector_lengths[field_name], vector_length))
 
         # All inputs must be vectorized if they read the innermost dimension,
         # and cannot be vectorized if they don't
@@ -127,8 +124,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 if vector_lengths[field_name] != vector_length:
                     raise ValueError("Input {} has vectorization width, "
                                      "expected {}.".format(
-                                         field_name,
-                                         vector_lengths[field_name],
+                                         field_name, vector_lengths[field_name],
                                          vector_length))
             else:
                 if vector_lengths[field_name] != 1:
@@ -203,8 +199,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
         for field in node.boundary_conditions:
             btype = node.boundary_conditions[field]["btype"]
             if btype == "copy":
-                center_index = tuple(
-                    0 for _ in range(sum(accesses[field][0], 0)))
+                center_index = tuple(0
+                                     for _ in range(sum(accesses[field][0], 0)))
                 # This will register the renaming
                 converter.convert(field, center_index)
 
@@ -231,8 +227,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 cond = []
                 for i, offset in enumerate(indices):
                     if vector_length > 1 and i == len(indices) - 1:
-                        par = "{}*{} + i_unroll".format(
-                            vector_length, parameters[i])
+                        par = "{}*{} + i_unroll".format(vector_length,
+                                                        parameters[i])
                     else:
                         par = parameters[i]
                     if offset < 0:
@@ -331,10 +327,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                   nested_sdfg_tasklet,
                                   dst_conn=stream_name_inner,
                                   memlet=dace.memlet.Memlet.simple(
-                                      stream_name_outer,
-                                      "0",
-                                      num_accesses=-1,
-                                      veclen=vector_lengths[field_name]))
+                                      stream_name_outer, "0", num_accesses=-1))
 
             # Create inner memory pipe
             stream_inner = stream_outer.clone()
@@ -364,8 +357,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                   memlet=dace.memlet.Memlet.simple(
                                       buffer_name_outer,
                                       "0:{}".format(size),
-                                      num_accesses=-1,
-                                      veclen=vector_lengths[field_name]))
+                                      num_accesses=-1))
 
             # Outer buffer write
             state.add_memlet_path(nested_sdfg_tasklet,
@@ -375,8 +367,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                   memlet=dace.memlet.Memlet.simple(
                                       write_node_outer.data,
                                       "0:{}".format(size),
-                                      num_accesses=-1,
-                                      veclen=vector_lengths[field_name]))
+                                      num_accesses=-1))
 
             # Inner copy
             desc_inner_read = desc_outer.clone()
@@ -404,15 +395,15 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     {"{}_shift_out".format(field_name)},
                     "{field}_shift_out = {field}_shift_in".format(
                         field=field_name))
-                shift_state.add_memlet_path(
-                    shift_read,
-                    shift_entry,
-                    shift_tasklet,
-                    dst_conn=field_name + "_shift_in",
-                    memlet=dace.memlet.Memlet.simple(
-                        shift_read.data,
-                        "i_shift + {}".format(vector_lengths[field_name]),
-                        num_accesses=1))
+                shift_state.add_memlet_path(shift_read,
+                                            shift_entry,
+                                            shift_tasklet,
+                                            dst_conn=field_name + "_shift_in",
+                                            memlet=dace.memlet.Memlet.simple(
+                                                shift_read.data,
+                                                "i_shift + {}".format(
+                                                    vector_lengths[field_name]),
+                                                num_accesses=1))
                 shift_state.add_memlet_path(shift_tasklet,
                                             shift_exit,
                                             shift_write,
@@ -440,24 +431,19 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     begin=begin_reading,
                     end=end_reading),
                 language=dace.dtypes.Language.Python)
-            update_state.add_memlet_path(
-                update_read,
-                update_tasklet,
-                memlet=dace.memlet.Memlet.simple(
-                    update_read.data,
-                    "0",
-                    num_accesses=-1,
-                    veclen=vector_lengths[field_name]),
-                dst_conn="wavefront_in")
+            update_state.add_memlet_path(update_read,
+                                         update_tasklet,
+                                         memlet=dace.memlet.Memlet.simple(
+                                             update_read.data,
+                                             "0",
+                                             num_accesses=-1),
+                                         dst_conn="wavefront_in")
             update_state.add_memlet_path(
                 update_tasklet,
                 update_write,
                 memlet=dace.memlet.Memlet.simple(
-                    update_write.data,
-                    "{} - {}".format(size, vector_lengths[field_name])
-                    if size > 1 else "0",
-                    num_accesses=vector_lengths[field_name],
-                    veclen=vector_lengths[field_name]),
+                    update_write.data, "{} - {}".format(
+                        size, vector_lengths[field_name]) if size > 1 else "0"),
                 src_conn="buffer_out")
 
             # Make compute state
@@ -470,20 +456,16 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                         offset = "{} + i_unroll".format(offset)
                     else:
                         offset = str(offset)
-                    path = [
-                        compute_read, compute_unroll_entry, compute_tasklet
-                    ]
+                    path = [compute_read, compute_unroll_entry, compute_tasklet]
                 else:
                     offset = str(offset)
                     path = [compute_read, compute_tasklet]
-                compute_state.add_memlet_path(
-                    *path,
-                    dst_conn="_" + memlet_name,
-                    memlet=dace.memlet.Memlet.simple(
-                        compute_read.data,
-                        offset,
-                        num_accesses=1,
-                        veclen=vector_lengths[field_name]))
+                compute_state.add_memlet_path(*path,
+                                              dst_conn="_" + memlet_name,
+                                              memlet=dace.memlet.Memlet.simple(
+                                                  compute_read.data,
+                                                  offset,
+                                                  num_accesses=1))
 
         for field_name, offset in node.output_fields.items():
 
@@ -508,10 +490,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                   write_node_outer,
                                   src_conn=stream_name_inner,
                                   memlet=dace.memlet.Memlet.simple(
-                                      stream_name_outer,
-                                      "0",
-                                      num_accesses=-1,
-                                      veclen=vector_lengths[field_name]))
+                                      stream_name_outer, "0", num_accesses=-1))
 
             # Create inner stream
             stream_inner = stream_outer.clone()
@@ -522,8 +501,9 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
             # Intermediate buffer, mostly relevant for vectorization
             output_buffer_name = field_name + "_output_buffer"
-            nested_sdfg.add_array(output_buffer_name, (vector_length, ),
-                                  stream_inner.dtype,
+            nested_sdfg.add_array(output_buffer_name, (1, ),
+                                  dace.vector(stream_inner.dtype,
+                                              vector_length),
                                   storage=dace.StorageType.FPGA_Registers,
                                   transient=True)
             output_buffer = compute_state.add_access(output_buffer_name)
@@ -560,18 +540,14 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 output_buffer,
                 output_tasklet,
                 dst_conn="_{}".format(output_buffer_name),
-                memlet=dace.Memlet.simple(output_buffer.data,
-                                          "0",
-                                          num_accesses=vector_length,
-                                          veclen=vector_length))
+                memlet=dace.Memlet.simple(output_buffer.data, "0"))
             compute_state.add_memlet_path(
                 output_tasklet,
                 write_node_inner,
                 src_conn="_{}".format(stream_name_inner),
                 memlet=dace.memlet.Memlet.simple(write_node_inner.data,
                                                  "0",
-                                                 num_accesses=-1,
-                                                 veclen=vector_length))
+                                                 num_accesses=-1))
 
         sdfg.parent = parent_state
         sdfg._parent_sdfg = parent_sdfg  # TODO: this should not be necessary
