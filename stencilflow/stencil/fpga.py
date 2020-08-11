@@ -424,8 +424,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             update_read = update_state.add_read(stream_name_inner)
             update_write = update_state.add_write(buffer_name_inner_write)
             update_tasklet = update_state.add_tasklet(
-                "read_wavefront", {"wavefront_in"},
-                {"buffer_out": stream_outer.dtype},
+                "read_wavefront", {"wavefront_in"}, {"buffer_out"},
                 "if {it} >= {begin} and {it} < {end}:\n"
                 "\tbuffer_out = wavefront_in\n".format(
                     it=pipeline.iterator_str(),
@@ -444,9 +443,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 update_tasklet,
                 update_write,
                 memlet=dace.memlet.Memlet.simple(
-                    update_write.data,
-                    "{} - {}".format(size, vector_lengths[field_name])
-                    if size > 1 else "0"),
+                    update_write.data, "{size} - {veclen}:{size}".format(
+                        size=size,
+                        veclen=vector_lengths[field_name],
+                        dynamic=True) if size > 1 else "0"),
                 src_conn="buffer_out")
 
             # Make compute state
