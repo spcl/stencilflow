@@ -42,13 +42,13 @@ import sys
 import json
 import unittest
 
-import dace.dtypes
-
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 TEST_FOLDER = os.path.join(os.path.dirname(__file__), "stencils")
 
 from stencilflow.bounded_queue import BoundedQueue
+
+import dace.dtypes
 
 
 class BoundedQueueTest(unittest.TestCase):
