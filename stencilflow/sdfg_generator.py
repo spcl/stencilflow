@@ -246,7 +246,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                if input_pars[-1] == parameters[-1] else 1)
         input_vtype = (dace.dtypes.vector(node.data_type, input_vector_length)
                        if input_vector_length > 1 else node.data_type)
-        input_vshape = input_shape
+        input_vshape = list(input_shape)
         if input_vector_length > 1:
             input_vshape[-1] //= input_vector_length
 
@@ -396,7 +396,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
         post_state.add_memlet_path(copy_fpga,
                                    copy_host,
                                    memlet=Memlet.simple(
-                                       copy_host,
+                                       copy_fpga,
                                        ", ".join(memcopy_indices),
                                        num_accesses=memcopy_accesses))
 
