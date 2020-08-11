@@ -288,8 +288,10 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                  for f, a in node.accesses.items() if any(a[0])]))
         compute_tasklet = compute_state.add_tasklet(
             node.label + "_compute",
-            compute_inputs,
-            [name + "_inner_out" for name in node.output_fields],
+            compute_inputs, {
+                name + "_inner_out"
+                for name in node.output_fields
+            },
             code,
             language=dace.dtypes.Language.Python)
         if vector_length > 1:
@@ -438,7 +440,6 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                                              "0",
                                              num_accesses=-1),
                                          dst_conn="wavefront_in")
-            # TODO: DaCe codegen fucks this up
             update_state.add_memlet_path(
                 update_tasklet,
                 update_write,
@@ -504,8 +505,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
             # Intermediate buffer, mostly relevant for vectorization
             output_buffer_name = field_name + "_output_buffer"
-            nested_sdfg.add_array(output_buffer_name, (1, ),
-                                  stream_inner.dtype,
+            nested_sdfg.add_array(output_buffer_name, (vector_length, ),
+                                  stream_inner.dtype.base_type,
                                   storage=dace.StorageType.FPGA_Registers,
                                   transient=True)
             output_buffer = compute_state.add_access(output_buffer_name)
@@ -542,7 +543,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 output_buffer,
                 output_tasklet,
                 dst_conn="_{}".format(output_buffer_name),
-                memlet=dace.Memlet.simple(output_buffer.data, "0"))
+                memlet=dace.Memlet.simple(output_buffer.data,
+                                          "0:{}".format(vector_length)))
             compute_state.add_memlet_path(
                 output_tasklet,
                 write_node_inner,

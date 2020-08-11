@@ -48,12 +48,12 @@ def _generate_init(chain):
     iterators = make_iterators(
         [shape[i] for i, m in enumerate(iterator_mask) if m],
         parameters=[parameters[i] for i, m in enumerate(iterator_mask) if m])
+    if vector_length > 1:
+        iterators[parameters[-1]] += "//{}".format(vector_length)
     memcopy_indices = [
         iterators[k] if iterator_mask[i] else k
         for i, k in enumerate(parameters)
     ]
-    if vector_length > 1:
-        iterators[parameters[-1]] += "/{}".format(vector_length)
     memcopy_accesses = str(
         functools.reduce(operator.mul,
                          [shape[i] for i, m in enumerate(iterator_mask) if m],
@@ -219,6 +219,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
 
     (dimensions_to_skip, shape, vector_length, parameters, iterators,
      memcopy_indices, memcopy_accesses) = _generate_init(chain)
+    vshape = list(shape)  # Copy
+    if vector_length > 1:
+        vshape[-1] //= vector_length
 
     def add_input(node):
 
@@ -243,6 +246,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                if input_pars[-1] == parameters[-1] else 1)
         input_vtype = (dace.dtypes.vector(node.data_type, input_vector_length)
                        if input_vector_length > 1 else node.data_type)
+        input_vshape = input_shape
+        if input_vector_length > 1:
+            input_vshape[-1] //= input_vector_length
 
         # Sort to get deterministic output
         outputs = sorted([e[1].name for e in chain.graph.out_edges(node)])
@@ -260,7 +266,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
 
             # Device-side copy
             sdfg.add_array(node.name,
-                           input_shape,
+                           input_vshape,
                            input_vtype,
                            storage=StorageType.FPGA_Global,
                            transient=True)
@@ -274,7 +280,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                       memlet=Memlet.simple(
                                           copy_fpga,
                                           ", ".join("0:{}".format(s)
-                                                    for s in input_shape),
+                                                    for s in input_vshape),
                                           num_accesses=input_accesses))
 
             tasklet_code = "\n".join(
@@ -372,7 +378,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
         try:
             sdfg.add_array(node.name + "_host", shape, node.data_type)
             sdfg.add_array(node.name,
-                           shape,
+                           vshape,
                            dace.dtypes.vector(node.data_type, vector_length),
                            storage=StorageType.FPGA_Global,
                            transient=True)
@@ -411,9 +417,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                     {"memory"}, tasklet_code)
 
         vectorized_pars = copy.copy(parameters)
-        if vector_length > 1:
-            vectorized_pars[-1] = "{}*{}".format(vector_length,
-                                                 vectorized_pars[-1])
+        # if vector_length > 1:
+        #     vectorized_pars[-1] = "{}*{}".format(vector_length,
+        #                                          vectorized_pars[-1])
 
         stream_name = "{}_to_write_{}".format(src.name, node.name)
         read_node = state.add_read(stream_name)
