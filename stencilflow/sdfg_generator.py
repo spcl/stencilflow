@@ -1,41 +1,3 @@
-#!/usr/bin/env python3
-# encoding: utf-8
-"""
-BSD 3-Clause License
-
-Copyright (c) 2018-2020, Johannes de Fine Licht
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-__author__ = "Johannes de Fine Licht"
-__copyright__ = "Copyright 2018-2020, StencilFlow"
-__license__ = "BSD-3-Clause"
-
 import argparse
 import ast
 import astunparse
@@ -86,12 +48,12 @@ def _generate_init(chain):
     iterators = make_iterators(
         [shape[i] for i, m in enumerate(iterator_mask) if m],
         parameters=[parameters[i] for i, m in enumerate(iterator_mask) if m])
+    if vector_length > 1:
+        iterators[parameters[-1]] += "//{}".format(vector_length)
     memcopy_indices = [
         iterators[k] if iterator_mask[i] else k
         for i, k in enumerate(parameters)
     ]
-    if vector_length > 1:
-        iterators[parameters[-1]] += "/{}".format(vector_length)
     memcopy_accesses = str(
         functools.reduce(operator.mul,
                          [shape[i] for i, m in enumerate(iterator_mask) if m],
@@ -234,13 +196,12 @@ def _add_pipe(sdfg, edge, parameters, vector_length):
 
     sdfg.add_stream(
         stream_name,
-        edge[0].data_type,
+        dace.dtypes.vector(edge[0].data_type, vector_length),
         # Always maintain some channel depth to have greater stall tolerance
         buffer_size=max(MINIMUM_CHANNEL_DEPTH,
                         edge[2]["channel"]["delay_buffer"].maxsize),
         storage=StorageType.FPGA_Local,
-        transient=True,
-        veclen=vector_length)
+        transient=True)
 
 
 def generate_sdfg(name, chain, synthetic_reads=False):
@@ -258,6 +219,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
 
     (dimensions_to_skip, shape, vector_length, parameters, iterators,
      memcopy_indices, memcopy_accesses) = _generate_init(chain)
+    vshape = list(shape)  # Copy
+    if vector_length > 1:
+        vshape[-1] //= vector_length
 
     def add_input(node):
 
@@ -280,6 +244,11 @@ def generate_sdfg(name, chain, synthetic_reads=False):
         # Only vectorize the read if the innermost dimensions is read
         input_vector_length = (vector_length
                                if input_pars[-1] == parameters[-1] else 1)
+        input_vtype = (dace.dtypes.vector(node.data_type, input_vector_length)
+                       if input_vector_length > 1 else node.data_type)
+        input_vshape = list(input_shape)
+        if input_vector_length > 1:
+            input_vshape[-1] //= input_vector_length
 
         # Sort to get deterministic output
         outputs = sorted([e[1].name for e in chain.graph.out_edges(node)])
@@ -297,8 +266,8 @@ def generate_sdfg(name, chain, synthetic_reads=False):
 
             # Device-side copy
             sdfg.add_array(node.name,
-                           input_shape,
-                           node.data_type,
+                           input_vshape,
+                           input_vtype,
                            storage=StorageType.FPGA_Global,
                            transient=True)
             access_node = state.add_read(node.name)
@@ -311,9 +280,8 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                       memlet=Memlet.simple(
                                           copy_fpga,
                                           ", ".join("0:{}".format(s)
-                                                    for s in input_shape),
-                                          num_accesses=input_accesses,
-                                          veclen=input_vector_length))
+                                                    for s in input_vshape),
+                                          num_accesses=input_accesses))
 
             tasklet_code = "\n".join(
                 ["{} = memory".format(o) for o in out_memlets])
@@ -322,9 +290,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                         out_memlets, tasklet_code)
 
             vectorized_pars = input_pars
-            if input_vector_length > 1:
-                vectorized_pars[-1] = "{}*{}".format(input_vector_length,
-                                                     vectorized_pars[-1])
+            # if input_vector_length > 1:
+            #     vectorized_pars[-1] = "{}*{}".format(input_vector_length,
+            #                                          vectorized_pars[-1])
 
             # Lower-dimensional arrays should buffer values and send them
             # multiple times
@@ -333,7 +301,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                 buffer_name = node.name + "_buffer"
                 sdfg.add_array(buffer_name,
                                input_shape,
-                               node.data_type,
+                               vtype,
                                storage=StorageType.FPGA_Local,
                                transient=True)
                 buffer_node = state.add_access(buffer_name)
@@ -353,8 +321,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                       memlet=dace.Memlet.simple(
                                           access_node.data,
                                           ", ".join(vectorized_pars),
-                                          num_accesses=1,
-                                          veclen=input_vector_length))
+                                          num_accesses=1))
                 state.add_memlet_path(buffer_tasklet,
                                       buffer_exit,
                                       buffer_node,
@@ -362,8 +329,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                       memlet=dace.Memlet.simple(
                                           buffer_node.data,
                                           ", ".join(input_pars),
-                                          num_accesses=1,
-                                          veclen=input_vector_length))
+                                          num_accesses=1))
                 state.add_memlet_path(buffer_node,
                                       entry,
                                       tasklet,
@@ -371,8 +337,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                       memlet=dace.Memlet.simple(
                                           buffer_node.data,
                                           ", ".join(input_pars),
-                                          num_accesses=1,
-                                          veclen=input_vector_length))
+                                          num_accesses=1))
             else:
 
                 state.add_memlet_path(access_node,
@@ -382,14 +347,12 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                       memlet=Memlet.simple(
                                           node.name,
                                           ", ".join(vectorized_pars),
-                                          num_accesses=1,
-                                          veclen=input_vector_length))
+                                          num_accesses=1))
 
         else:
 
             tasklet_code = "\n".join([
-                "{} = {}".format(o, float(synthetic_reads))
-                for o in out_memlets
+                "{} = {}".format(o, float(synthetic_reads)) for o in out_memlets
             ])
 
             tasklet = state.add_tasklet("read_" + node.name, {}, out_memlets,
@@ -405,11 +368,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                   exit,
                                   write_node,
                                   src_conn=out_memlet,
-                                  memlet=Memlet.simple(
-                                      stream_name,
-                                      "0",
-                                      num_accesses=1,
-                                      veclen=input_vector_length))
+                                  memlet=Memlet.simple(stream_name,
+                                                       "0",
+                                                       num_accesses=1))
 
     def add_output(node):
 
@@ -417,8 +378,8 @@ def generate_sdfg(name, chain, synthetic_reads=False):
         try:
             sdfg.add_array(node.name + "_host", shape, node.data_type)
             sdfg.add_array(node.name,
-                           shape,
-                           node.data_type,
+                           vshape,
+                           dace.dtypes.vector(node.data_type, vector_length),
                            storage=StorageType.FPGA_Global,
                            transient=True)
         except NameError:
@@ -435,10 +396,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
         post_state.add_memlet_path(copy_fpga,
                                    copy_host,
                                    memlet=Memlet.simple(
-                                       copy_host,
+                                       copy_fpga,
                                        ", ".join(memcopy_indices),
-                                       num_accesses=memcopy_accesses,
-                                       veclen=vector_length))
+                                       num_accesses=memcopy_accesses))
 
         entry, exit = state.add_map("write_" + node.name,
                                     iterators,
@@ -457,9 +417,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                     {"memory"}, tasklet_code)
 
         vectorized_pars = copy.copy(parameters)
-        if vector_length > 1:
-            vectorized_pars[-1] = "{}*{}".format(vector_length,
-                                                 vectorized_pars[-1])
+        # if vector_length > 1:
+        #     vectorized_pars[-1] = "{}*{}".format(vector_length,
+        #                                          vectorized_pars[-1])
 
         stream_name = "{}_to_write_{}".format(src.name, node.name)
         read_node = state.add_read(stream_name)
@@ -470,8 +430,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                               dst_conn=in_memlet,
                               memlet=Memlet.simple(stream_name,
                                                    "0",
-                                                   num_accesses=1,
-                                                   veclen=vector_length))
+                                                   num_accesses=1))
 
         state.add_memlet_path(tasklet,
                               exit,
@@ -479,8 +438,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                               src_conn="memory",
                               memlet=Memlet.simple(node.name,
                                                    ", ".join(vectorized_pars),
-                                                   num_accesses=1,
-                                                   veclen=vector_length))
+                                                   num_accesses=1))
 
     def add_kernel(node):
 
@@ -538,8 +496,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                   memlet=Memlet.simple(
                                       stream_name,
                                       "0",
-                                      num_accesses=memcopy_accesses,
-                                      veclen=input_vector_length))
+                                      num_accesses=memcopy_accesses))
 
         # Add read nodes and memlets
         for output_name, connector in output_to_connector.items():
@@ -558,8 +515,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                                   memlet=Memlet.simple(
                                       stream_name,
                                       "0",
-                                      num_accesses=memcopy_accesses,
-                                      veclen=vector_length))
+                                      num_accesses=memcopy_accesses))
 
     # First generate all connections between kernels and memories
     for link in chain.graph.edges(data=True):
@@ -658,8 +614,7 @@ def generate_reference(name, chain):
                                   stencil_node,
                                   dst_conn=connector,
                                   memlet=Memlet.simple(
-                                      field,
-                                      ", ".join(input_iterators[field])))
+                                      field, ", ".join(input_iterators[field])))
 
         for _, connector in output_to_connector.items():
 
@@ -826,8 +781,8 @@ def split_sdfg(sdfg,
     # Classify nodes into whether they appear before or after the split
     states_before, nodes_before = (_nodes_before_or_after(
         sdfg, read_state, remote_stream, False))
-    states_after, nodes_after = (_nodes_before_or_after(
-        sdfg, write_state, remote_stream, True))
+    states_after, nodes_after = (_nodes_before_or_after(sdfg, write_state,
+                                                        remote_stream, True))
     nodes_before.remove((read_state, read_node))
     nodes_after.remove((write_state, write_node))
     intersection = nodes_before & nodes_after
@@ -848,8 +803,7 @@ def split_sdfg(sdfg,
         sdfg.data(read_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
         sdfg.data(read_node.data).location["snd_rank"] = send_rank
         sdfg.data(read_node.data).location["port"] = ports
-        sdfg.data(
-            write_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
+        sdfg.data(write_node.data).storage = dace.dtypes.StorageType.FPGA_Remote
         sdfg.data(write_node.data).location["rcv_rank"] = receive_rank
         sdfg.data(write_node.data).location["port"] = ports
     else:
@@ -882,8 +836,7 @@ def split_sdfg(sdfg,
         for i, p in enumerate(ports):
             port_stream_name = "{}_port_{}".format(read_split_name, p)
             sdfg.add_stream(port_stream_name,
-                            read_desc.dtype,
-                            veclen=veclen_split,
+                            dace.dtypes.vector(read_desc.dtype, veclen_split),
                             storage=dace.dtypes.StorageType.FPGA_Remote,
                             transient=True)
             sdfg.data(port_stream_name).location = {
@@ -898,26 +851,23 @@ def split_sdfg(sdfg,
                                        read_gearbox_tasklet,
                                        dst_conn="_port_{}".format(p),
                                        memlet=dace.Memlet.simple(
-                                           port_read.data,
-                                           "0",
-                                           veclen=veclen_split,
-                                           num_accesses=1))
+                                           port_read.data, "0", num_accesses=1))
         # Tasklet to stream
-        read_state.add_memlet_path(
-            read_gearbox_tasklet,
-            read_exit,
-            buffer_to_stream,
-            src_conn="_{}".format(buffer_to_stream.data),
-            memlet=dace.Memlet.simple(buffer_to_stream.data,
-                                      "0",
-                                      veclen=read_desc.veclen,
-                                      num_accesses=1))
+        read_state.add_memlet_path(read_gearbox_tasklet,
+                                   read_exit,
+                                   buffer_to_stream,
+                                   src_conn="_{}".format(buffer_to_stream.data),
+                                   memlet=dace.Memlet.simple(
+                                       buffer_to_stream.data,
+                                       "0",
+                                       veclen=read_desc.veclen,
+                                       num_accesses=1))
         #######################################################################
         # Writing part
         #######################################################################
         num_accesses = sum(
-            (e.data.num_accesses for e in write_state.in_edges(write_node)),
-            0) // write_desc.veclen
+            (e.data.num_accesses
+             for e in write_state.in_edges(write_node)), 0) // write_desc.veclen
         write_split_name = write_node.data + "__write_split"
         write_entry, write_exit = write_state.add_map(
             "{}_map".format(write_split_name),
@@ -947,13 +897,11 @@ def split_sdfg(sdfg,
                                     memlet=dace.Memlet.simple(
                                         stream_to_buffer.data,
                                         "0",
-                                        veclen=write_desc.veclen,
                                         num_accesses=1))
         for i, p in enumerate(ports):
             port_stream_name = "{}_port_{}".format(write_split_name, p)
             sdfg.add_stream(port_stream_name,
-                            write_desc.dtype,
-                            veclen=veclen_split,
+                            dace.dtypes.vector(write_desc.dtype, veclen_split),
                             storage=dace.dtypes.StorageType.FPGA_Remote,
                             transient=True)
             sdfg.data(port_stream_name).location = {
@@ -968,9 +916,7 @@ def split_sdfg(sdfg,
                                         port_write,
                                         src_conn="_port_{}".format(p),
                                         memlet=dace.Memlet.simple(
-                                            port_write.data,
-                                            "0",
-                                            veclen=veclen_split))
+                                            port_write.data, "0"))
 
     # Keep track of containers
     containers_before = {
@@ -989,8 +935,7 @@ def split_sdfg(sdfg,
     sdfg_after = copy.deepcopy(sdfg)
     sdfg_before._name = name
     sdfg_after._name = name
-    nodes_before = set(
-        (sdfg.node_id(s), s.node_id(n)) for s, n in nodes_before)
+    nodes_before = set((sdfg.node_id(s), s.node_id(n)) for s, n in nodes_before)
     nodes_after = set((sdfg.node_id(s), s.node_id(n)) for s, n in nodes_after)
     states_before = set(sdfg.node_id(s) for s in states_before)
     states_after = set(sdfg.node_id(s) for s in states_after)
