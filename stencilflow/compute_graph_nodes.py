@@ -52,14 +52,14 @@ class Num(BaseOperationNodeClass):
         return ast_node.n
 
 
-class Binop(BaseOperationNodeClass):
+class BinOp(BaseOperationNodeClass):
     """
         The Name class is a subclass of the BaseOperationNodeClass and represents the binary operation node in the
         computation tree.
     """
     def __init__(self, ast_node: ast, number: int) -> None:
         """
-        Create new Binop node with given initialization parameters.
+        Create new BinOp node with given initialization parameters.
         :param ast_node: abstract syntax tree node of the computation
         :param number: tree walk numbering
         """
@@ -313,6 +313,27 @@ class Compare(BaseOperationNodeClass):
         :returns generated name
         """
         return self._COMP_SYM[self.op]
+
+
+class BoolOp(BaseOperationNodeClass):
+    def __init__(self, ast_node: ast, number: int) -> None:
+        # set comparison operator field
+        self.op: operator = self._BOOLOP_MAP[type(ast_node.op)]
+        # initialize superclass
+        super().__init__(ast_node, number)
+
+    _BOOLOP_MAP: Dict[type(ast), type(operator)] = {
+        ast.And: operator.and_,
+        ast.Or: operator.or_,
+    }
+
+    _BOOLOP_SYM: Dict[type(operator), str] = {
+        operator.and_: "&&",
+        operator.or_: "||",
+    }
+
+    def generate_name(self, ast_node: ast) -> str:
+        return self._BOOLOP_SYM[self.op]
 
 
 class UnaryOp(BaseOperationNodeClass):

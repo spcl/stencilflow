@@ -10,7 +10,7 @@ from stencilflow.base_node_class import BaseKernelNodeClass, BaseOperationNodeCl
 from stencilflow.bounded_queue import BoundedQueue
 from stencilflow.calculator import Calculator
 from stencilflow.compute_graph import ComputeGraph
-from stencilflow.compute_graph import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
+from stencilflow.compute_graph import Name, Num, BinOp, Call, Output, Subscript, Ternary, Compare, UnaryOp
 
 
 class Kernel(BaseKernelNodeClass):
@@ -187,7 +187,7 @@ class Kernel(BaseKernelNodeClass):
         # get predecessor list
         pred = list(self.graph.graph.pred[node])
         # differentiate cases for each node type
-        if isinstance(node, Binop):  # binary operation
+        if isinstance(node, BinOp):  # binary operation
             # extract expression elements
             if len(pred) == 1:  # lhs == rhs:
                 lhs, rhs = pred[0], pred[0]

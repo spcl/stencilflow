@@ -8,7 +8,9 @@ import networkx as nx
 
 import stencilflow.helper as helper
 from stencilflow.base_node_class import BaseOperationNodeClass
-from stencilflow.compute_graph_nodes import Name, Num, Binop, Call, Output, Subscript, Ternary, Compare, UnaryOp
+from stencilflow.compute_graph_nodes import (Name, Num, BinOp, BoolOp, Call,
+                                             Output, Subscript, Ternary,
+                                             Compare, UnaryOp)
 
 
 class ComputeGraph:
@@ -83,7 +85,7 @@ class ComputeGraph:
         elif isinstance(node, ast.Num):  # static value
             return Num(node, number)
         elif isinstance(node, ast.BinOp):  # binary operation
-            return Binop(node, number)
+            return BinOp(node, number)
         elif isinstance(node, ast.Call):  # function (e.g. sin, cos,..)
             return Call(node, number)
         elif isinstance(node, ast.Assign):  # assign operator (var = expr;)
@@ -96,6 +98,8 @@ class ComputeGraph:
             return Compare(node, number)
         elif isinstance(node, ast.UnaryOp):  # negation of value ('-' sign)
             return UnaryOp(node, number)
+        elif isinstance(node, ast.BoolOp):
+            return BoolOp(node, number)
         else:
             raise Exception("Unknown AST type {}".format(type(node)))
 
@@ -253,6 +257,17 @@ class ComputeGraph:
             # add edges from parent to children
             self.graph.add_edge(lhs, new_node)
             self.graph.add_edge(rhs, new_node)
+        elif isinstance(node, ast.BoolOp):
+            lhs = self.ast_tree_walk(
+                node.values[0],
+                ComputeGraph.child_left_number(number))
+            rhs = self.ast_tree_walk(
+                node.values[1],
+                ComputeGraph.child_right_number(number))
+            self.graph.add_edge(lhs, new_node)
+            self.graph.add_edge(rhs, new_node)
+            if len(node.values) > 2:
+                raise NotImplementedError
         elif isinstance(node, ast.Call):
             # do tree-walk for all arguments
             if len(node.args) > 2:
@@ -348,7 +363,7 @@ class ComputeGraph:
             elif isinstance(node, Name) or isinstance(node,
                                                       Subscript):  # variables
                 names.append(node)
-            elif isinstance(node, Binop) or isinstance(
+            elif isinstance(node, BinOp) or isinstance(
                     node, Call) or isinstance(node, UnaryOp):  # operations
                 ops.append(node)
             elif isinstance(node, Output):  # outputs
@@ -465,7 +480,7 @@ class ComputeGraph:
             for child in self.graph.pred[node]:
                 child.latency = node.latency
                 self.latency_tree_walk(child)
-        elif isinstance(node, Binop) or isinstance(
+        elif isinstance(node, BinOp) or isinstance(
                 node,
                 Call):  # function calls: additional latency of the function
             # added
