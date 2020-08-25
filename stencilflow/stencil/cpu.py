@@ -58,11 +58,14 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
         boundary_code = ""
         # Loop over each input
         for field_name, (iterators, accesses) in node.accesses.items():
+            if sum(iterators, 0) == 0:
+                continue  # Scalar input
             # Loop over each access to this data
             for indices in accesses:
                 try:
                     memlet_name = code_memlet_names[field_name][indices]
                 except KeyError:
+                    import pdb; pdb.set_trace()
                     raise KeyError("Missing access in code: {}[{}]".format(
                         field_name, ", ".join(map(str, indices))))
                 cond = []
@@ -113,7 +116,9 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
 
         input_memlets = sum(
             [["{}_in".format(c) for c in v.values()]
-             for k, v in code_memlet_names.items() if k in node.accesses], [])
+             for k, v in code_memlet_names.items()
+             # Don't include scalar variables
+             if k in node.accesses and sum(node.accesses[k][0], 0) > 0], [])
         output_memlets = sum(
             [["{}_out".format(c) for c in v.values()]
              for k, v in code_memlet_names.items() if k in node.output_fields],
@@ -172,6 +177,11 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
                                           src_conn=connector + "_out",
                                           memlet=dace.Memlet.simple(
                                               field, ", ".join(parameters)))
+
+        # Add scalars as symbols
+        for field_name, (indices, accesses) in node.accesses.items():
+            if sum(indices, 0) == 0:
+                sdfg.add_symbol(field_name, parent_sdfg.symbols[field_name])
 
         #######################################################################
 

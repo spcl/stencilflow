@@ -186,8 +186,11 @@ def _add_pipe(sdfg, edge, parameters, vector_length):
     src_name = edge[0].name
     dst_name = edge[1].name
     if isinstance(edge[0], stencilflow.input.Input):
-        parameters, vector_length = _get_input_parameters(
-            edge[0], parameters, vector_length)
+        try:
+            parameters, vector_length = _get_input_parameters(
+                edge[0], parameters, vector_length)
+        except IndexError:
+            return  # This is a 0D input, don't create any pipe
         src_name = "read_" + src_name
     if isinstance(edge[1], stencilflow.output.Output):
         dst_name = "write_" + dst_name
@@ -237,7 +240,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                 node.name))
         # If scalar, just add a symbol
         if len(input_pars) == 0:
-            sdfg.add_symbol(node.name, node.data_type, override_dtype=True)
+            sdfg.add_symbol(node.name, node.data_type)
             return  # We're done
         input_shape = [shape[list(parameters).index(i)] for i in input_pars]
         input_accesses = str(functools.reduce(operator.mul, input_shape, 1))
@@ -469,9 +472,9 @@ def generate_sdfg(name, chain, synthetic_reads=False):
         # Add read nodes and memlets
         for field_name, connector in input_to_connector.items():
 
-            # Scalars are symbols rather than data nodes
             input_vector_length = vector_length
             try:
+                # Scalars are symbols rather than data nodes
                 if len(node.inputs[field_name]["input_dim"]) == 0:
                     continue
                 else:
@@ -576,14 +579,17 @@ def generate_reference(name, chain):
                     raise ValueError("No outputs found for input node.")
             else:
                 arr_shape = shape
-            try:
-                sdfg.add_array(node.name, arr_shape, node.data_type)
-            except NameError:
-                sdfg.data(node.name).access = dace.dtypes.AccessType.ReadWrite
+            if len(arr_shape) > 0:
+                try:
+                    sdfg.add_array(node.name, arr_shape, node.data_type)
+                except NameError:
+                    sdfg.data(node.name).access = dace.dtypes.AccessType.ReadWrite
+            else:
+                sdfg.add_symbol(node.name, node.data_type)
 
     for link in chain.graph.edges(data=True):
         name = link[0].name
-        if name not in sdfg.arrays:
+        if name not in sdfg.arrays and name not in sdfg.symbols:
             sdfg.add_array(name, shape, link[0].data_type, transient=True)
             input_shapes[name] = tuple(shape)
 
@@ -607,6 +613,9 @@ def generate_reference(name, chain):
         stencil_node.implementation = "CPU"
 
         for field, connector in input_to_connector.items():
+
+            if len(input_iterators[field]) == 0:
+                continue  # Scalar variable
 
             # Outer memory read
             read_node = state.add_read(field)

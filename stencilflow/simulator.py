@@ -114,7 +114,8 @@ class Simulator:
             print("Initialize simulator input arrays.")
         initialized = helper.load_input_arrays(
             self.program_description["inputs"],
-            prefix=self.program_description["path"])
+            prefix=self.program_description["path"],
+            shape=self.dimensions)
         for k, v in initialized.items():
             # import data
             self.input_nodes[k].data_queue.import_data(v)

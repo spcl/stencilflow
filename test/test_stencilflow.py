@@ -251,9 +251,9 @@ class KernelTest(unittest.TestCase):
                 "value": 1.0
             }},
             raw_inputs= {
-    "a": {
-      "dimensions": ["i", "j", "k"]
-    }}
+        "a": {
+        "dimensions": ["i", "j", "k"]
+        }}
         )
         # check if the string matches
         self.assertEqual(
@@ -411,9 +411,9 @@ class ProgramTest(unittest.TestCase):
     def test_and_simulate(self):
         test_directory = os.path.join(os.path.dirname(__file__), "stencils")
         for stencil_file in [
-                "simulator", "simulator2", "simulator3", "simulator4",
-                "simulator5", "simulator6", "simulator8", "simulator9",
-                "simulator10", "simulator11"
+                "simulator", "simulator2",
+                "simulator3", "simulator4", "simulator5", "simulator6",
+                "simulator8", "simulator9", "simulator10", "simulator11"
         ]:
             print(
                 "Simulating and emulating program {}...".format(stencil_file))
@@ -428,6 +428,7 @@ class ProgramTest(unittest.TestCase):
     def test_program(self):
         test_directory = os.path.join(os.path.dirname(__file__), "stencils")
         for stencil_file in [
+                "varying_dimensionality",
                 "jacobi2d_128x128",
                 "jacobi2d_128x128_8vec",
                 "jacobi3d_32x32x32_8itr",

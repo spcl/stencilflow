@@ -1,0 +1,56 @@
+{
+  "inputs": {
+    "in0d": {
+      "data": 0.1,
+      "data_type": "float64",
+      "dimensions": []
+    },
+    "in1d": {
+      "data": "constant:0.2",
+      "data_type": "float32",
+      "dimensions": ["k"]
+    },
+    "in2d": {
+      "data": "constant:0.3",
+      "data_type": "float32",
+      "dimensions": ["i", "k"]
+    },
+    "in3d": {
+      "data": "constant:0.4",
+      "data_type": "float64",
+      "dimensions": ["i", "j", "k"]
+    }
+  },
+  "outputs": [
+    "out"
+  ],
+  "dimensions": [
+    8,
+    16,
+    32
+  ],
+  "program": {
+    "out": {
+      "computation_string": "out = in0d + in1d[k] + in1d[k+42] + in2d[i, k] + in2d[i+1, k] + in3d[i, j, k] + in3d[i+1, j+1, k+1]",
+      "boundary_conditions": {
+        "in0d": {
+          "type": "constant",
+          "value": 1.0
+        },
+        "in1d": {
+          "type": "constant",
+          "value": 1.0
+        },
+        "in2d": {
+          "type": "constant",
+          "value": 1.0
+        },
+        "in3d": {
+          "type": "constant",
+          "value": 1.0
+        }
+      },
+      "data_type": "float32"
+    }
+  }
+}

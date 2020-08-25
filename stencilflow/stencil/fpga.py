@@ -68,9 +68,9 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 # This is a scalar, no buffer needed. Instead, the SDFG must
                 # take this as a symbol
                 scalars[field_name] = parent_sdfg.symbols[field_name]
+                vector_lengths[field_name] = 1
                 sdfg.add_symbol(field_name,
-                                parent_sdfg.symbols[field_name],
-                                override_dtype=True)
+                                parent_sdfg.symbols[field_name])
                 continue
             # Find the corresponding input memlets
             for e in in_edges:
@@ -309,7 +309,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
 
         # First, grab scalar variables
         for scalar, scalar_type in scalars.items():
-            nested_sdfg.add_symbol(scalar, scalar_type, True)
+            nested_sdfg.add_symbol(scalar, scalar_type)
 
         for (field_name, size), init_size in zip(buffer_sizes.items(),
                                                  init_sizes):
