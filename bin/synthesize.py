@@ -6,6 +6,8 @@ import json
 import numpy as np
 
 
+ITERATORS = ["i", "j", "k"]
+
 def make_field_name(index):
     return "a{}".format(index)
 
@@ -83,12 +85,14 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
         "vectorization": vectorize
     }
 
+    iterators = ITERATORS[3 - len(shape):]
+
     # Generate all indices that each field is accessed with
     dimensions = [
         make_extent_accesses(size_x, extent_x, stencil_shape),
         make_extent_accesses(size_y, extent_y, stencil_shape),
-        make_extent_accesses(size_z, extent_x, stencil_shape)
-    ]
+        make_extent_accesses(size_z, extent_z, stencil_shape)
+    ][:len(shape)]
     if stencil_shape in ["cross", "diffusion", "hotspot"]:
         indices = []
         for i in range(len(dimensions)):
@@ -97,13 +101,14 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     elif stencil_shape == "box":
         indices = itertools.product(*dimensions)
 
-    indices = [
-        "i{}, j{}, k{}".format(
-            ("+" + str(i) if i > 0 else "-" + str(abs(i)) if i < 0 else ""),
-            ("+" + str(j) if j > 0 else "-" + str(abs(j)) if j < 0 else ""),
-            ("+" + str(k) if k > 0 else "-" + str(abs(k)) if k < 0 else ""))
-        for (i, j, k) in indices
-    ]
+    _indices = []
+    for t in indices:
+        s = []
+        for i, val in enumerate(t):
+            s.append(iterators[i] + ("+" + str(val) if val > 0 else "-" +
+                                     str(abs(val)) if val < 0 else ""))
+        _indices.append(", ".join(s))
+    indices = _indices
 
     prev_name = "a"
     field_counter = 0
@@ -111,7 +116,11 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
 
     # Add first field
     name = "a"
-    program["inputs"][name] = {"data": "constant:1", "data_type": data_type}
+    program["inputs"][name] = {
+        "data": "constant:1",
+        "data_type": data_type,
+        "dimensions": ["i", "j", "k"][3 - len(shape):]
+    }
     field_counter += 1
 
     fork_ends = []
@@ -242,6 +251,25 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
             "data": "constant:0.5",
             "data_type": data_type
         }
+        if len(shape) == 2:  # Hotspot 2D
+            scalars = ["sdc", "r_x", "r_y", "r_z", "amb"]
+        elif len(shape) == 3:  # Hotspot 3D
+            scalars = ["cc", "cn", "cs", "cw", "ce", "ca", "cb", "sdc", "amb"]
+        else:
+            raise NotImplementedError
+        for s in scalars:
+            program["inputs"][s] = {
+                "data": "constant:0.5",
+                "data_type": data_type,
+                "dimensions": []
+            }
+    elif stencil_shape == "diffusion":
+        for i in range(len(indices)):
+            program["inputs"][f"c{i}"] = {
+                "data": "constant:0.5",
+                "data_type": data_type,
+                "dimensions": []
+            }
 
     program["outputs"].append(name)
 

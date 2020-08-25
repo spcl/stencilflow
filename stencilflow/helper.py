@@ -221,8 +221,11 @@ def load_input_arrays(input_configs: Dict, prefix=None, shape=None) -> Dict:
     input_arrays = dict()
     for arr_name, source in input_configs.items():
         arr = load_array(source, prefix, shape)
-        if len(arr.shape) > 0:  # Don't call for scalars
-            arr = aligned(arr, 64)
+        try:
+            if len(arr.shape) > 0:  # Don't call for scalars
+                arr = aligned(arr, 64)
+        except AttributeError:
+            pass  # Don't call for scalars
         input_arrays[arr_name] = arr
     return input_arrays
 

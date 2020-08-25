@@ -149,9 +149,12 @@ def run_program(stencil_file,
         reference_output_arrays = copy.deepcopy(output_arrays)
 
     # Run program
-    dace_args = {(key + "_host" if len(val.shape) > 0 else key): val
-                 for key, val in itertools.chain(input_arrays.items(),
-                                                 output_arrays.items())}
+    dace_args = {
+        (key +
+         "_host" if hasattr(val, "shape") and len(val.shape) > 0 else key): val
+        for key, val in itertools.chain(input_arrays.items(),
+                                        output_arrays.items())
+    }
     if repetitions == 1:
         print("Executing DaCe program...")
         program(**dace_args)
