@@ -167,11 +167,11 @@ def remove_constant_stencils(top_sdfg: dace.SDFG):
                         and state.in_degree(node) == 0
                         and state.out_degree(node) == 1):
                     # We can remove transient, find value from tasklet
-                    if len(node.code) != 1:
+                    if len(node.code.code) != 1:
                         dprint('Cannot remove scalar stencil', node.name,
                                '(complex code)')
                         continue
-                    if not isinstance(node.code[0], ast.Assign):
+                    if not isinstance(node.code.code[0], ast.Assign):
                         dprint('Cannot remove scalar stencil', node.name,
                                '(complex code2)')
                         continue
@@ -184,7 +184,7 @@ def remove_constant_stencils(top_sdfg: dace.SDFG):
                                 n, dace.nodes.AccessNode) and n.data == dname):
 
                         continue
-                    val = float(eval(unparse(node.code[0].value)))
+                    val = float(eval(unparse(node.code.code[0].value)))
 
                     dprint('Converting scalar stencil result', dname,
                            'to constant with value', val)
@@ -219,21 +219,19 @@ def _remove_transients(sdfg: dace.SDFG,
                         for e in state.memlet_tree(edge):
                             # Do not break scopes if there are no other edges
                             if len(state.edges_between(e.src, e.dst)) == 1:
-                                state.add_nedge(e.src, e.dst,
-                                                dace.EmptyMemlet())
+                                state.add_edge(e.src, None, e.dst, None,
+                                                dace.Memlet())
                             state.remove_edge_and_connectors(e)
                             # If tasklet, replace connector name with constant
                             if isinstance(e.dst, dace.nodes.Tasklet):
-                                replacer({e.dst_conn: dname}).visit(e.dst.code)
-                                e.dst.code.as_string = None  # force regenerate
+                                replacer({e.dst_conn: dname}).visit(e.dst.code.code)
                             # If stencil, handle similarly
                             elif isinstance(e.dst, stencil.Stencil):
                                 del e.dst.accesses[e.dst_conn]
-                                for i, stmt in enumerate(e.dst.code):
-                                    e.dst.code[i] = replacer({
+                                for i, stmt in enumerate(e.dst.code.code):
+                                    e.dst.code.code[i] = replacer({
                                         e.dst_conn: dname
                                     }).visit(stmt)
-                                e.dst.code.as_string = None  # force regenerate
                             # If dst is a NestedSDFG, add the dst_connector as
                             # a constant and remove internal nodes
                             elif isinstance(e.dst, dace.nodes.NestedSDFG):

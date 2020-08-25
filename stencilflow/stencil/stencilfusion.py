@@ -87,7 +87,7 @@ class StencilFusion(Transformation):
             return False
 
         # Code languages must match
-        if stencil_a._code['language'] != stencil_b._code['language']:
+        if stencil_a.code.language != stencil_b.code.language:
             return False
 
         # TODO: Boundary condition matching checks
@@ -113,7 +113,7 @@ class StencilFusion(Transformation):
         for edge in list(graph.out_edges(stencil_a)):
             if edge.src_conn == intermediate_name:
                 graph.remove_edge(edge)
-                stencil_a._out_connectors.remove(intermediate_name)
+                del stencil_a._out_connectors[intermediate_name]
         for edge in graph.out_edges(stencil_b):
             stencil_a.add_out_connector(edge.src_conn)
             graph.add_edge(stencil_a, edge.src_conn, edge.dst, edge.dst_conn,
@@ -140,10 +140,10 @@ class StencilFusion(Transformation):
 
         # Add second stencil's statements to first stencil, replacing the input
         # to the second stencil with the name of the output access
-        if stencil_a._code['language'] == dace.Language.Python:
+        if stencil_a.code.language == dace.Language.Python:
             # Replace first stencil's output with connector name
-            for i, stmt in enumerate(stencil_a.code):
-                stencil_a._code['code_or_block'][i] = ReplaceSubscript({
+            for i, stmt in enumerate(stencil_a.code.code):
+                stencil_a.code.code[i] = ReplaceSubscript({
                     intermediate_name:
                     intermediate_name_b
                 }).visit(stmt)
@@ -151,19 +151,17 @@ class StencilFusion(Transformation):
             # Append second stencil's contents, using connector name instead of
             # accessing the intermediate transient
             # TODO: Use offsetted stencil
-            for i, stmt in enumerate(stencil_b.code):
-                stencil_a._code['code_or_block'].append(
+            for i, stmt in enumerate(stencil_b.code.code):
+                stencil_a.code.code.append(
                     ReplaceSubscript({
                         intermediate_name_b: intermediate_name_b
                     }).visit(stmt))
 
-            stencil_a.code.as_string = None  # Force regeneration
-
-        elif stencil_a._code['language'] == dace.Language.CPP:
+        elif stencil_a.code.language == dace.Language.CPP:
             raise NotImplementedError
         else:
             raise ValueError('Unrecognized language: %s' %
-                             stencil_a._code['language'])
+                             stencil_a.code.language)
 
         # Remove array from graph
         graph.remove_node(array)
