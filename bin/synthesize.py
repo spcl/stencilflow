@@ -1,73 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+import click
 import itertools
 import json
 import numpy as np
-
-parser = argparse.ArgumentParser()
-parser.add_argument("data_type", type=str, choices=["float32", "float64"])
-parser.add_argument("num_stages", type=int)
-parser.add_argument(
-    "num_fields_spatial",
-    help=("Number of fields per stencil "
-          "that are read from external memory (i.e., not shared with others)."
-          "Fractional numbers are allowed."),
-    type=float)
-parser.add_argument("size_x",
-                    help="Size of domain in first dimension (can be zero).",
-                    type=int)
-parser.add_argument("size_y",
-                    help="Size of domain in second dimension (can be zero).",
-                    type=int)
-parser.add_argument("size_z",
-                    help="Size of domain in third dimension (can be zero).",
-                    type=int)
-parser.add_argument("extent_x",
-                    help="Extent of stencil in the x-dimension.",
-                    type=int)
-parser.add_argument(
-    "extent_y",
-    help="Extent of stencil in the y-dimension (2D and 3D only).",
-    type=int)
-parser.add_argument("extent_z",
-                    help="Extent of stencil in the z-dimension (3D only).",
-                    type=int)
-parser.add_argument("-fork_frequency",
-                    help="At what rate forks should be generated.",
-                    type=float,
-                    default=0)
-parser.add_argument("-fork_length_left",
-                    help="Number of stencils in left branch of each fork.",
-                    type=int,
-                    default=2)
-parser.add_argument("-fork_length_right",
-                    help="Number of stencils in right branch of each fork.",
-                    type=int,
-                    default=2)
-parser.add_argument("-stencil_shape",
-                    type=str,
-                    default="cross",
-                    choices=["cross", "box"])
-parser.add_argument("-vectorize",
-                    help="Vectorization factor.",
-                    type=int,
-                    default=1)
-args = parser.parse_args()
-
-shape = []
-for s in ["size_x", "size_y", "size_z"]:
-    val = getattr(args, s)
-    if val > 0:
-        shape.append(val)
-
-program = {
-    "inputs": {},
-    "outputs": [],
-    "dimensions": None,
-    "program": {},
-    "dimensions": shape,
-    "vectorization": args.vectorize
-}
 
 
 def make_field_name(index):
@@ -91,64 +27,30 @@ def make_extent_accesses(size, extent, stencil_shape):
     return indices
 
 
-# Generate all indices that each field is accessed with
-dimensions = [
-    make_extent_accesses(args.size_x, args.extent_x, args.stencil_shape),
-    make_extent_accesses(args.size_y, args.extent_y, args.stencil_shape),
-    make_extent_accesses(args.size_z, args.extent_x, args.stencil_shape)
-]
-if args.stencil_shape == "cross":
-    indices = []
-    for i in range(len(dimensions)):
-        indices += itertools.product(
-            *[d if j == i else [0] for j, d in enumerate(dimensions)])
-elif args.stencil_shape == "box":
-    indices = itertools.product(*dimensions)
-
-indices = [
-    "i{}, j{}, k{}".format(
-        ("+" + str(i) if i > 0 else "-" + str(abs(i)) if i < 0 else ""),
-        ("+" + str(j) if j > 0 else "-" + str(abs(j)) if j < 0 else ""),
-        ("+" + str(k) if k > 0 else "-" + str(abs(k)) if k < 0 else ""))
-    for (i, j, k) in indices
-]
-
-
-def make_code(name, fields):
+def make_code(name, fields, indices):
     operands = []
     for field in fields:
         operands += ["{}[{}]".format(field, i) for i in indices]
     return "{} = {}*({})".format(name, 1 / len(operands), " + ".join(operands))
 
 
-prev_name = "a"
-field_counter = 0
-spatial_to_insert = 0
-
-# Add first field
-name = "a"
-program["inputs"][name] = {"data": "constant:1", "data_type": args.data_type}
-field_counter += 1
-
-
-def insert_stencil(prev_name, name, fork_ends):
+def insert_stencil(prev_name, name, fork_ends, indices, data_type,
+                   num_fields_spatial, program, spatial_to_insert,
+                   field_counter):
 
     stencil_json = {}
-    stencil_json["data_type"] = args.data_type
+    stencil_json["data_type"] = data_type
     stencil_json["boundary_conditions"] = {}
 
     stage_spatials = []
 
-    global spatial_to_insert
-    global field_counter
-
-    spatial_to_insert += args.num_fields_spatial
+    spatial_to_insert += num_fields_spatial
     while spatial_to_insert >= 1:
         field = make_field_name(field_counter)
         stage_spatials.append(field)
         program["inputs"][field] = {
             "data": "constant:0.5",
-            "data_type": args.data_type
+            "data_type": data_type
         }
         field_counter += 1
         spatial_to_insert -= 1
@@ -164,55 +66,158 @@ def insert_stencil(prev_name, name, fork_ends):
             "value": 0
         }
 
-    stencil_json["computation_string"] = make_code(name, inputs)
+    stencil_json["computation_string"] = make_code(name, inputs, indices)
 
     program["program"][name] = stencil_json
 
+    return spatial_to_insert, field_counter
 
-fork_ends = []
-fork_to_insert = 0
 
-for stage in range(args.num_stages):
+@click.command()
+@click.argument("data_type", type=click.Choice(["float32", "float64"]))
+@click.argument("num_stages", type=int)
+@click.argument("num_fields_spatial", type=float)
+@click.argument("size_x", type=int)
+@click.argument("size_y", type=int)
+@click.argument("size_z", type=int)
+@click.argument("extent_x", type=int)
+@click.argument("extent_y", type=int)
+@click.argument("extent_z", type=int)
+@click.option("-fork_frequency",
+              help="At what rate forks should be generated.",
+              type=float,
+              default=0)
+@click.option("-fork_length_left",
+              help="Number of stencils in left branch of each fork.",
+              type=int,
+              default=2)
+@click.option("-fork_length_right",
+              help="Number of stencils in right branch of each fork.",
+              type=int,
+              default=2)
+@click.option("-stencil_shape",
+              type=click.Choice(["cross", "box"]),
+              default="cross")
+@click.option("-vectorize", help="Vectorization factor.", type=int, default=1)
+def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
+                       size_y, size_z, extent_x, extent_y, extent_z,
+                       fork_frequency, fork_length_left, fork_length_right,
+                       stencil_shape, vectorize):
+    """
+    num_fields_spatial: Number of fields per stencil that are read from external
+                        memory (i.e., not shared with others).
+                        Fractional numbers are allowed.
+    size_x: Size of domain in first dimension (can be zero).
+    size_y: Size of domain in second dimension (can be zero).
+    size_z: Size of domain in third dimension (can be zero).
+    extent_x: Extent of stencil in the x-dimension.
+    extent_y: Extent of stencil in the y-dimension (2D and 3D only)."
+    extent_z: Extent of stencil in the z-dimension (3D only).
+    """
 
-    name = make_stage_name(stage)
+    shape = []
+    for s in [size_x, size_y, size_z]:
+        if s > 0:
+            shape.append(s)
 
-    insert_stencil(prev_name, name, fork_ends)
+    program = {
+        "inputs": {},
+        "outputs": [],
+        "dimensions": None,
+        "program": {},
+        "dimensions": shape,
+        "vectorization": vectorize
+    }
+
+    # Generate all indices that each field is accessed with
+    dimensions = [
+        make_extent_accesses(size_x, extent_x, stencil_shape),
+        make_extent_accesses(size_y, extent_y, stencil_shape),
+        make_extent_accesses(size_z, extent_x, stencil_shape)
+    ]
+    if stencil_shape == "cross":
+        indices = []
+        for i in range(len(dimensions)):
+            indices += itertools.product(
+                *[d if j == i else [0] for j, d in enumerate(dimensions)])
+    elif stencil_shape == "box":
+        indices = itertools.product(*dimensions)
+
+    indices = [
+        "i{}, j{}, k{}".format(
+            ("+" + str(i) if i > 0 else "-" + str(abs(i)) if i < 0 else ""),
+            ("+" + str(j) if j > 0 else "-" + str(abs(j)) if j < 0 else ""),
+            ("+" + str(k) if k > 0 else "-" + str(abs(k)) if k < 0 else ""))
+        for (i, j, k) in indices
+    ]
+
+    prev_name = "a"
+    field_counter = 0
+    spatial_to_insert = 0
+
+    # Add first field
+    name = "a"
+    program["inputs"][name] = {"data": "constant:1", "data_type": data_type}
+    field_counter += 1
 
     fork_ends = []
+    fork_to_insert = 0
 
-    fork_to_insert += args.fork_frequency
-    if stage < args.num_stages - 1 and fork_to_insert >= 1:
+    for stage in range(num_stages):
 
-        prev_name_fork = name
-        index_fork = 0
-        for i in range(args.fork_length_left):
-            name_fork = "{}a{}".format(name, index_fork)
-            insert_stencil(prev_name_fork, name_fork, [])
-            prev_name_fork = name_fork
-            index_fork += 1
-        fork_ends.append(name_fork)
+        name = make_stage_name(stage)
 
-        prev_name_fork = name
-        index_fork = 0
-        for i in range(args.fork_length_right):
-            name_fork = "{}b{}".format(name, index_fork)
-            insert_stencil(prev_name_fork, name_fork, [])
-            prev_name_fork = name_fork
-            index_fork += 1
-        fork_ends.append(name_fork)
+        spatial_to_insert, field_counter = insert_stencil(
+            prev_name, name, fork_ends, indices, data_type, num_fields_spatial,
+            program, spatial_to_insert, field_counter)
 
-        fork_to_insert = 0
+        fork_ends = []
 
-    prev_name = name
+        fork_to_insert += fork_frequency
+        if stage < num_stages - 1 and fork_to_insert >= 1:
 
-program["outputs"].append(name)
+            prev_name_fork = name
+            index_fork = 0
+            for i in range(fork_length_left):
+                name_fork = "{}a{}".format(name, index_fork)
+                spatial_to_insert, field_counter = insert_stencil(
+                    prev_name_fork, name_fork, [], indices, data_type,
+                    num_fields_spatial, program, spatial_to_insert,
+                    field_counter)
+                prev_name_fork = name_fork
+                index_fork += 1
+            fork_ends.append(name_fork)
 
-vals = []
-for arg in vars(args):
-    vals.append(getattr(args, arg))
-output_path = "_".join(map(str, vals)).replace(".", "p") + ".json"
+            prev_name_fork = name
+            index_fork = 0
+            for i in range(fork_length_right):
+                name_fork = "{}b{}".format(name, index_fork)
+                spatial_to_insert, field_counter = insert_stencil(
+                    prev_name_fork, name_fork, [], indices, data_type,
+                    num_fields_spatial, program, spatial_to_insert,
+                    field_counter)
+                prev_name_fork = name_fork
+                index_fork += 1
+            fork_ends.append(name_fork)
 
-with open(output_path, "w") as out_file:
-    out_file.write(json.dumps(program, indent=True))
+            fork_to_insert = 0
 
-print("Wrote synthetic stencil to: {}".format(output_path))
+        prev_name = name
+
+    program["outputs"].append(name)
+
+    args = [
+        data_type, num_stages, num_fields_spatial, size_x, size_y, size_z,
+        extent_x, extent_y, extent_z, fork_frequency, fork_length_left,
+        fork_length_right, stencil_shape, vectorize
+    ]
+    output_path = "_".join(map(str, args)).replace(".", "p") + ".json"
+
+    with open(output_path, "w") as out_file:
+        out_file.write(json.dumps(program, indent=True))
+
+    print("Wrote synthetic stencil to: {}".format(output_path))
+
+
+if __name__ == "__main__":
+    synthesize_stencil()

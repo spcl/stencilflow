@@ -1,9 +1,10 @@
-graphviz
-numpy
-networkx
-h5py
-pydot
-matplotlib
-pytest
 astunparse
+click
+graphviz
+h5py
+matplotlib
 mpi4py
+networkx
+numpy
+pydot
+pytest
