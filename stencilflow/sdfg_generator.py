@@ -301,7 +301,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
                 buffer_name = node.name + "_buffer"
                 sdfg.add_array(buffer_name,
                                input_shape,
-                               vtype,
+                               input_vtype,
                                storage=StorageType.FPGA_Local,
                                transient=True)
                 buffer_node = state.add_access(buffer_name)
