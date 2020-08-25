@@ -17,13 +17,15 @@ def make_stage_name(index):
 def make_extent_accesses(size, extent, stencil_shape):
     if size > 0:
         if extent != 0:
-            if stencil_shape == "cross":
+            if stencil_shape == "box":
+                indices = np.arange(-extent, extent + 1)
+            else:
                 indices = np.hstack((np.arange(-extent,
                                                0), np.arange(1, extent + 1)))
-            elif stencil_shape == "box":
-                indices = np.arange(-extent, extent + 1)
         else:
             indices = [0]
+    else:
+        indices = []
     return indices
 
 
@@ -116,11 +118,44 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     fork_to_insert = 0
 
     def make_code(name, fields, indices):
-        operands = []
-        for field in fields:
-            operands += ["{}[{}]".format(field, i) for i in indices]
-        return "{} = {}*({})".format(name, 1 / len(operands),
-                                     " + ".join(operands))
+        code = f"{name} = "
+        if stencil_shape == "hotspot":
+            if len(fields) != 1:
+                raise ValueError("Hotspot only supports a single input field")
+            field = fields[0]
+            if len(shape) == 3:
+                # Hotspot 3D
+                code += (f"cc * {field}[i, j, k] + "
+                         f"cn * {field}[i, j-1, k] + "
+                         f"cs * {field}[i, j+1, k] + "
+                         f"cw * {field}[i, j, k-1] + "
+                         f"ce * {field}[i, j, k+1] + "
+                         f"ca * {field}[i-1, j, k] + "
+                         f"cb * {field}[i+1, j, k] + "
+                         f"sdc * power[i, j, k] + "
+                         f"ca * amb")
+            elif len(shape) == 2:
+                # Hotspot 2D
+                code += (
+                    f"{field}[j, k] + "
+                    f"sdc * (power[j, k] + "
+                    f"({field}[j-1, k] + {field}[j+1, k] - 2.0 * {field}[j, k]) * r_y + "
+                    f"({field}[j, k-1] + {field}[j, k+1] - 2.0 * {field}[j, k]) * r_x + "
+                    f"(amb - {field}[j, k]) * r_z)")
+            else:
+                raise ValueError("Unsupported number of indices for hotspot.")
+        else:
+            operands = []
+            for field in fields:
+                operands += ["{}[{}]".format(field, i) for i in indices]
+            if stencil_shape == "diffusion":
+                operands = [
+                    "c{}*{}".format(i, o) for i, o in enumerate(operands)
+                ]
+                code += " + ".join(operands)
+            else:
+                code + "{}*({})".format(1 / len(operands), " + ".join(operands))
+        return code
 
     def insert_stencil(prev_name, name, fork_ends, spatial_to_insert,
                        field_counter):
@@ -149,6 +184,11 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
 
         for i in inputs:
             stencil_json["boundary_conditions"][i] = {
+                "type": "constant",
+                "value": 0
+            }
+        if stencil_shape == "hotspot":
+            stencil_json["boundary_conditions"]["power"] = {
                 "type": "constant",
                 "value": 0
             }
@@ -196,6 +236,12 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
             fork_to_insert = 0
 
         prev_name = name
+
+    if stencil_shape == "hotspot":
+        program["inputs"]["power"] = {
+            "data": "constant:0.5",
+            "data_type": data_type
+        }
 
     program["outputs"].append(name)
 
