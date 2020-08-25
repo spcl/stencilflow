@@ -27,52 +27,6 @@ def make_extent_accesses(size, extent, stencil_shape):
     return indices
 
 
-def make_code(name, fields, indices):
-    operands = []
-    for field in fields:
-        operands += ["{}[{}]".format(field, i) for i in indices]
-    return "{} = {}*({})".format(name, 1 / len(operands), " + ".join(operands))
-
-
-def insert_stencil(prev_name, name, fork_ends, indices, data_type,
-                   num_fields_spatial, program, spatial_to_insert,
-                   field_counter):
-
-    stencil_json = {}
-    stencil_json["data_type"] = data_type
-    stencil_json["boundary_conditions"] = {}
-
-    stage_spatials = []
-
-    spatial_to_insert += num_fields_spatial
-    while spatial_to_insert >= 1:
-        field = make_field_name(field_counter)
-        stage_spatials.append(field)
-        program["inputs"][field] = {
-            "data": "constant:0.5",
-            "data_type": data_type
-        }
-        field_counter += 1
-        spatial_to_insert -= 1
-
-    if len(fork_ends) > 0:
-        inputs = fork_ends + stage_spatials
-    else:
-        inputs = [prev_name] + stage_spatials
-
-    for i in inputs:
-        stencil_json["boundary_conditions"][i] = {
-            "type": "constant",
-            "value": 0
-        }
-
-    stencil_json["computation_string"] = make_code(name, inputs, indices)
-
-    program["program"][name] = stencil_json
-
-    return spatial_to_insert, field_counter
-
-
 @click.command()
 @click.argument("data_type", type=click.Choice(["float32", "float64"]))
 @click.argument("num_stages", type=int)
@@ -96,7 +50,7 @@ def insert_stencil(prev_name, name, fork_ends, indices, data_type,
               type=int,
               default=2)
 @click.option("-stencil_shape",
-              type=click.Choice(["cross", "box"]),
+              type=click.Choice(["cross", "box", "diffusion", "hotspot"]),
               default="cross")
 @click.option("-vectorize", help="Vectorization factor.", type=int, default=1)
 def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
@@ -133,7 +87,7 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
         make_extent_accesses(size_y, extent_y, stencil_shape),
         make_extent_accesses(size_z, extent_x, stencil_shape)
     ]
-    if stencil_shape == "cross":
+    if stencil_shape in ["cross", "diffusion", "hotspot"]:
         indices = []
         for i in range(len(dimensions)):
             indices += itertools.product(
@@ -161,13 +115,56 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     fork_ends = []
     fork_to_insert = 0
 
+    def make_code(name, fields, indices):
+        operands = []
+        for field in fields:
+            operands += ["{}[{}]".format(field, i) for i in indices]
+        return "{} = {}*({})".format(name, 1 / len(operands),
+                                     " + ".join(operands))
+
+    def insert_stencil(prev_name, name, fork_ends, spatial_to_insert,
+                       field_counter):
+
+        stencil_json = {}
+        stencil_json["data_type"] = data_type
+        stencil_json["boundary_conditions"] = {}
+
+        stage_spatials = []
+
+        spatial_to_insert += num_fields_spatial
+        while spatial_to_insert >= 1:
+            field = make_field_name(field_counter)
+            stage_spatials.append(field)
+            program["inputs"][field] = {
+                "data": "constant:0.5",
+                "data_type": data_type
+            }
+            field_counter += 1
+            spatial_to_insert -= 1
+
+        if len(fork_ends) > 0:
+            inputs = fork_ends + stage_spatials
+        else:
+            inputs = [prev_name] + stage_spatials
+
+        for i in inputs:
+            stencil_json["boundary_conditions"][i] = {
+                "type": "constant",
+                "value": 0
+            }
+
+        stencil_json["computation_string"] = make_code(name, inputs, indices)
+
+        program["program"][name] = stencil_json
+
+        return spatial_to_insert, field_counter
+
     for stage in range(num_stages):
 
         name = make_stage_name(stage)
 
         spatial_to_insert, field_counter = insert_stencil(
-            prev_name, name, fork_ends, indices, data_type, num_fields_spatial,
-            program, spatial_to_insert, field_counter)
+            prev_name, name, fork_ends, spatial_to_insert, field_counter)
 
         fork_ends = []
 
@@ -179,8 +176,7 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
             for i in range(fork_length_left):
                 name_fork = "{}a{}".format(name, index_fork)
                 spatial_to_insert, field_counter = insert_stencil(
-                    prev_name_fork, name_fork, [], indices, data_type,
-                    num_fields_spatial, program, spatial_to_insert,
+                    prev_name_fork, name_fork, [], spatial_to_insert,
                     field_counter)
                 prev_name_fork = name_fork
                 index_fork += 1
@@ -191,8 +187,7 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
             for i in range(fork_length_right):
                 name_fork = "{}b{}".format(name, index_fork)
                 spatial_to_insert, field_counter = insert_stencil(
-                    prev_name_fork, name_fork, [], indices, data_type,
-                    num_fields_spatial, program, spatial_to_insert,
+                    prev_name_fork, name_fork, [], spatial_to_insert,
                     field_counter)
                 prev_name_fork = name_fork
                 index_fork += 1
