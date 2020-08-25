@@ -103,15 +103,13 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
                        size_y, size_z, extent_x, extent_y, extent_z,
                        fork_frequency, fork_length_left, fork_length_right,
                        stencil_shape, vectorize):
-    """
-    num_fields_spatial: Number of fields per stencil that are read from external
-                        memory (i.e., not shared with others).
-                        Fractional numbers are allowed.
+    """\b
+    num_fields_spatial: Number of fields per stencil that are read from external memory (i.e., not shared with others). Fractional numbers are allowed.
     size_x: Size of domain in first dimension (can be zero).
     size_y: Size of domain in second dimension (can be zero).
     size_z: Size of domain in third dimension (can be zero).
     extent_x: Extent of stencil in the x-dimension.
-    extent_y: Extent of stencil in the y-dimension (2D and 3D only)."
+    extent_y: Extent of stencil in the y-dimension (2D and 3D only).
     extent_z: Extent of stencil in the z-dimension (3D only).
     """
 
