@@ -95,6 +95,9 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     ][:len(shape)]
     if stencil_shape in ["cross", "diffusion", "hotspot"]:
         indices = []
+        if stencil_shape in ["diffusion", "hotspot"]:
+            # Add center
+            indices.append([0] * len(shape))
         for i in range(len(dimensions)):
             indices += itertools.product(
                 *[d if j == i else [0] for j, d in enumerate(dimensions)])
@@ -119,7 +122,7 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     program["inputs"][name] = {
         "data": "constant:1",
         "data_type": data_type,
-        "dimensions": ["i", "j", "k"][3 - len(shape):]
+        "input_dim": ["i", "j", "k"][3 - len(shape):]
     }
     field_counter += 1
 

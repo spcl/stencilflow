@@ -67,8 +67,10 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
 
     # Enrich accesses with the names of the corresponding input connectors
     input_dims = {
-        k: [i in (node.inputs[k]["input_dim"])
-            for i in stencilflow.ITERATORS] if "input_dim" in node.inputs[k]
+        k: [
+            i in node.inputs[k]["input_dim"]
+            for i in stencilflow.ITERATORS[dimensions_to_skip:]
+        ] if "input_dim" in node.inputs[k]
         and node.inputs[k]["input_dim"] is not None else [True] * len(shape)
         for k in node.graph.accesses
     }
@@ -869,7 +871,6 @@ def split_sdfg(sdfg,
                                    memlet=dace.Memlet.simple(
                                        buffer_to_stream.data,
                                        "0",
-                                       veclen=read_desc.veclen,
                                        num_accesses=1))
         #######################################################################
         # Writing part
