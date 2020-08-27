@@ -277,10 +277,12 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 code_memlet_names[output][tuple(0 for _ in range(len(shape)))])
             for output in node.output_fields
         ]))
-        write_condition = ("if not {}:\n\t".format("".join(
-            pipeline.init_condition())) if init_size_max > 0 else "")
-        nested_sdfg_tasklet.symbol_mapping[pipeline.init_condition()] = (
-            pipeline.init_condition())
+        if init_size_max > 0:
+            init_cond = pipeline.init_condition()
+            write_condition = f"if not {init_cond}:\n\t"
+            nested_sdfg_tasklet.symbol_mapping[init_cond] = (init_cond)
+        else:
+            write_condition = ""
 
         code = boundary_code + "\n" + code + "\n" + write_code
 
