@@ -49,10 +49,14 @@ def standardize_data_layout(sdfg):
     for nsdfg in sdfg.all_sdfgs_recursive():
         for aname, array in nsdfg.arrays.items():
             if K in array.free_symbols or len(array.shape) == 3:
-                i_index = next((i for i, s in enumerate(array.shape)
-                                if I in s.free_symbols), -1)
-                j_index = next((i for i, s in enumerate(array.shape)
-                                if J in s.free_symbols), -1)
+                i_index = next(
+                    (i
+                     for i, s in enumerate(array.shape) if I in s.free_symbols),
+                    -1)
+                j_index = next(
+                    (i
+                     for i, s in enumerate(array.shape) if J in s.free_symbols),
+                    -1)
                 # The K index is the remainder after I and J have been detected
                 # (this helps work with subranges of the vertical domain)
                 k_index = next(i for i, _ in enumerate(array.shape)
@@ -220,17 +224,20 @@ def _remove_transients(sdfg: dace.SDFG,
                             # Do not break scopes if there are no other edges
                             if len(state.edges_between(e.src, e.dst)) == 1:
                                 state.add_edge(e.src, None, e.dst, None,
-                                                dace.Memlet())
+                                               dace.Memlet())
                             state.remove_edge_and_connectors(e)
                             # If tasklet, replace connector name with constant
                             if isinstance(e.dst, dace.nodes.Tasklet):
-                                replacer({e.dst_conn: dname}).visit(e.dst.code.code)
+                                replacer({
+                                    e.dst_conn: dname
+                                }).visit(e.dst.code.code)
                             # If stencil, handle similarly
                             elif isinstance(e.dst, stencil.Stencil):
                                 del e.dst.accesses[e.dst_conn]
                                 for i, stmt in enumerate(e.dst.code.code):
                                     e.dst.code.code[i] = replacer({
-                                        e.dst_conn: dname
+                                        e.dst_conn:
+                                        dname
                                     }).visit(stmt)
                             # If dst is a NestedSDFG, add the dst_connector as
                             # a constant and remove internal nodes
@@ -252,8 +259,7 @@ def split_condition_interstate_edges(sdfg: dace.SDFG):
     for ise in edges_to_split:
         sdfg.remove_edge(ise)
         interim = sdfg.add_state()
-        sdfg.add_edge(ise.src, interim,
-                      dace.InterstateEdge(ise.data.condition))
+        sdfg.add_edge(ise.src, interim, dace.InterstateEdge(ise.data.condition))
         sdfg.add_edge(interim, ise.dst,
                       dace.InterstateEdge(assignments=ise.data.assignments))
 
@@ -277,6 +283,10 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
     if loops_removed > 0:
         raise ValueError("Control flow loops not supported.")
 
+    from dace.transformation.interstate import StateFusion
+    sdfg.apply_transformations_repeated(StateFusion)
+    sdfg.apply_strict_transformations()
+
     # Specialize symbols and constants
     sdfg.specialize(symbols)
     symbols.update(sdfg.constants)
@@ -296,10 +306,7 @@ def canonicalize_sdfg(sdfg: dace.SDFG, symbols={}):
         # Make transformation passes on tasklets and stencil libnodes
         if hasattr(node, 'code'):
 
-            new_code = [
-                _Predicator().visit(stmt)
-                for stmt in node.code.code
-            ]
+            new_code = [_Predicator().visit(stmt) for stmt in node.code.code]
 
             # min/max predication requires multiple passes (nested expressions)
             minmax_predicated = 1
@@ -341,10 +348,9 @@ class _Predicator(ast.NodeTransformer):
             if astunparse.unparse(if_assign.targets[0]) == astunparse.unparse(
                     else_assign.targets[0]):
                 new_node = ast.Assign(targets=if_assign.targets,
-                                      value=ast.IfExp(
-                                          test=node.test,
-                                          body=if_assign.value,
-                                          orelse=else_assign.value))
+                                      value=ast.IfExp(test=node.test,
+                                                      body=if_assign.value,
+                                                      orelse=else_assign.value))
                 return ast.copy_location(new_node, node)
         return self.generic_visit(node)
 
@@ -360,6 +366,8 @@ class _MinMaxPredicator(ast.NodeTransformer):
             return self.generic_visit(node)
 
         target = node.targets[0]
+        if isinstance(target, ast.Subscript):
+            target = target.value
         if not isinstance(target, ast.Name):
             return self.generic_visit(node)
         tname: str = target.id
@@ -377,8 +385,7 @@ class _MinMaxPredicator(ast.NodeTransformer):
         for i, arg in enumerate(callnode.args):
             newname = '__dace_%s%d_%s' % (fname, i, tname)
             names.append(newname)
-            result.append(ast.Assign(targets=[ast.Name(id=newname)],
-                                     value=arg))
+            result.append(ast.Assign(targets=[ast.Name(id=newname)], value=arg))
 
         result.append(
             ast.Assign(
@@ -646,9 +653,9 @@ def sdfg_to_stencilflow(sdfg,
             dtype = current_sdfg.data(read_node.data).dtype.type.__name__
             name = input_versions[(node, field)]
             rename_map[connector] = name
-            boundary_conditions[name] = (node.boundary_conditions[connector]
-                                         if connector
-                                         in node.boundary_conditions else None)
+            boundary_conditions[name] = (node.boundary_conditions[connector] if
+                                         connector in node.boundary_conditions
+                                         else None)
             if name in reads:
                 if reads[name][0] != dtype:
                     raise ValueError("Type mismatch: {} vs. {}".format(
@@ -740,8 +747,8 @@ def sdfg_to_stencilflow(sdfg,
         path = "{}_{}_{}.dat".format(
             field, "x".join(
                 map(str, [
-                    d for i, d in enumerate(result["dimensions"])
-                    if dimensions[i]
+                    d
+                    for i, d in enumerate(result["dimensions"]) if dimensions[i]
                 ])), dtype)
         if data_directory is not None:
             path = os.path.join(data_directory, path)
