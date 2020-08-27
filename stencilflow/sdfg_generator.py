@@ -166,7 +166,7 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     # Truncate name if too long
     stencil_name = node.name
     if len(node.name) + 7 > 42:
-        stencil_name = stencil_name[:35]
+        stencil_name = stencil_name[35:]
 
     stencil_node = stencil.Stencil(stencil_name, tuple(shape), accesses,
                                    output_dict, boundary_conditions, code)
