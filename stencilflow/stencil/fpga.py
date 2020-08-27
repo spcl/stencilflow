@@ -178,6 +178,13 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             [k + "_out" for k in node.output_fields.keys()] +
             [name + "_buffer_out" for name, _ in buffer_sizes.items()],
             schedule=dace.ScheduleType.FPGA_Device)
+        # Map all constants
+        for f, (dim_mask, _) in node.accesses.items():
+            if not any(dim_mask):
+                nested_sdfg_tasklet.symbol_mapping[f] = f
+        # Map iterators
+        for p in parameters:
+            nested_sdfg_tasklet.symbol_mapping[p] = p
         state.add_node(nested_sdfg_tasklet)
 
         # Shift state, which shifts all buffers by one
@@ -270,8 +277,12 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 code_memlet_names[output][tuple(0 for _ in range(len(shape)))])
             for output in node.output_fields
         ]))
-        write_condition = ("if not {}:\n\t".format("".join(
-            pipeline.init_condition())) if init_size_max > 0 else "")
+        if init_size_max > 0:
+            init_cond = pipeline.init_condition()
+            write_condition = f"if not {init_cond}:\n\t"
+            nested_sdfg_tasklet.symbol_mapping[init_cond] = (init_cond)
+        else:
+            write_condition = ""
 
         code = boundary_code + "\n" + code + "\n" + write_code
 
@@ -433,6 +444,8 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                     begin=begin_reading,
                     end=end_reading),
                 language=dace.dtypes.Language.Python)
+            nested_sdfg_tasklet.symbol_mapping[pipeline.iterator_str()] = (
+                pipeline.iterator_str())
             update_state.add_memlet_path(update_read,
                                          update_tasklet,
                                          memlet=dace.memlet.Memlet.simple(
