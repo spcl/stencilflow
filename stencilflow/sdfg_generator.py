@@ -163,7 +163,12 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
             bc["btype"] = bc["type"]
             del bc["type"]
 
-    stencil_node = stencil.Stencil(node.name, tuple(shape), accesses,
+    # Truncate name if too long
+    stencil_name = node.name
+    if len(node.name) + 7 > 42:
+        stencil_name = stencil_name[:35]
+
+    stencil_node = stencil.Stencil(stencil_name, tuple(shape), accesses,
                                    output_dict, boundary_conditions, code)
 
     return stencil_node, input_to_connector, output_to_connector
