@@ -558,6 +558,9 @@ def generate_reference(name, chain):
 
     sdfg = SDFG(name)
 
+    for k, v in chain.constants.items():
+        sdfg.add_constant(k, v["value"], dace.data.Scalar(v["data_type"]))
+
     (dimensions_to_skip, shape, vector_length, parameters, iterators,
      memcopy_indices, memcopy_accesses) = _generate_init(chain)
 

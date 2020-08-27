@@ -180,7 +180,7 @@ class ExpandStencilCPU(dace.library.ExpandTransformation):
 
         # Add scalars as symbols
         for field_name, (indices, accesses) in node.accesses.items():
-            if sum(indices, 0) == 0:
+            if not any(indices):
                 sdfg.add_symbol(field_name, parent_sdfg.symbols[field_name])
 
         #######################################################################
