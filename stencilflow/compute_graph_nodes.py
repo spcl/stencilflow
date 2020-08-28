@@ -211,25 +211,22 @@ class Subscript(BaseOperationNodeClass):
                 calculator = Calculator()
                 self.index.append(
                     calculator.eval_expr(self._VAR_MAP, expression))
-        #diff = self.dimensions - len(self.index)
-        #self.index = [0]*diff + self.index
-        # TODO
-        if self.name in self.inputs and "dimensions" in self.inputs[
-                self.name] and self.inputs[self.name]["dimensions"] is not None:
-            ind = [
-                x if x in self.inputs[self.name]["dimensions"] else None
+        # Prune extra dimensions from index
+        num_dims = sum(d > 1 for d in self.dimensions)
+        if len(self.index) > num_dims:
+            self.index = self.index[len(self.index)-num_dims:]
+        # Now use the specified input_dims to create a 3D index with Nones
+        if self.name in self.inputs:
+            input_dims = self.inputs[self.name]["input_dims"]
+            self.index = [
+                self.index[input_dims.index(x)] if x in input_dims else None
                 for x in stencilflow.ITERATORS
             ]
-            num_dim = stencilflow.num_dims(ind)
-            dim_index = self.index  #[len(self.dimensions) - num_dim:]
-            new_ind, i = list(), 0
-            for entry in ind:
-                if entry is None:
-                    new_ind.append(None)
-                else:
-                    new_ind.append(dim_index[i])
-                    i += 1
-            self.index = new_ind  #list(map(lambda x, y: y if x is not None else None, ind, new_ind))
+        # Finally prepend None so all indices are 3D
+        if len(self.index) < len(stencilflow.ITERATORS):
+            self.index = ([None] *
+                          (len(stencilflow.ITERATORS) - len(self.index)) +
+                          self.index)
 
     def generate_name(self, ast_node: ast) -> str:
         """

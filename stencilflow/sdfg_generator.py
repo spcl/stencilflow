@@ -68,10 +68,10 @@ def _generate_stencil(node, chain, shape, dimensions_to_skip):
     # Enrich accesses with the names of the corresponding input connectors
     input_dims = {
         k: [
-            i in node.inputs[k]["input_dim"]
+            i in node.inputs[k]["input_dims"]
             for i in stencilflow.ITERATORS[dimensions_to_skip:]
-        ] if "input_dim" in node.inputs[k]
-        and node.inputs[k]["input_dim"] is not None else [True] * len(shape)
+        ] if "input_dims" in node.inputs[k]
+        and node.inputs[k]["input_dims"] is not None else [True] * len(shape)
         for k in node.graph.accesses
     }
     input_to_connector = collections.OrderedDict(
@@ -178,7 +178,7 @@ def _get_input_parameters(input_node, global_parameters, global_vector_length):
     """Determines the iterators and vector length for a given input."""
     for output in input_node.outputs.values():
         try:
-            input_pars = output["input_dim"][:]
+            input_pars = output["input_dims"][:]
             vector_length = (global_vector_length
                              if input_pars[-1] == global_parameters[-1] else 1)
             # Just needed any output to retrieve the dimensions
@@ -238,7 +238,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
         # Collapse iterators and shape if input is lower dimensional
         for output in node.outputs.values():
             try:
-                input_pars = output["input_dim"][:]
+                input_pars = output["input_dims"][:]
             except (KeyError, TypeError):
                 input_pars = list(parameters)  # Copy
             break  # Just needed any output to retrieve the dimensions
@@ -482,12 +482,12 @@ def generate_sdfg(name, chain, synthetic_reads=False):
             input_vector_length = vector_length
             try:
                 # Scalars are symbols rather than data nodes
-                if len(node.inputs[field_name]["input_dim"]) == 0:
+                if len(node.inputs[field_name]["input_dims"]) == 0:
                     continue
                 else:
                     # If the innermost dimension of this field is not the
                     # vectorized one, read it as scalars
-                    if (node.inputs[field_name]["input_dim"][-1] !=
+                    if (node.inputs[field_name]["input_dims"][-1] !=
                             parameters[-1]):
                         input_vector_length = 1
             except (KeyError, TypeError):
@@ -578,9 +578,9 @@ def generate_reference(name, chain):
             if isinstance(node, Input):
                 for output in node.outputs.values():
                     pars = tuple(
-                        output["input_dim"]
-                    ) if "input_dim" in output and output[
-                        "input_dim"] is not None else tuple(parameters)
+                        output["input_dims"]
+                    ) if "input_dims" in output and output[
+                        "input_dims"] is not None else tuple(parameters)
                     arr_shape = tuple(s for s, p in zip(shape, parameters)
                                       if p in pars)
                     input_shapes[node.name] = arr_shape
@@ -593,7 +593,8 @@ def generate_reference(name, chain):
                 try:
                     sdfg.add_array(node.name, arr_shape, node.data_type)
                 except NameError:
-                    sdfg.data(node.name).access = dace.dtypes.AccessType.ReadWrite
+                    sdfg.data(
+                        node.name).access = dace.dtypes.AccessType.ReadWrite
             else:
                 sdfg.add_symbol(node.name, node.data_type)
 

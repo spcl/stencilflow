@@ -79,7 +79,6 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     program = {
         "inputs": {},
         "outputs": [],
-        "dimensions": None,
         "program": {},
         "dimensions": shape,
         "vectorization": vectorize
@@ -122,7 +121,7 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     program["inputs"][name] = {
         "data": "constant:1",
         "data_type": data_type,
-        "input_dim": ["i", "j", "k"][3 - len(shape):]
+        "input_dims": ["i", "j", "k"][3 - len(shape):]
     }
     field_counter += 1
 
@@ -264,14 +263,14 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
             program["inputs"][s] = {
                 "data": "constant:0.5",
                 "data_type": data_type,
-                "dimensions": []
+                "input_dims": []
             }
     elif stencil_shape == "diffusion":
         for i in range(len(indices)):
             program["inputs"][f"c{i}"] = {
                 "data": "constant:0.5",
                 "data_type": data_type,
-                "dimensions": []
+                "input_dims": []
             }
 
     program["outputs"].append(name)

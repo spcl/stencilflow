@@ -653,9 +653,9 @@ def sdfg_to_stencilflow(sdfg,
             dtype = current_sdfg.data(read_node.data).dtype.type.__name__
             name = input_versions[(node, field)]
             rename_map[connector] = name
-            boundary_conditions[name] = (node.boundary_conditions[connector] if
-                                         connector in node.boundary_conditions
-                                         else None)
+            boundary_conditions[name] = (node.boundary_conditions[connector]
+                                         if connector
+                                         in node.boundary_conditions else None)
             if name in reads:
                 if reads[name][0] != dtype:
                     raise ValueError("Type mismatch: {} vs. {}".format(
@@ -757,7 +757,7 @@ def sdfg_to_stencilflow(sdfg,
             path,
             "data_type":
             dtype,
-            "dimensions":
+            "input_dims":
             [p for i, p in enumerate(stencilflow.ITERATORS) if dimensions[i]]
         }
     if len(result["inputs"]) == 0:

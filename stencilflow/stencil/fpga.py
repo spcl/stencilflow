@@ -229,6 +229,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 try:
                     memlet_name = code_memlet_names[field_name][indices]
                 except KeyError:
+                    import pdb; pdb.set_trace()
                     raise KeyError("Missing access in code: {}[{}]".format(
                         field_name, ", ".join(map(str, indices))))
                 cond = []

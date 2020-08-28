@@ -226,9 +226,9 @@ class Kernel(BaseKernelNodeClass):
             if flatten_index:
                 # TODO
                 if node.name in self.input_paths and self.inputs[
-                        node.name]["input_dim"] is not None:
+                        node.name]["input_dims"] is not None:
                     ind = [
-                        x if x in self.inputs[node.name]["input_dim"] else None
+                        x if x in self.inputs[node.name]["input_dims"] else None
                         for x in stencilflow.ITERATORS
                     ]
                     num_dim = stencilflow.num_dims(ind)
@@ -252,7 +252,7 @@ class Kernel(BaseKernelNodeClass):
                 try:
                     dim_index = [
                         dim_index[stencilflow.ITERATORS.index(i)]
-                        for i in self.inputs[node.name]["input_dim"]
+                        for i in self.inputs[node.name]["input_dims"]
                     ]
                 except (KeyError, TypeError):
                     pass  # input_dim not defined or is None

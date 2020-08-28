@@ -270,9 +270,9 @@ class KernelChainGraph:
                                     dest.internal_buffer[src.name],
                                     "data_type":
                                     src.data_type,
-                                    "input_dim":
-                                    self.inputs[src.name]["dimensions"]
-                                    if "dimensions" in self.inputs[src.name]
+                                    "input_dims":
+                                    self.inputs[src.name]["input_dims"]
+                                    if "input_dims" in self.inputs[src.name]
                                     else None
                                 }
                                 # add channel reference to global channel dictionary
@@ -328,10 +328,13 @@ class KernelChainGraph:
         self.program = inp["program"]
         self.inputs = inp["inputs"]
         for i in self.inputs.values():
-            if "input_dim" not in i:
-                i["input_dim"] = stencilflow.ITERATORS[len(stencilflow.
-                                                           ITERATORS) -
-                                                       self.kernel_dimensions:]
+            if "input_dims" not in i:
+                if "dimensions" in i:
+                    i["input_dims"] = i["dimensions"]
+                else:
+                    i["input_dims"] = stencilflow.ITERATORS[len(stencilflow.
+                                                                ITERATORS) -
+                                                        self.kernel_dimensions:]
         self.outputs = inp["outputs"]
         # handle stencil program output dimensions
         if self.kernel_dimensions == 1:  # 1D
@@ -701,7 +704,7 @@ class KernelChainGraph:
                 dtype = str_to_dtype(dtype)
             num_elements = functools.reduce(lambda a, b: a * b, [
                 self.dimensions[stencilflow.ITERATORS.index(i)]
-                for i in v["dimensions"]
+                for i in v["input_dims"]
             ], 1)
             communication_volume += dtype.bytes * num_elements
         num_elements = functools.reduce(lambda a, b: a * b, self.dimensions)

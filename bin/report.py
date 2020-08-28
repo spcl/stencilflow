@@ -49,7 +49,7 @@ print("Peak runtime: {} cycles ({} seconds at {} MHz)".format(
     args.frequency))
 print("======== Memory performance =============================")
 print("Number of memory accesses per cycle: {} operands".format(
-    sum(vector_length if len(i["input_dim"]) == len(shape) else 1
+    sum(vector_length if len(i["input_dims"]) == len(shape) else 1
         for i in chain.inputs.values()) + vector_length * len(chain.outputs)))
 print("Lower bound communication volume: {} MB".format(1e-6 * min_comm_volume))
 print("Required bandwidth: {} GB/s".format(
