@@ -40,12 +40,13 @@ print("Total: {}{} per cycle ({} for program)".format(
 print("Upper bound on performance at {} MHz: {} GOp/s".format(
     args.frequency, 1e-9 * op_sum_total / min_runtime * args.frequency * 1e6))
 print("Peak performance at {} MHz: {} GOp/s".format(
-    args.frequency, 1e-9 * (op_sum * args.frequency * 1e6)))
+    args.frequency, 1e-9 * (vector_length * op_sum * args.frequency * 1e6)))
 print("======== Runtime ========================================")
 print("Lower bound on runtime: {} cycles ({} seconds at {} MHz)".format(
     min_runtime, min_runtime / (args.frequency * 1e6), args.frequency))
 print("Peak runtime: {} cycles ({} seconds at {} MHz)".format(
-    op_sum_total // op_sum, op_sum_total / op_sum / (args.frequency * 1e6),
+    op_sum_total // (vector_length * op_sum),
+    op_sum_total / (op_sum * vector_length) / (args.frequency * 1e6),
     args.frequency))
 print("======== Memory performance =============================")
 print("Number of memory accesses per cycle: {} operands".format(
