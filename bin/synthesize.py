@@ -165,7 +165,7 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
                 ]
                 code += " + ".join(operands)
             else:
-                code + "{}*({})".format(1 / len(operands), " + ".join(operands))
+                code += "{}*({})".format(1 / len(operands), " + ".join(operands))
         return code
 
     def insert_stencil(prev_name, name, fork_ends, spatial_to_insert,
