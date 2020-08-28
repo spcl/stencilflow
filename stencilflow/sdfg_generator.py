@@ -368,7 +368,7 @@ def generate_sdfg(name, chain, synthetic_reads=False):
             tasklet = state.add_tasklet("read_" + node.name, {}, out_memlets,
                                         tasklet_code)
 
-            state.add_memlet_path(entry, tasklet, memlet=dace.EmptyMemlet())
+            state.add_memlet_path(entry, tasklet, memlet=dace.Memlet())
 
         # Add memlets to all FIFOs connecting to compute units
         for out_name, out_memlet in zip(outputs, out_memlets):
