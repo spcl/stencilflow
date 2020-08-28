@@ -8,8 +8,8 @@ import numpy as np
 
 ITERATORS = ["i", "j", "k"]
 
-def make_field_name(index):
-    return "a{}".format(index)
+def make_field_name(index, name="a"):
+    return f"{name}{index}"
 
 
 def make_stage_name(index):
@@ -128,12 +128,11 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
     fork_ends = []
     fork_to_insert = 0
 
-    def make_code(name, fields, indices):
+    def make_code(name, fields, indices, field_counter):
         code = f"{name} = "
         if stencil_shape == "hotspot":
-            if len(fields) != 1:
-                raise ValueError("Hotspot only supports a single input field")
             field = fields[0]
+            power_num = "" if field_counter - 1 == 0 else field_counter - 1
             if len(shape) == 3:
                 # Hotspot 3D
                 code += (f"cc * {field}[i, j, k] + "
@@ -143,13 +142,13 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
                          f"ce * {field}[i, j, k+1] + "
                          f"ca * {field}[i-1, j, k] + "
                          f"cb * {field}[i+1, j, k] + "
-                         f"sdc * power[i, j, k] + "
+                         f"sdc * power{power_num}[i, j, k] + "
                          f"ca * amb")
             elif len(shape) == 2:
                 # Hotspot 2D
                 code += (
                     f"{field}[j, k] + "
-                    f"sdc * (power[j, k] + "
+                    f"sdc * (power{power_num}[j, k] + "
                     f"({field}[j-1, k] + {field}[j+1, k] - 2.0 * {field}[j, k]) * r_y + "
                     f"({field}[j, k-1] + {field}[j, k+1] - 2.0 * {field}[j, k]) * r_x + "
                     f"(amb - {field}[j, k]) * r_z)")
@@ -179,7 +178,10 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
 
         spatial_to_insert += num_fields_spatial
         while spatial_to_insert >= 1:
-            field = make_field_name(field_counter)
+            if stencil_shape != "hotspot":
+                field = make_field_name(field_counter)
+            else:
+                field = make_field_name(field_counter, name="power")
             stage_spatials.append(field)
             program["inputs"][field] = {
                 "data": "constant:0.5",
@@ -203,8 +205,16 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
                 "type": "constant",
                 "value": 0
             }
+            for i in range(1, field_counter):
+                stencil_json["boundary_conditions"][make_field_name(
+                    i - 1, name="power")] = {
+                        "type": "constant",
+                        "value": 0
+                    }
 
-        stencil_json["computation_string"] = make_code(name, inputs, indices)
+
+        stencil_json["computation_string"] = make_code(name, inputs, indices,
+                                                       field_counter)
 
         program["program"][name] = stencil_json
 
