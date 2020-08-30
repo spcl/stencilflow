@@ -214,11 +214,21 @@ def _add_pipe(sdfg, edge, parameters, vector_length):
         transient=True)
 
 
-def generate_sdfg(name, chain, synthetic_reads=False):
+def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
     sdfg = SDFG(name)
 
     for k, v in chain.constants.items():
         sdfg.add_constant(k, v["value"], dace.data.Scalar(v["data_type"]))
+
+    if specialize_scalars:
+        for k, v in chain.inputs.items():
+            if len(v["input_dims"]) == 0:
+                try:
+                    val = stencilflow.load_array(v)
+                except FileNotFoundError:
+                    continue
+                print(f"Specialized constant {k} to {val}.")
+                sdfg.add_constant(k, val)
 
     pre_state = sdfg.add_state("initialize")
     state = sdfg.add_state("compute")

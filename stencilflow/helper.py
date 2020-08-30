@@ -194,7 +194,7 @@ def load_array(input_config: Dict, prefix=None, shape=None):
             if prefix is not None:
                 path = os.path.join(prefix, path)
             if not os.path.isfile(path):
-                raise RuntimeError("File {} does not exists.".format(data))
+                raise FileNotFoundError("File {} does not exists.".format(data))
         if path.endswith(".csv"):
             return np.genfromtxt(path, dtype, delimiter=',')
         elif path.endswith(".dat"):

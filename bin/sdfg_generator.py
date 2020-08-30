@@ -21,6 +21,7 @@ if __name__ == "__main__":
     parser.add_argument("--cpu-sdfg", dest="cpu-sdfg", action="store_true")
     parser.add_argument("--synthetic-reads", type=float, default=None)
     parser.add_argument("--expand", dest="expand", action="store_true")
+    parser.add_argument("--specialize-scalars", dest="specialize_scalars", action="store_true")
     parser.add_argument(
         "--compile",
         dest="compile",
@@ -42,7 +43,10 @@ if __name__ == "__main__":
                                  chain,
                                  synthetic_reads=args.synthetic_reads)
     else:
-        sdfg = generate_sdfg(name, chain, synthetic_reads=args.synthetic_reads)
+        sdfg = generate_sdfg(name,
+                             chain,
+                             synthetic_reads=args.synthetic_reads,
+                             specialize_scalars=args.specialize_scalars)
 
     if args.expand:
         sdfg.expand_library_nodes()

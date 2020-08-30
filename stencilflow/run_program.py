@@ -25,6 +25,7 @@ def run_program(stencil_file,
                 skip_execution=False,
                 generate_input=False,
                 synthetic_reads=None,
+                specialize_scalars=False,
                 plot=False,
                 halo=0,
                 repetitions=1,
@@ -66,7 +67,10 @@ def run_program(stencil_file,
     else:
         if log_level >= LogLevel.BASIC:
             print("Generating SDFG...")
-        sdfg = generate_sdfg(name, chain, synthetic_reads=synthetic_reads)
+        sdfg = generate_sdfg(name,
+                             chain,
+                             synthetic_reads=synthetic_reads,
+                             specialize_scalars=specialize_scalars)
 
     if compare_to_reference:
         if use_cached_sdfg:
