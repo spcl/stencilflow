@@ -174,36 +174,40 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
         stencil_json["data_type"] = data_type
         stencil_json["boundary_conditions"] = {}
 
-        stage_spatials = []
+        inputs = []
 
         spatial_to_insert += num_fields_spatial
-        while spatial_to_insert >= 1:
-            if stencil_shape != "hotspot":
-                field = make_field_name(field_counter)
-            else:
-                field = make_field_name(field_counter, name="power")
-            stage_spatials.append(field)
-            program["inputs"][field] = {
-                "data": "constant:0.5",
-                "data_type": data_type
-            }
-            field_counter += 1
-            spatial_to_insert -= 1
+        if spatial_to_insert >= 1:
+            while spatial_to_insert >= 1:
+                if stencil_shape != "hotspot":
+                    field = make_field_name(field_counter)
+                else:
+                    field = make_field_name(field_counter, name="power")
+                inputs.append(field)
+                program["inputs"][field] = {
+                    "data": "constant:0.5",
+                    "data_type": data_type
+                }
+                field_counter += 1
+                spatial_to_insert -= 1
+        else:
+            if stencil_shape == "hotspot":
+                if field_counter - 1 < 1:
+                    field = "power"
+                else:
+                    field = make_field_name(field_counter - 1, name="power")
+                inputs.append(field)
 
         if len(fork_ends) > 0:
-            inputs = fork_ends + stage_spatials
+            inputs = fork_ends + inputs
         else:
-            inputs = [prev_name] + stage_spatials
-
-        if stencil_shape == "hotspot" and field_counter <= 1:
-            inputs.append("power")
+            inputs = [prev_name] + inputs
 
         for i in inputs:
             stencil_json["boundary_conditions"][i] = {
                 "type": "constant",
                 "value": 0
             }
-
 
         stencil_json["computation_string"] = make_code(name, inputs, indices,
                                                        field_counter)
