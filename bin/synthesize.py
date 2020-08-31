@@ -195,22 +195,14 @@ def synthesize_stencil(data_type, num_stages, num_fields_spatial, size_x,
         else:
             inputs = [prev_name] + stage_spatials
 
+        if stencil_shape == "hotspot" and field_counter <= 1:
+            inputs.append("power")
+
         for i in inputs:
             stencil_json["boundary_conditions"][i] = {
                 "type": "constant",
                 "value": 0
             }
-        if stencil_shape == "hotspot":
-            stencil_json["boundary_conditions"]["power"] = {
-                "type": "constant",
-                "value": 0
-            }
-            for i in range(1, field_counter):
-                stencil_json["boundary_conditions"][make_field_name(
-                    i - 1, name="power")] = {
-                        "type": "constant",
-                        "value": 0
-                    }
 
 
         stencil_json["computation_string"] = make_code(name, inputs, indices,
