@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+
+"""
+    The Input class is a subclass of the BaseKernelNodeClass and represents an Input node in the KernelChainGraph.
+    Its purpose is to feed input array data into the pipeline/dataflow design.
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 from dace.dtypes import typeclass
 
 from stencilflow.base_node_class import BaseKernelNodeClass
@@ -5,10 +15,7 @@ from stencilflow.bounded_queue import BoundedQueue
 
 
 class Input(BaseKernelNodeClass):
-    """
-        The Input class is a subclass of the BaseKernelNodeClass and represents an Input node in the KernelChainGraph.
-        Its purpose is to feed input array data into the pipeline/dataflow design.
-    """
+
     def __init__(self,
                  name: str,
                  data_type: typeclass,

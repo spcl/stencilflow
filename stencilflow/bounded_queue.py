@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+
+"""
+    The BoundedQueue class represents or models the buffers within the data flow design of our memory optimization model
+    for the stencil operators on FPGA.
+
+    Notes:
+        - implementation:               Uses two stacks as underlying data structure to ensure overall complexity of O(1)
+                                        for appendleft() and pop().
+        - maxsize for bounded queue:    Default behaviour is to remove oldest element of queue, therefore we have to check
+                                        it and raise an exception.
+        - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import collections
 from typing import List
 
@@ -6,17 +22,7 @@ import numpy as np
 
 
 class BoundedQueue:
-    """
-        The BoundedQueue class represents or models the buffers within the data flow design of our memory optimization model
-        for the stencil operators on FPGA.
 
-        Notes:
-            - implementation:               Uses two stacks as underlying data structure to ensure overall complexity of O(1)
-                                            for appendleft() and pop().
-            - maxsize for bounded queue:    Default behaviour is to remove oldest element of queue, therefore we have to check
-                                            it and raise an exception.
-            - reference:                    https://docs.python.org/3/library/collections.html#deque-objects
-    """
     def __init__(self,
                  name: str,
                  maxsize: int,

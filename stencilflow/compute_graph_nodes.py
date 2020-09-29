@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+
+"""
+    This file contains all compute graph nodes with their custom implementation of the BaseOperationNodeClass functions.
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import ast
 import operator
 from typing import List, Dict

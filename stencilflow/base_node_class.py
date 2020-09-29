@@ -1,3 +1,16 @@
+#!/usr/bin/env python3
+
+"""
+    The BaseKernelClass provides all the basic fields and functionality for its subclasses which are the Input,
+    Kernel and Output classes. These are nodes of of the KernelChainGraph.
+
+    The BaseOperationNodeClass class provides all the basic fields and methods for its subclasses (Num,
+    Subscript,..). These are the nodes of the ComputeGraph .
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import ast
 from abc import ABCMeta, abstractmethod
 from enum import Enum

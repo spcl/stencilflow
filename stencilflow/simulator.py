@@ -1,7 +1,29 @@
 #!/usr/bin/env python3
+
+"""
+    The Simulator class handles the simulation of our high level model of the fpga functionality of the stencil chain
+    design.
+
+    interface for FPGA-like execution (gets called from the scheduler)
+
+    - read:
+            - saturation phase: read unconditionally
+            - execution phase: read all inputs iff they are available
+    - execute:
+            - saturation phase: do nothing
+            - execution phase: if input read, execute stencil using the input
+    - write:
+            - saturation phase: do nothing
+            - execution phase: write result from execution to output buffers
+                --> if output buffer overflows: assumptions about size was wrong!
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import functools
 import operator
-import os
+
 from typing import List, Dict
 
 import stencilflow.helper as helper
@@ -9,23 +31,7 @@ from stencilflow.log_level import LogLevel
 
 
 class Simulator:
-    """
-        The Simulator class handles the simulation of our high level model of the fpga functionality of the stencil chain
-        design (see paper example ref# TODO).
 
-        interface for FPGA-like execution (gets called from the scheduler)
-
-        - read:
-                - saturation phase: read unconditionally
-                - execution phase: read all inputs iff they are available
-        - execute:
-                - saturation phase: do nothing
-                - execution phase: if input read, execute stencil using the input
-        - write:
-                - saturation phase: do nothing
-                - execution phase: write result from execution to output buffers
-                    --> if output buffer overflows: assumptions about size was wrong!
-    """
     def __init__(self, program_name: str, program_description: Dict,
                  input_nodes: Dict, kernel_nodes: Dict, output_nodes: Dict,
                  dimensions: List, write_output: bool,

@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+
+"""
+The KernelChainGraph class represents the whole pipelined data flow graph consisting of input nodes (real data input
+arrays, kernel nodes and output nodes (storing the result of the computation).
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import argparse
 import ast
 import copy
@@ -21,10 +30,7 @@ from stencilflow.simulator import Simulator
 
 
 class KernelChainGraph:
-    """
-    The KernelChainGraph class represents the whole pipelined data flow graph consisting of input nodes (real data input
-    arrays, kernel nodes and output nodes (storing the result of the computation).
-    """
+
     def __init__(self,
                  path: str,
                  plot_graph: bool = False,

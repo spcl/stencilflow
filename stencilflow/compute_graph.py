@@ -1,4 +1,29 @@
 #!/usr/bin/env python3
+
+"""
+    The ComputeGraph class manages the inner data flow of a single computation respectively a single kernel
+    including its properties e.g. latency, internal buffer sizes and field accesses.
+
+    Notes:
+        - Creation of a proper graph representation for the computation data flow graph.
+        - Credits for node-visitor: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
+        - More info: https://networkx.github.io/
+
+    Note about ast structure:
+        tree.body[i] : i-th expression
+        tree.body[i] = Assign: of type: x = Expr
+        tree.body[i].targets          ->
+        tree.body[i].value = {BinOp, Name, Call}
+        tree.body[i] = Expr:
+        tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
+        tree.body[i].value = Name     -> subtree: .id (name)
+        tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
+        tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import ast
 import math
 
@@ -14,26 +39,7 @@ from stencilflow.compute_graph_nodes import (Name, Num, BinOp, BoolOp, Call,
 
 
 class ComputeGraph:
-    """
-        The ComputeGraph class manages the inner data flow of a single computation respectively a single kernel
-        including its properties e.g. latency, internal buffer sizes and field accesses.
 
-        Notes:
-            - Creation of a proper graph representation for the computation data flow graph.
-            - Credits for node-visitor: https://stackoverflow.com/questions/33029168/how-to-calculate-an-equation-in-a-string-python
-            - More info: https://networkx.github.io/
-
-        Note about ast structure:
-            tree.body[i] : i-th expression
-            tree.body[i] = Assign: of type: x = Expr
-            tree.body[i].targets          ->
-            tree.body[i].value = {BinOp, Name, Call}
-            tree.body[i] = Expr:
-            tree.body[i].value = BinOp    -> subtree: .left, .right, .op {Add, Mult, Name, Call}
-            tree.body[i].value = Name     -> subtree: .id (name)
-            tree.body[i].value = Call     -> subtree: .func.id (function), .args[i] (i-th argument)
-            tree.body[i].value = Subscript -> subtree: .slice.value.elts[i]: i-th parameter in [i, j, k, ...]
-    """
     def __init__(self,
                  verbose: bool = False,
                  dimensions=3,

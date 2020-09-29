@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+
+"""
+    The Kernel class is a subclass of the BaseKernelNodeClass and represents the actual kernel node in the
+    KernelChainGraph. This class is able to read from predecessors, process it according to the stencil expression
+    and write the result to the successor channels. In addition it analyses the buffer sizes and latencies of the
+    computation according  to the defined latencies.
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import functools
 import operator
 from typing import List, Dict
@@ -14,12 +25,7 @@ from stencilflow.compute_graph import Name, Num, BinOp, Call, Output, Subscript,
 
 
 class Kernel(BaseKernelNodeClass):
-    """
-        The Kernel class is a subclass of the BaseKernelNodeClass and represents the actual kernel node in the
-        KernelChainGraph. This class is able to read from predecessors, process it according to the stencil expression
-        and write the result to the successor channels. In addition it analyses the buffer sizes and latencies of the
-        computation according  to the defined latencies.
-    """
+
     def __init__(self,
                  name: str,
                  kernel_string: str,

@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+
+"""
+    This file contains many helper methods that are being re-used in multiple classes and do not specifically belong to
+    a class.
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import ast
 import collections
 import functools
@@ -7,15 +16,13 @@ import operator
 import os.path
 import re
 import warnings
+
 from functools import reduce
 from typing import List, Dict
 
 import dace
 import numpy as np
-"""
-    This file contains many helper methods that are being re-used in multiple classes and do not specifically belong to
-    a class.
-"""
+
 
 ITERATORS = ["i", "j", "k"]
 

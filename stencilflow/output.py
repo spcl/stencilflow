@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+
+"""
+    The Output class is a subclass of the BaseKernelNodeClass and represents an Ouput node in the KernelChainGraph.
+    Its purpose is to store data coming from the pipeline/dataflow design.
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
+
 import os
 import functools
 import operator
@@ -12,10 +23,7 @@ from stencilflow.bounded_queue import BoundedQueue
 
 
 class Output(BaseKernelNodeClass):
-    """
-        The Output class is a subclass of the BaseKernelNodeClass and represents an Ouput node in the KernelChainGraph.
-        Its purpose is to store data coming from the pipeline/dataflow design.
-    """
+
     def __init__(self,
                  name: str,
                  data_type: typeclass,

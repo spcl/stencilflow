@@ -1,4 +1,21 @@
 #!/usr/bin/env python3
+
+"""
+    This is the Optimizer class to optimize the usage of fast on-chip memory vs slow ddr memory vs bandwidth between
+    them.
+
+    Optimization strategy:
+        - initial state: all buffers are in fast memory, there is no communication volume used for transferring data
+          between slow and fast memory
+        - optimize for:
+            - minimize_comm_vol
+            - minimize_fast_mem
+            -
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import operator
 from functools import reduce
 from typing import List, Dict
@@ -9,18 +26,7 @@ from stencilflow.log_level import LogLevel
 
 
 class Optimizer:
-    """
-        This is the Optimizer class to optimize the usage of fast on-chip memory vs slow ddr memory vs bandwidth between
-        them.
 
-        Optimization strategy:
-            - initial state: all buffers are in fast memory, there is no communication volume used for transferring data
-              between slow and fast memory
-            - optimize for:
-                - minimize_comm_vol
-                - minimize_fast_mem
-                -
-    """
     def __init__(self,
                  kernels: Dict[str, Kernel],
                  dimensions: List[int],

@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
+
+"""
+    The Calculator (wrapper) class can evaluate a (python) mathematical expression string in conjunction with a
+    variable-to-value mapping and compute its result.
+"""
+
+__author__ = "Andreas Kuster (kustera@ethz.ch)"
+__copyright__ = "BSD 3-Clause License"
+
 import ast
 import math
 import operator
-from typing import Dict
 
+from typing import Dict
 
 class Calculator:
     """
