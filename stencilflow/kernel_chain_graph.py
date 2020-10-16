@@ -16,7 +16,7 @@ import operator
 import re
 import os
 
-from typing import List, Dict
+from typing import Any, List, Dict, Tuple
 
 import networkx as nx
 
@@ -112,6 +112,52 @@ class KernelChainGraph:
         # print report for moderate and high verbosity levels
         if self.log_level >= LogLevel.MODERATE:
             self.report(self.name)
+
+    def enumerate_cuts(self) -> Tuple[List[nx.DiGraph], Dict[Any, int]]:
+        from collections import deque
+        from typing import Deque, Union
+        from copy import deepcopy
+
+        def getcuts(g: nx.DiGraph) -> Dict[Tuple[int], nx.DiGraph]:
+            newcuts: Dict[Tuple[int], nx.DiGraph] = {}
+            for n, color in g.nodes(data='color'):
+                if color == 1:
+                    continue
+
+                # Color node and descendants
+                newgraph = deepcopy(g)
+                newgraph.nodes[n]['color'] = 1
+                for d in nx.descendants(newgraph, n):
+                    newgraph.nodes[d]['color'] = 1
+                newcuts[tuple(nd for nd, c in newgraph.nodes(data='color')
+                              if c == 1)] = newgraph
+
+            return newcuts
+
+        cuts: Dict[Tuple[int], nx.DiGraph] = {}
+        q: Deque[nx.DiGraph] = deque()
+
+        # Create initial graph with no colors
+        initial_graph = nx.DiGraph()
+        node_id: Dict[Union[Kernel, Input, Output], int] = {}
+        for i, n in enumerate(self.graph.nodes):
+            if not isinstance(n, Kernel):
+                continue
+            initial_graph.add_node(i, color=0)
+            node_id[n] = i
+        for e in self.graph.edges:
+            if e[0] in node_id and e[1] in node_id:
+                initial_graph.add_edge(node_id[e[0]], node_id[e[1]])
+
+        q.append(initial_graph)
+        while len(q) > 0:
+            g = q.pop()
+            newcuts = getcuts(g)
+            added = set(newcuts.keys()) - set(cuts.keys())
+            cuts.update(newcuts)
+            q.extend([cuts[c] for c in added])
+
+        return list(cuts.values()), node_id
 
     def plot_graph(self, save_path: str = None) -> None:
         """
