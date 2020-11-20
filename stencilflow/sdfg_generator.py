@@ -28,7 +28,9 @@ from stencilflow.stencil.fpga import make_iterators
 
 import networkx as nx
 
-MINIMUM_CHANNEL_DEPTH = 1024
+MINIMUM_CHANNEL_DEPTH = 2048
+
+NUM_BANKS = 4
 
 
 def _generate_init(chain):
@@ -243,7 +245,7 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
     if vector_length > 1:
         vshape[-1] //= vector_length
 
-    def add_input(node):
+    def add_input(node, bank):
 
         # Collapse iterators and shape if input is lower dimensional
         for output in node.outputs.values():
@@ -285,11 +287,12 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
             sdfg.add_array(node.name + "_host", input_shape, node.data_type)
 
             # Device-side copy
-            sdfg.add_array(node.name,
+            _, array = sdfg.add_array(node.name,
                            input_vshape,
                            input_vtype,
                            storage=StorageType.FPGA_Global,
                            transient=True)
+            array.location["bank"] = bank
             access_node = state.add_read(node.name)
 
             # Copy data to the FPGA
@@ -392,16 +395,16 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
                                                        "0",
                                                        num_accesses=1))
 
-    def add_output(node):
-
+    def add_output(node, bank):
         # Host-side array, which will be an output argument
         try:
             sdfg.add_array(node.name + "_host", shape, node.data_type)
-            sdfg.add_array(node.name,
+            _, array = sdfg.add_array(node.name,
                            vshape,
                            dace.dtypes.vector(node.data_type, vector_length),
                            storage=StorageType.FPGA_Global,
                            transient=True)
+            array.location["bank"] = bank
         except NameError:
             # This array is also read
             sdfg.data(node.name + "_host").access = dace.AccessType.ReadWrite
@@ -541,12 +544,15 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
     for link in chain.graph.edges(data=True):
         _add_pipe(sdfg, link, parameters, vector_length)
 
+    bank = 0 
     # Now generate all memory access functions so arrays are registered
     for node in chain.graph.nodes():
         if isinstance(node, Input):
-            add_input(node)
+            add_input(node, bank)
+            bank = (bank + 1 ) % NUM_BANKS
         elif isinstance(node, Output):
-            add_output(node)
+            add_output(node, bank)
+            bank = (bank + 1 ) % NUM_BANKS
         elif isinstance(node, Kernel):
             # Generate these separately after
             pass
