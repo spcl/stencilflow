@@ -29,7 +29,7 @@ if __name__ == "__main__":
                         dest="specialize_scalars",
                         action="store_true")
     parser.add_argument("-plot", action="store_true")
-    parser.add_argument("-log-level", choices=["0", "1", "2", "3"], default=3)
+    parser.add_argument("-log-level", type=int, choices=[0, 1, 2, 3], default=3)
     parser.add_argument("-print-result",
                         dest="print_result",
                         action="store_true")
