@@ -33,6 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("-print-result",
                         dest="print_result",
                         action="store_true")
+    parser.add_argument("-xilinx", dest="xilinx", action="store_true")
     args = parser.parse_args()
 
     args.log_level = stencilflow.log_level.LogLevel(args.log_level)

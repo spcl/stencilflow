@@ -30,7 +30,8 @@ def run_program(stencil_file,
                 halo=0,
                 repetitions=1,
                 log_level=LogLevel.BASIC,
-                print_result=False):
+                print_result=False,
+                xilinx=False):
 
     # Load program file
     program_description = stencilflow.parse_json(stencil_file)
@@ -85,9 +86,11 @@ def run_program(stencil_file,
             reference_sdfg = generate_reference(name + "_reference", chain)
 
     # Configure and compile SDFG
-    dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
-    # dace.config.Config.set("compiler", "use_cache", value=True)
-    dace.config.Config.set("optimizer", "interface", value="")
+    if not xilinx:
+        dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
+    else:
+        dace.config.Config.set("compiler", "fpga_vendor", value="xilinx")
+    dace.config.Config.set("optimizer", "transform_on_call", value=False)
     dace.config.Config.set(
         "compiler",
         "intel_fpga",
@@ -100,11 +103,13 @@ def run_program(stencil_file,
                                "intel_fpga",
                                "mode",
                                value="emulator")
+        dace.config.Config.set("compiler", "xilinx", "mode", value="simulation")
     elif mode == "hardware":
         dace.config.Config.set("compiler",
                                "intel_fpga",
                                "mode",
                                value="hardware")
+        dace.config.Config.set("compiler", "xilinx", "mode", value="hardware")
     else:
         raise ValueError("Unrecognized execution mode: {}".format(mode))
     if log_level >= LogLevel.BASIC:

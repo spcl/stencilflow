@@ -1,7 +1,7 @@
 import ast
 import sys
 import dace
-from dace.transformation.pattern_matching import Transformation
+from dace.transformation.transformation import Transformation
 from dace.transformation.dataflow import MapFission
 from typing import Any, Dict, Set
 import warnings

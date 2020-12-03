@@ -184,6 +184,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 nested_sdfg_tasklet.symbol_mapping[f] = f
         # Map iterators
         for p in parameters:
+            nested_sdfg.add_symbol(p, dace.int64)
             nested_sdfg_tasklet.symbol_mapping[p] = p
         state.add_node(nested_sdfg_tasklet)
 
@@ -229,7 +230,6 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 try:
                     memlet_name = code_memlet_names[field_name][indices]
                 except KeyError:
-                    import pdb; pdb.set_trace()
                     raise KeyError("Missing access in code: {}[{}]".format(
                         field_name, ", ".join(map(str, indices))))
                 cond = []
@@ -282,6 +282,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             init_cond = pipeline.init_condition()
             write_condition = f"if not {init_cond}:\n\t"
             nested_sdfg_tasklet.symbol_mapping[init_cond] = (init_cond)
+            nested_sdfg.add_symbol(init_cond, dace.bool)
         else:
             write_condition = ""
 
@@ -447,6 +448,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 language=dace.dtypes.Language.Python)
             nested_sdfg_tasklet.symbol_mapping[pipeline.iterator_str()] = (
                 pipeline.iterator_str())
+            nested_sdfg.add_symbol(pipeline.iterator_str(), dace.int64)
             update_state.add_memlet_path(update_read,
                                          update_tasklet,
                                          memlet=dace.memlet.Memlet.simple(
