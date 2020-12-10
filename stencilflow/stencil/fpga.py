@@ -256,12 +256,6 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
         # Only write if we're in bounds
         #######################################################################
 
-        # Conditional write
-        if init_size_max > 0:
-            init_cond = pipeline.init_condition()
-            write_condition = f"if not {init_cond}:\n\t"
-        else:
-            write_condition = ""
         write_code = ""
         result_out_connectors = []
         for output in node.output_fields:
@@ -275,10 +269,13 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
         # Update buffers
         update_code = ""
         for name, (accesses, _, _) in buffer_accesses.items():
+
             connectors = [code_memlet_names[name][a]
-                          for a in accesses][:-(vector_length - 1)]
+                          for a in accesses]
+            if vector_length > 1:
+                connectors = connectors[:-(vector_length - 1)]
             for c_from, c_to in zip(connectors[1:], connectors[:-1]):
-                update_code += f"{c_to}_out = {c_from}_in\n"
+                update_code += f"{c_to}_out = {c_from}\n"
 
 
         # Concatenate everything
@@ -440,24 +437,61 @@ else:
             write_node = state.add_write(stream_name)
 
             # Add intermediate buffer to mediate vector length conversion
-            output_buffer_name = f"{field_name}_output_buffer"
-            _, output_buffer_desc = sdfg.add_array(
-                output_buffer_name, (vector_length, ),
+            output_buffer_scalar_name = f"{field_name}_output_buffer_scalar"
+            _, output_buffer_scalar_desc = sdfg.add_array(
+                output_buffer_scalar_name, (vector_length, ),
                 stream.dtype.base_type,
                 storage=dace.StorageType.FPGA_Registers,
                 transient=True)
-            output_buffer_write = state.add_write(output_buffer_name)
+            output_buffer_scalar_access = state.add_access(
+                output_buffer_scalar_name)
+
+            # Add intermediate buffer to mediate vector length conversion
+            output_buffer_vector_name = f"{field_name}_output_buffer_vector"
+            _, output_buffer_vector_desc = sdfg.add_array(
+                output_buffer_vector_name, (1, ),
+                dace.vector(stream.dtype.base_type, vector_length),
+                storage=dace.StorageType.FPGA_Registers,
+                transient=True)
+            output_buffer_vector_access = state.add_access(
+                output_buffer_vector_name)
 
             for i, o in enumerate(result_out_connectors):
                 state.add_memlet_path(
                     compute_tasklet,
-                    output_buffer_write,
+                    output_buffer_scalar_access,
                     src_conn=o,
-                    memlet=dace.Memlet(f"{output_buffer_name}[{i}]"))
+                    memlet=dace.Memlet(f"{output_buffer_scalar_name}[{i}]"))
 
-            state.add_memlet_path(output_buffer_write,
+            # Memory width conversion
+            state.add_memlet_path(output_buffer_scalar_access,
+                                  output_buffer_vector_access,
+                                  memlet=dace.Memlet(
+                                      f"{output_buffer_vector_name}[0]",
+                                      other_subset=f"0:{vector_length}"))
+
+            # Conditional write
+            if init_size_max > 0:
+                init_cond = pipeline.init_condition()
+                write_condition = f"if not {init_cond}:\n\t"
+            else:
+                write_condition = ""
+            write_condition += "pipe = buffer"
+
+            write_tasklet = state.add_tasklet(f"write_{field_name}", {"buffer"},
+                                              {"pipe"}, write_condition)
+
+            state.add_memlet_path(
+                output_buffer_vector_access,
+                write_tasklet,
+                dst_conn="buffer",
+                memlet=dace.Memlet(
+                    f"{output_buffer_vector_name}[0]"))
+
+            state.add_memlet_path(write_tasklet,
                                   exit,
                                   write_node,
+                                  src_conn="pipe",
                                   memlet=dace.Memlet(f"{stream_name}[0]"))
 
         sdfg.parent = parent_state
