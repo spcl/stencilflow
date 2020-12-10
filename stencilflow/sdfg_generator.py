@@ -288,10 +288,10 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
 
             # Device-side copy
             _, array = sdfg.add_array(node.name,
-                           input_vshape,
-                           input_vtype,
-                           storage=StorageType.FPGA_Global,
-                           transient=True)
+                                      input_vshape,
+                                      input_vtype,
+                                      storage=StorageType.FPGA_Global,
+                                      transient=True)
             array.location["bank"] = bank
             access_node = state.add_read(node.name)
 
@@ -400,10 +400,11 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
         try:
             sdfg.add_array(node.name + "_host", shape, node.data_type)
             _, array = sdfg.add_array(node.name,
-                           vshape,
-                           dace.dtypes.vector(node.data_type, vector_length),
-                           storage=StorageType.FPGA_Global,
-                           transient=True)
+                                      vshape,
+                                      dace.dtypes.vector(
+                                          node.data_type, vector_length),
+                                      storage=StorageType.FPGA_Global,
+                                      transient=True)
             array.location["bank"] = bank
         except NameError:
             # This array is also read
@@ -477,7 +478,13 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
                     node.name))
             return
 
-        stencil_node.implementation = "FPGA"
+        vendor_str = dace.config.Config.get("compiler", "fpga_vendor")
+        if vendor_str == "intel_fpga":
+            stencil_node.implementation = "Intel FPGA"
+        elif vendor_str == "xilinx":
+            stencil_node.implementation = "Xilinx"
+        else:
+            raise ValueError(f"Unsupported FPGA backend: {vendor_str}")
         state.add_node(stencil_node)
 
         is_from_memory = {
@@ -544,15 +551,15 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
     for link in chain.graph.edges(data=True):
         _add_pipe(sdfg, link, parameters, vector_length)
 
-    bank = 0 
+    bank = 0
     # Now generate all memory access functions so arrays are registered
     for node in chain.graph.nodes():
         if isinstance(node, Input):
             add_input(node, bank)
-            bank = (bank + 1 ) % NUM_BANKS
+            bank = (bank + 1) % NUM_BANKS
         elif isinstance(node, Output):
             add_output(node, bank)
-            bank = (bank + 1 ) % NUM_BANKS
+            bank = (bank + 1) % NUM_BANKS
         elif isinstance(node, Kernel):
             # Generate these separately after
             pass

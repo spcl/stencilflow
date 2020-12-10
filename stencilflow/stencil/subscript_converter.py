@@ -3,10 +3,14 @@ import astunparse
 from collections import defaultdict
 
 class SubscriptConverter(ast.NodeTransformer):
-    def __init__(self):
+    def __init__(self, offset=0):
         self.names = defaultdict(dict)
+        self.offset = offset
 
     def convert(self, varname, index_tuple):
+
+        # Add offset to last index
+        index_tuple = index_tuple[:-1] + (index_tuple[-1] + self.offset, )
 
         # Remove extraneous symbols
         index_str = ''.join(c for c in str(index_tuple) if c not in '( )')
@@ -41,7 +45,6 @@ class SubscriptConverter(ast.NodeTransformer):
 
         index_str = self.convert(varname, index_tuple)
 
-        self.names[varname][index_tuple] = index_str
         return ast.copy_location(ast.Name(id=index_str), node)
 
 
