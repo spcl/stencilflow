@@ -275,7 +275,7 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
             if vector_length > 1:
                 connectors = connectors[:-(vector_length - 1)]
             for c_from, c_to in zip(connectors[1:], connectors[:-1]):
-                update_code += f"{c_to}_out = {c_from}\n"
+                update_code += f"{c_to}_out = {c_from}_in\n"
 
 
         # Concatenate everything
@@ -380,6 +380,8 @@ else:
                                       dst_conn=connector,
                                       memlet=dace.Memlet(f"{buffer_name_scalar}[{i}]"))
 
+            pipeline_iterator = entry.pipeline.iterator_str()
+
             for i, (size, acc) in enumerate(
                     zip(sizes,
                         buffer_accesses[field_name][0][:-vector_length])):
@@ -401,7 +403,7 @@ else:
                 read_node = state.add_read(buffer_name)
                 write_node = state.add_write(buffer_name)
 
-                buffer_index = f"{buffer_name}[{parameters[-1]}%{size}]"
+                buffer_index = f"{buffer_name}[{pipeline_iterator}%{size}]"
 
                 # Buffer read
                 state.add_memlet_path(read_node,
