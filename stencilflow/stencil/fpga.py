@@ -272,8 +272,18 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
                 result_out_connectors.append(conn)
                 write_code += f"{conn} = {memlet_name}\n"
 
+        # Update buffers
+        update_code = ""
+        for name, (accesses, _, _) in buffer_accesses.items():
+            connectors = [code_memlet_names[name][a]
+                          for a in accesses][:-(vector_length - 1)]
+            for c_from, c_to in zip(connectors[1:], connectors[:-1]):
+                update_code += f"{c_to}_out = {c_from}_in\n"
+
+
         # Concatenate everything
-        code = boundary_code + "\n" + code + "\n" + write_code
+        code = (boundary_code + "\n" + code + "\n" + write_code + "\n" +
+                update_code)
 
         #######################################################################
         # Create DaCe compute state
@@ -362,8 +372,8 @@ else:
             state.add_memlet_path(vector_access,
                                   scalar_access,
                                   memlet=dace.Memlet(
-                                      f"{buffer_name_scalar}[0:{vector_length}]",
-                                      other_subset="0"))
+                                      f"{buffer_name_vector}[0]",
+                                      other_subset=f"0:{vector_length}"))
 
             for i, acc in enumerate(
                     buffer_accesses[field_name][0][-vector_length:]):
