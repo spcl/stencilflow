@@ -296,14 +296,14 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
             buffer_name_vector = f"{field_name}_vector"
             _, buffer_desc = nested_sdfg.add_array(buffer_name_vector, (1, ),
                                                    dace.vector(stream_outer.dtype.base_type, vector_length),
-                                                   storage=dace.StorageType.FPGA_Registers,
+                                                   storage=dace.StorageType.FPGA_Local,
                                                    transient=True)
             vector_access = compute_state.add_access(buffer_name_vector)
 
             buffer_name_scalar = f"{field_name}_scalar"
             _, buffer_desc = nested_sdfg.add_array(buffer_name_scalar, (vector_length, ),
                                                    stream_outer.dtype.base_type,
-                                                   storage=dace.StorageType.FPGA_Registers,
+                                                   storage=dace.StorageType.FPGA_Local,
                                                    transient=True)
             scalar_access = compute_state.add_access(buffer_name_scalar)
 
@@ -357,18 +357,18 @@ else:
                 field_dtype = parent_sdfg.data(data_name).dtype
                 nested_sdfg.add_array(buffer_name, (1, ),
                                       dace.vector(field_dtype.base_type, vector_length),
-                                      storage=dace.dtypes.StorageType.FPGA_Registers,
+                                      storage=dace.dtypes.StorageType.FPGA_Local,
                                       transient=False)
                 nested_sdfg.add_array(input_cast_name, (vector_length, ),
                                       field_dtype.base_type,
-                                      storage=dace.dtypes.StorageType.FPGA_Registers,
+                                      storage=dace.dtypes.StorageType.FPGA_Local,
                                       transient=True)
 
                 # Create outer version and connect it
                 buffer_name_outer = f"{buffer_name}_outer"
                 sdfg.add_array(buffer_name_outer, (size, ),
                                dace.vector(field_dtype.base_type, vector_length),
-                               storage=dace.dtypes.StorageType.FPGA_Registers,
+                               storage=dace.dtypes.StorageType.FPGA_Local,
                                transient=True)
                 buffer_read_outer = state.add_read(buffer_name_outer)
                 buffer_write_outer = state.add_write(buffer_name_outer)
@@ -457,7 +457,7 @@ else:
             output_buffer_scalar_name = f"{field_name}_output_buffer_scalar"
             _, output_buffer_scalar_desc = nested_sdfg.add_array(output_buffer_scalar_name, (vector_length, ),
                                                                  stream.dtype.base_type,
-                                                                 storage=dace.StorageType.FPGA_Registers,
+                                                                 storage=dace.StorageType.FPGA_Local,
                                                                  transient=True)
             output_buffer_scalar_access = compute_state.add_access(output_buffer_scalar_name)
 
@@ -465,7 +465,7 @@ else:
             output_buffer_vector_name = f"{field_name}_output_buffer_vector"
             _, output_buffer_vector_desc = nested_sdfg.add_array(output_buffer_vector_name, (1, ),
                                                                  dace.vector(stream.dtype.base_type, vector_length),
-                                                                 storage=dace.StorageType.FPGA_Registers,
+                                                                 storage=dace.StorageType.FPGA_Local,
                                                                  transient=True)
             output_buffer_vector_access = compute_state.add_access(output_buffer_vector_name)
 

@@ -38,11 +38,6 @@ class SubscriptConverter(ast.NodeTransformer):
             # Turn into a tuple
             index_tuple = (index_tuple, )
 
-        # This index has been used before
-        if index_tuple in self.names[varname]:
-            return ast.copy_location(ast.Name(id=self.names[varname][index_tuple]),
-                                     node)
-
         index_str = self.convert(varname, index_tuple)
 
         return ast.copy_location(ast.Name(id=index_str), node)
