@@ -6,14 +6,16 @@ description of a stencil program to hardware. Dependencies between stencil
 operators are resolved by streaming fine-grained results directly between
 processing elements on the chip. 
 
-Prequisites
-===========
+Prerequisites
+=============
 
 To run the code, the following software must be available:
 - Python 3.6.x or newer.
 - The `virtualenv` module (installed with `pip install virtualenv`).
 - A C++17-capable compiler (e.g., GCC 7.x or Clang 6.x).
-- The Intel FPGA OpenCL SDK (tested with 18.1.1 and 19.1)
+- One or both FPGA compilers:
+  - Intel FPGA OpenCL SDK (tested with 18.1.1 and 19.1)
+  - Xilinx Vitis (tested with 2020.2) 
 
 Setup
 =====
