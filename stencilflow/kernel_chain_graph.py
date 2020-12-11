@@ -441,7 +441,7 @@ class KernelChainGraph:
                              data_queue=BoundedQueue(
                                  name=inp,
                                  maxsize=self.total_elements(),
-                                 collection=[None] * self.total_elements()))
+                                 collection=[]))
             self.input_nodes[inp] = new_node
             self.graph.add_node(new_node)
         # create all output nodes
