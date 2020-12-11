@@ -111,7 +111,6 @@ class ExpandStencilIntelFPGA(dace.library.ExpandTransformation):
             for key, val in buffer_accesses.items()
         ]
         init_size_max = int(np.max(init_sizes))
-        print(buffer_sizes, init_sizes, init_size_max)
 
         parameters = np.array(["i", "j", "k"])[:len(shape)]
         iterator_mask = shape > 1  # Dimensions we need to iterate over
