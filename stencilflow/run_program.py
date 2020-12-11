@@ -60,6 +60,12 @@ def run_program(stencil_file,
         sim.simulate()
         simulation_result = sim.get_result()
 
+    # Set vendor
+    if not xilinx:
+        dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
+    else:
+        dace.config.Config.set("compiler", "fpga_vendor", value="xilinx")
+
     if use_cached_sdfg:
         if log_level >= LogLevel.BASIC:
             print("Loading cached SDFG...")
@@ -85,11 +91,6 @@ def run_program(stencil_file,
                 print("Generating reference SDFG...")
             reference_sdfg = generate_reference(name + "_reference", chain)
 
-    # Configure and compile SDFG
-    if not xilinx:
-        dace.config.Config.set("compiler", "fpga_vendor", value="intel_fpga")
-    else:
-        dace.config.Config.set("compiler", "fpga_vendor", value="xilinx")
     dace.config.Config.set("optimizer", "transform_on_call", value=False)
     dace.config.Config.set(
         "compiler",

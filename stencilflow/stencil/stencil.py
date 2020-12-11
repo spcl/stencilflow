@@ -3,7 +3,8 @@ import collections
 import dace
 import dace.library
 
-from .fpga import ExpandStencilFPGA
+from .intel_fpga import ExpandStencilIntelFPGA
+from .xilinx import ExpandStencilXilinx
 from .cpu import ExpandStencilCPU
 
 
@@ -11,12 +12,16 @@ from .cpu import ExpandStencilCPU
 class Stencil(dace.library.LibraryNode):
     """Represents applying a stencil to a full input domain."""
 
-    implementations = {"FPGA": ExpandStencilFPGA, "CPU": ExpandStencilCPU}
+    implementations = {
+        "Intel FPGA": ExpandStencilIntelFPGA,
+        "Xilinx": ExpandStencilXilinx,
+        "CPU": ExpandStencilCPU
+    }
     default_implementation = None
 
     # Definition of stencil computation
-    shape = dace.properties.ListProperty(
-        dace.symbolic.pystr_to_symbolic, desc="Shape of stencil dimensions")
+    shape = dace.properties.ListProperty(dace.symbolic.pystr_to_symbolic,
+                                         desc="Shape of stencil dimensions")
     # Example:
     # accesses = {
     #   "a": ((True, True, True), [(0, 0, -1), (0, -1, 0), (1, 0, 0)]),
@@ -35,7 +40,6 @@ class Stencil(dace.library.LibraryNode):
     code = dace.properties.CodeProperty(
         desc="Stencil code using all inputs to produce all outputs",
         default=dace.properties.CodeBlock(""))
-
 
     def __init__(self,
                  label,

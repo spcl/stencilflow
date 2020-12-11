@@ -9,39 +9,11 @@ import re
 import dace
 import numpy as np
 from .subscript_converter import SubscriptConverter
-
-# Value inserted when the output is junk and should not be used
-JUNK_VAL = -100000
-
-
-def dim_to_abs_val(input, dimensions):
-    """Compute scalar number from independent dimension unit."""
-    vec = [
-        functools.reduce(operator.mul, dimensions[i + 1:], 1)
-        for i in range(len(dimensions))
-    ]
-    return functools.reduce(operator.add, map(operator.mul, input, vec), 0)
-
-
-def make_iterators(dimensions, halo_sizes=None, parameters=None):
-    def add_halo(i):
-        if i == len(dimensions) - 1 and halo_sizes is not None:
-            return " + " + str(-halo_sizes[0] + halo_sizes[1])
-        else:
-            return ""
-
-    if parameters is None:
-        return collections.OrderedDict([("i" + str(i),
-                                         "0:" + str(d) + add_halo(i))
-                                        for i, d in enumerate(dimensions)])
-    else:
-        return collections.OrderedDict([(parameters[i],
-                                         "0:" + str(d) + add_halo(i))
-                                        for i, d in enumerate(dimensions)])
+from ._common import JUNK_VAL, dim_to_abs_val, make_iterators
 
 
 @dace.library.expansion
-class ExpandStencilFPGA(dace.library.ExpandTransformation):
+class ExpandStencilIntelFPGA(dace.library.ExpandTransformation):
 
     environments = []
 
@@ -69,8 +41,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                 # take this as a symbol
                 scalars[field_name] = parent_sdfg.symbols[field_name]
                 vector_lengths[field_name] = 1
-                sdfg.add_symbol(field_name,
-                                parent_sdfg.symbols[field_name])
+                sdfg.add_symbol(field_name, parent_sdfg.symbols[field_name])
                 continue
             # Find the corresponding input memlets
             for e in in_edges:
@@ -140,6 +111,7 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
             for key, val in buffer_accesses.items()
         ]
         init_size_max = int(np.max(init_sizes))
+        print(buffer_sizes, init_sizes, init_size_max)
 
         parameters = np.array(["i", "j", "k"])[:len(shape)]
         iterator_mask = shape > 1  # Dimensions we need to iterate over
@@ -301,10 +273,9 @@ class ExpandStencilFPGA(dace.library.ExpandTransformation):
                  for f, a in node.accesses.items() if any(a[0])]))
         compute_tasklet = compute_state.add_tasklet(
             node.label + "_compute",
-            compute_inputs, {
-                name + "_inner_out"
-                for name in node.output_fields
-            },
+            compute_inputs,
+            {name + "_inner_out"
+             for name in node.output_fields},
             code,
             language=dace.dtypes.Language.Python)
         if vector_length > 1:
