@@ -24,7 +24,7 @@ from stencilflow.input import Input
 from stencilflow.output import Output
 
 import stencilflow.stencil as stencil
-from stencilflow.stencil.fpga import make_iterators
+from stencilflow.stencil._common import make_iterators
 
 import networkx as nx
 

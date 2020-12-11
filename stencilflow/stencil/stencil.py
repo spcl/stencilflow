@@ -3,7 +3,8 @@ import collections
 import dace
 import dace.library
 
-from .fpga import ExpandStencilIntelFPGA, ExpandStencilXilinx
+from .intel_fpga import ExpandStencilIntelFPGA
+from .xilinx import ExpandStencilXilinx
 from .cpu import ExpandStencilCPU
 
 
