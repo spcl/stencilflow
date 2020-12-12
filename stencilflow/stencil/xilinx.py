@@ -246,18 +246,18 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
         for s in itertools.chain(pipeline.params, [pipeline.iterator_str()]):
             nested_sdfg.add_symbol(s, dace.dtypes.int64)
             nested_sdfg_node.symbol_mapping[s] = s
-        try:
-            s = pipeline.init_condition()
-            nested_sdfg.add_symbol(s, dace.dtypes.bool)
-            nested_sdfg_node.symbol_mapping[s] = s
-        except VmlueError:
-            pass
+        s = pipeline.init_condition()
+        nested_sdfg.add_symbol(s, dace.dtypes.bool)
+        nested_sdfg_node.symbol_mapping[s] = s
         try:
             s = pipeline.drain_condition()
             nested_sdfg.add_symbol(s, dace.dtypes.bool)
             nested_sdfg_node.symbol_mapping[s] = s
         except ValueError:
             pass
+        for k, v in sdfg.symbols.items():
+            nested_sdfg.add_symbol(k, v)
+            nested_sdfg_node.symbol_mapping[k] = k
 
         compute_state = nested_sdfg.add_state(f"{node.label}_compute")
         update_state = nested_sdfg.add_state(f"{node.label}_update")
