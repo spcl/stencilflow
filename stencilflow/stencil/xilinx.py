@@ -156,8 +156,9 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
 
         code = ""
         code_memlet_names = {f: {} for f in itertools.chain(node.accesses, node.output_fields)}
+        dtype = parent_sdfg.arrays[field_to_data[next(iter(node.output_fields))]].dtype
         for i in range(vector_length):
-            converter = SubscriptConverter(offset=i)
+            converter = SubscriptConverter(offset=i, dtype=dtype)
             new_ast = converter.visit(ast.parse(input_code))
             code += astunparse.unparse(new_ast)
             for k, v in converter.names.items():
@@ -246,9 +247,12 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
         for s in itertools.chain(pipeline.params, [pipeline.iterator_str()]):
             nested_sdfg.add_symbol(s, dace.dtypes.int64)
             nested_sdfg_node.symbol_mapping[s] = s
-        s = pipeline.init_condition()
-        nested_sdfg.add_symbol(s, dace.dtypes.bool)
-        nested_sdfg_node.symbol_mapping[s] = s
+        try:
+            s = pipeline.init_condition()
+            nested_sdfg.add_symbol(s, dace.dtypes.bool)
+            nested_sdfg_node.symbol_mapping[s] = s
+        except ValueError:
+            pass
         try:
             s = pipeline.drain_condition()
             nested_sdfg.add_symbol(s, dace.dtypes.bool)
