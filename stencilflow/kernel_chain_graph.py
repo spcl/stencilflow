@@ -41,7 +41,7 @@ class KernelChainGraph:
         :param plot_graph: flag indication whether or not to produce the graphical graph representation
         :param log_level: flag for console output logging
         """
-        if log_level >= LogLevel.BASIC:
+        if log_level >= LogLevel.MODERATE:
             print("Initialize KernelChainGraph.")
         # set parameters
         # absolute path
@@ -70,31 +70,31 @@ class KernelChainGraph:
         self.kernel_dimensions = -1  # 2: 2D, 3: 3D
         self.constants = {}
         # trigger all internal calculations
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Read input config files.")
         self.import_input()  # read input config file
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Create all kernels.")
         self.create_kernels()  # create all kernels
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Compute kernel latencies.")
         self.compute_kernel_latency()  # compute their latencies
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Connect kernels.")
         self.connect_kernels()  # connect them in the graph
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Compute delay buffer sizes.")
         self.compute_delay_buffer()  # compute the delay buffer sizes
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Add channels to the graph edges.")
         # plot kernel graphs if flag set to true
         if plot_graph:
-            if self.log_level >= LogLevel.BASIC:
+            if self.log_level >= LogLevel.MODERATE:
                 print("Plot kernel chain graph.")
             # plot kernel chain graph
             self.plot_graph(self.name + ".png")
             # plot all compute graphs
-            if self.log_level >= LogLevel.BASIC:
+            if self.log_level >= LogLevel.MODERATE:
                 print("Plot computation graph of each kernel.")
             # for compute_kernel in self.kernel_nodes:
             #     self.kernel_nodes[compute_kernel].graph.plot_graph(
