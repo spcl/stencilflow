@@ -111,7 +111,6 @@ class ExpandStencilIntelFPGA(dace.library.ExpandTransformation):
             for key, val in buffer_accesses.items()
         ]
         init_size_max = int(np.max(init_sizes))
-        print(buffer_sizes, init_sizes, init_size_max)
 
         parameters = np.array(["i", "j", "k"])[:len(shape)]
         iterator_mask = shape > 1  # Dimensions we need to iterate over
@@ -419,7 +418,9 @@ class ExpandStencilIntelFPGA(dace.library.ExpandTransformation):
                 language=dace.dtypes.Language.Python)
             nested_sdfg_tasklet.symbol_mapping[pipeline.iterator_str()] = (
                 pipeline.iterator_str())
-            nested_sdfg.add_symbol(pipeline.iterator_str(), dace.int64)
+            iterator_str = pipeline.iterator_str()
+            if iterator_str not in nested_sdfg.symbols:
+                nested_sdfg.add_symbol(iterator_str, dace.int64)
             update_state.add_memlet_path(update_read,
                                          update_tasklet,
                                          memlet=dace.memlet.Memlet.simple(

@@ -63,7 +63,7 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
                            ([0] if node.boundary_conditions[field_name]["btype"] == "copy" else []))
             max_access = max(abs_indices)
             min_access = min(abs_indices)
-            buffer_indices = [i - min_access for i in abs_indices]
+            buffer_indices = [i - min_access + (min_access % vector_length) for i in abs_indices]
             buffer_indices_major = [i // vector_length for i in buffer_indices]
             buffer_indices_minor = [i % vector_length for i in buffer_indices]
             buffer_accesses[field_name] = {
@@ -158,7 +158,7 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
         code_memlet_names = {f: {} for f in itertools.chain(node.accesses, node.output_fields)}
         dtype = parent_sdfg.arrays[field_to_data[next(iter(node.output_fields))]].dtype
         for i in range(vector_length):
-            converter = SubscriptConverter(offset=i, dtype=dtype)
+            converter = SubscriptConverter(offset=tuple(0 for _ in range(len(shape) - 1)) + (i, ), dtype=dtype)
             new_ast = converter.visit(ast.parse(input_code))
             code += astunparse.unparse(new_ast)
             for k, v in converter.names.items():
@@ -473,7 +473,7 @@ else:
                                                                  transient=True)
             output_buffer_vector_access = compute_state.add_access(output_buffer_vector_name)
 
-            for i, o in enumerate(result_out_connectors):
+            for i, o in enumerate(r for r in result_out_connectors if r.startswith(field_name)):
                 compute_state.add_memlet_path(compute_tasklet,
                                               output_buffer_scalar_access,
                                               src_conn=o,
