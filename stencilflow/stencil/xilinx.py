@@ -63,7 +63,8 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
                            ([0] if node.boundary_conditions[field_name]["btype"] == "copy" else []))
             max_access = max(abs_indices)
             min_access = min(abs_indices)
-            buffer_indices = [i - min_access + (min_access % vector_length) for i in abs_indices]
+            min_access -= min_access % vector_length
+            buffer_indices = [i - min_access for i in abs_indices]
             buffer_indices_major = [i // vector_length for i in buffer_indices]
             buffer_indices_minor = [i % vector_length for i in buffer_indices]
             buffer_accesses[field_name] = {
@@ -503,7 +504,7 @@ else:
             compute_state.add_memlet_path(write_tasklet,
                                           write_node,
                                           src_conn="pipe",
-                                          memlet=dace.Memlet(f"{stream_name}[0]"))
+                                          memlet=dace.Memlet(f"{stream_name}[0]", dynamic=True))
 
         sdfg.parent = parent_state
         sdfg._parent_sdfg = parent_sdfg  # TODO: this should not be necessary
