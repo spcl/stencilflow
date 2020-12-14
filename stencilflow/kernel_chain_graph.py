@@ -85,6 +85,31 @@ class KernelChainGraph:
         if self.log_level >= LogLevel.MODERATE:
             print("Compute delay buffer sizes.")
         self.compute_delay_buffer()  # compute the delay buffer sizes
+
+
+        for node in self.graph.nodes():
+            if node.name == "__tmp_T" or node.name == "__tmp_T_sqr_s_1351":
+                name = "u_tmp"
+                max_size = self.dimensions[0]*self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+            if node.name == "__tmp_S" or node.name == "__tmp_S_sqr_uv_1352":
+                name = "v_tmp"
+                max_size = self.dimensions[0] * self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+            if node.name == "__tmp_T_sqr_s_1351":
+                name = "ms_sdfg_1330___local_frac_1_dx_1660"
+                max_size = self.dimensions[0]*self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+            if node.name == "__tmp_S_sqr_uv_1352":
+                name = "ms_sdfg_1330___local_frac_1_dx_1660"
+                max_size = self.dimensions[0] * self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+
+
         if self.log_level >= LogLevel.MODERATE:
             print("Add channels to the graph edges.")
         # plot kernel graphs if flag set to true
@@ -495,10 +520,10 @@ class KernelChainGraph:
         for node in order:
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
+
                 # compute maximum delay size per input
                 max_delay = max(node.input_paths[inp])
-                max_delay[
-                    2] += 1  # add an extra delay cycle for the processing in the kernel node
+                max_delay[2] += 1  # add an extra delay cycle for the processing in the kernel node
                 # loop over all inputs and set their size relative to the max size to have data ready at the exact
                 # same time
                 for entry in node.input_paths[inp]:
@@ -507,6 +532,10 @@ class KernelChainGraph:
                         dimensions=self.dimensions,
                         index=stencilflow.list_subtract_cwise(
                             max_delay[:-1], entry[:-1]))
+                    #if node.name == "__tmp_T" and name == "u_tmp":
+                    #    max_size = self.dimensions[0]*self.dimensions[1]
+                    #if node.name == "__tmp_S" and name == "v_tmp":
+                    #    max_size = self.dimensions[0]*self.dimensions[1]
                     node.delay_buffer[name] = BoundedQueue(name=name,
                                                            maxsize=max_size)
                     node.delay_buffer[name].import_data(
@@ -528,6 +557,7 @@ class KernelChainGraph:
                     succ.input_paths[node.name].append(successor)
                 # add kernel node to all, but calculate the length first (predecessor + delay + internal, ..)
                 elif isinstance(node, Kernel):  # add KERNEL
+
                     # add latency, internal_buffer, delay_buffer
                     internal_buffer = [0] * 3
                     for item in node.graph.accesses:
@@ -543,8 +573,10 @@ class KernelChainGraph:
                         # the first entry has to initialize the structure
                         if entry not in succ.input_paths:
                             succ.input_paths[entry] = []
+
                         # compute the actual delay buffer
                         delay_buffer = max(node.input_paths[entry][:])
+
                         # merge them together
                         total = [
                             i + d if i is not None else d
@@ -814,3 +846,4 @@ if __name__ == "__main__":
         chain.report(args.stencil_file)
         if args.simulate:
             sim.report()
+
