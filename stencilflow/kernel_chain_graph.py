@@ -200,7 +200,7 @@ class KernelChainGraph:
                                node_color='orange',
                                node_size=3000,
                                node_shape='s',
-                               edge_color='black')
+                               edgecolors='black')
         nx.draw_networkx_nodes(self.graph,
                                positions,
                                nodelist=outs,
@@ -221,12 +221,12 @@ class KernelChainGraph:
                          node_shape='o',
                          font_weight='bold',
                          font_size=16,
-                         edge_color='black',
+                         edgecolors='black',
                          arrows=True,
                          arrowsize=36,
                          arrowstyle='-|>',
                          width=6,
-                         linwidths=1,
+                         linewidths=1,
                          with_labels=False)
         nx.draw_networkx_labels(self.graph,
                                 positions,
