@@ -678,6 +678,7 @@ class KernelChainGraph:
                 node,
                 self.kernel_nodes[node].generate_relative_access_kernel_string(
                 )))
+        print()
 
         print("instantiate optimizer...")
         from stencilflow import Optimizer
@@ -688,34 +689,33 @@ class KernelChainGraph:
             bound))
         print("single stream comm vol for float32 is: {}".format(
             opt.single_comm_volume(4)))
+        print()
 
         print("total buffer info:")
         total = 0
-        for node in self.kernel_nodes:
-            for u, v, channel in self.graph.edges(data='channel'):
-                if channel is not None:
-                    total_fast = 0
-                    total_slow = 0
-                    for entry in channel["internal_buffer"]:
-                        if entry.swap_out:
-                            print("internal buffer slow memory: {}, size: {}".
-                                  format(entry.name, entry.maxsize))
-                            total_slow += entry.maxsize
-                        else:
-                            print("internal buffer fast memory: {}, size: {}".
-                                  format(entry.name, entry.maxsize))
-                            total_fast += entry.maxsize
-                    entry = channel["delay_buffer"]
+        for u, v, channel in self.graph.edges(data='channel'):
+            if channel is not None:
+                total_fast = 0
+                total_slow = 0
+                for entry in channel["internal_buffer"]:
                     if entry.swap_out:
-                        print("delay buffer slow memory: {}, size: {}".format(
-                            entry.name, entry.maxsize))
+                        print("{}->{}: internal buffer slow memory: {}, size: {}".
+                              format(u.name, v.name, entry.name, entry.maxsize))
                         total_slow += entry.maxsize
                     else:
-                        print("delay buffer fast memory: {}, size: {}".format(
-                            entry.name, entry.maxsize))
+                        print("{}->{}: internal buffer fast memory: {}, size: {}".
+                              format(u.name, v.name, entry.name, entry.maxsize))
                         total_fast += entry.maxsize
-        print(
-            "buffer size slow memory: {} \nbuffer size fast memory: {}".format(
+                entry = channel["delay_buffer"]
+                if entry.swap_out:
+                    print("{}->{}: delay buffer slow memory: {}, size: {}".format(
+                        u.name, v.name, entry.name, entry.maxsize))
+                    total_slow += entry.maxsize
+                else:
+                    print("{}->{}: delay buffer fast memory: {}, size: {}".format(
+                        u.name, v.name, entry.name, entry.maxsize))
+                    total_fast += entry.maxsize
+        print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(
                 total_slow, total_fast))
 
     def operation_count(self):
