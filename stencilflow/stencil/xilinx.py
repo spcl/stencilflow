@@ -297,6 +297,8 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
                                   dst_conn=f"_{connector}",
                                   memlet=dace.Memlet(f"{stream_name_outer}[0]", dynamic=True))
 
+            vector_length = vector_lengths[field_name]
+
             # Intermediate buffers to unpack vector types
             buffer_name_vector = f"{field_name}_vector"
             _, buffer_desc = nested_sdfg.add_array(buffer_name_vector, (1, ),
@@ -345,7 +347,11 @@ else:
                                           memlet=dace.Memlet(f"{buffer_name_vector}[0]",
                                                              other_subset=f"0:{vector_length}"))
 
-            for i, acc in enumerate(buffer_accesses[field_name]["relative"][-vector_length:]):
+            for i, (acc, major) in enumerate(
+                    zip(buffer_accesses[field_name]["relative"][-vector_length:],
+                        buffer_accesses[field_name]["major"][-vector_length:])):
+                if major != buffer_accesses[field_name]["major_unique"][-1]:
+                    continue
                 connector = f"{code_memlet_names[field_name][acc]}_in"
                 compute_state.add_memlet_path(scalar_access,
                                               compute_tasklet,
@@ -449,6 +455,8 @@ else:
                                   write_node_outer,
                                   src_conn=stream_name,
                                   memlet=dace.Memlet(f"{stream_name_outer}[0]"))
+
+            vector_length = stream_outer.dtype.veclen
 
             # Inner write
             stream = stream_outer.clone()
