@@ -63,6 +63,7 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
                            ([0] if node.boundary_conditions[field_name]["btype"] == "copy" else []))
             max_access = max(abs_indices)
             min_access = min(abs_indices)
+            min_access -= min_access % vector_length
             buffer_indices = [i - min_access for i in abs_indices]
             buffer_indices_major = [i // vector_length for i in buffer_indices]
             buffer_indices_minor = [i % vector_length for i in buffer_indices]
@@ -156,8 +157,9 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
 
         code = ""
         code_memlet_names = {f: {} for f in itertools.chain(node.accesses, node.output_fields)}
+        dtype = parent_sdfg.arrays[field_to_data[next(iter(node.output_fields))]].dtype
         for i in range(vector_length):
-            converter = SubscriptConverter(offset=i)
+            converter = SubscriptConverter(offset=tuple(0 for _ in range(len(shape) - 1)) + (i, ), dtype=dtype)
             new_ast = converter.visit(ast.parse(input_code))
             code += astunparse.unparse(new_ast)
             for k, v in converter.names.items():
@@ -250,7 +252,7 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
             s = pipeline.init_condition()
             nested_sdfg.add_symbol(s, dace.dtypes.bool)
             nested_sdfg_node.symbol_mapping[s] = s
-        except VmlueError:
+        except ValueError:
             pass
         try:
             s = pipeline.drain_condition()
@@ -258,6 +260,9 @@ class ExpandStencilXilinx(dace.library.ExpandTransformation):
             nested_sdfg_node.symbol_mapping[s] = s
         except ValueError:
             pass
+        for k, v in sdfg.symbols.items():
+            nested_sdfg.add_symbol(k, v)
+            nested_sdfg_node.symbol_mapping[k] = k
 
         compute_state = nested_sdfg.add_state(f"{node.label}_compute")
         update_state = nested_sdfg.add_state(f"{node.label}_update")
@@ -469,7 +474,7 @@ else:
                                                                  transient=True)
             output_buffer_vector_access = compute_state.add_access(output_buffer_vector_name)
 
-            for i, o in enumerate(result_out_connectors):
+            for i, o in enumerate(r for r in result_out_connectors if r.startswith(field_name)):
                 compute_state.add_memlet_path(compute_tasklet,
                                               output_buffer_scalar_access,
                                               src_conn=o,
@@ -499,7 +504,7 @@ else:
             compute_state.add_memlet_path(write_tasklet,
                                           write_node,
                                           src_conn="pipe",
-                                          memlet=dace.Memlet(f"{stream_name}[0]"))
+                                          memlet=dace.Memlet(f"{stream_name}[0]", dynamic=True))
 
         sdfg.parent = parent_state
         sdfg._parent_sdfg = parent_sdfg  # TODO: this should not be necessary

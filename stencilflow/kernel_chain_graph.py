@@ -41,7 +41,7 @@ class KernelChainGraph:
         :param plot_graph: flag indication whether or not to produce the graphical graph representation
         :param log_level: flag for console output logging
         """
-        if log_level >= LogLevel.BASIC:
+        if log_level >= LogLevel.MODERATE:
             print("Initialize KernelChainGraph.")
         # set parameters
         # absolute path
@@ -70,31 +70,31 @@ class KernelChainGraph:
         self.kernel_dimensions = -1  # 2: 2D, 3: 3D
         self.constants = {}
         # trigger all internal calculations
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Read input config files.")
         self.import_input()  # read input config file
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Create all kernels.")
         self.create_kernels()  # create all kernels
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Compute kernel latencies.")
         self.compute_kernel_latency()  # compute their latencies
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Connect kernels.")
         self.connect_kernels()  # connect them in the graph
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Compute delay buffer sizes.")
         self.compute_delay_buffer()  # compute the delay buffer sizes
-        if self.log_level >= LogLevel.BASIC:
+        if self.log_level >= LogLevel.MODERATE:
             print("Add channels to the graph edges.")
         # plot kernel graphs if flag set to true
         if plot_graph:
-            if self.log_level >= LogLevel.BASIC:
+            if self.log_level >= LogLevel.MODERATE:
                 print("Plot kernel chain graph.")
             # plot kernel chain graph
             self.plot_graph(self.name + ".png")
             # plot all compute graphs
-            if self.log_level >= LogLevel.BASIC:
+            if self.log_level >= LogLevel.MODERATE:
                 print("Plot computation graph of each kernel.")
             # for compute_kernel in self.kernel_nodes:
             #     self.kernel_nodes[compute_kernel].graph.plot_graph(
@@ -200,7 +200,7 @@ class KernelChainGraph:
                                node_color='orange',
                                node_size=3000,
                                node_shape='s',
-                               edge_color='black')
+                               edgecolors='black')
         nx.draw_networkx_nodes(self.graph,
                                positions,
                                nodelist=outs,
@@ -221,12 +221,12 @@ class KernelChainGraph:
                          node_shape='o',
                          font_weight='bold',
                          font_size=16,
-                         edge_color='black',
+                         edgecolors='black',
                          arrows=True,
                          arrowsize=36,
                          arrowstyle='-|>',
                          width=6,
-                         linwidths=1,
+                         linewidths=1,
                          with_labels=False)
         nx.draw_networkx_labels(self.graph,
                                 positions,
@@ -678,6 +678,7 @@ class KernelChainGraph:
                 node,
                 self.kernel_nodes[node].generate_relative_access_kernel_string(
                 )))
+        print()
 
         print("instantiate optimizer...")
         from stencilflow import Optimizer
@@ -688,34 +689,33 @@ class KernelChainGraph:
             bound))
         print("single stream comm vol for float32 is: {}".format(
             opt.single_comm_volume(4)))
+        print()
 
         print("total buffer info:")
         total = 0
-        for node in self.kernel_nodes:
-            for u, v, channel in self.graph.edges(data='channel'):
-                if channel is not None:
-                    total_fast = 0
-                    total_slow = 0
-                    for entry in channel["internal_buffer"]:
-                        if entry.swap_out:
-                            print("internal buffer slow memory: {}, size: {}".
-                                  format(entry.name, entry.maxsize))
-                            total_slow += entry.maxsize
-                        else:
-                            print("internal buffer fast memory: {}, size: {}".
-                                  format(entry.name, entry.maxsize))
-                            total_fast += entry.maxsize
-                    entry = channel["delay_buffer"]
+        for u, v, channel in self.graph.edges(data='channel'):
+            if channel is not None:
+                total_fast = 0
+                total_slow = 0
+                for entry in channel["internal_buffer"]:
                     if entry.swap_out:
-                        print("delay buffer slow memory: {}, size: {}".format(
-                            entry.name, entry.maxsize))
+                        print("{}->{}: internal buffer slow memory: {}, size: {}".
+                              format(u.name, v.name, entry.name, entry.maxsize))
                         total_slow += entry.maxsize
                     else:
-                        print("delay buffer fast memory: {}, size: {}".format(
-                            entry.name, entry.maxsize))
+                        print("{}->{}: internal buffer fast memory: {}, size: {}".
+                              format(u.name, v.name, entry.name, entry.maxsize))
                         total_fast += entry.maxsize
-        print(
-            "buffer size slow memory: {} \nbuffer size fast memory: {}".format(
+                entry = channel["delay_buffer"]
+                if entry.swap_out:
+                    print("{}->{}: delay buffer slow memory: {}, size: {}".format(
+                        u.name, v.name, entry.name, entry.maxsize))
+                    total_slow += entry.maxsize
+                else:
+                    print("{}->{}: delay buffer fast memory: {}, size: {}".format(
+                        u.name, v.name, entry.name, entry.maxsize))
+                    total_fast += entry.maxsize
+        print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(
                 total_slow, total_fast))
 
     def operation_count(self):
