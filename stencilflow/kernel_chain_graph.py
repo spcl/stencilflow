@@ -507,6 +507,11 @@ class KernelChainGraph:
                         dimensions=self.dimensions,
                         index=stencilflow.list_subtract_cwise(
                             max_delay[:-1], entry[:-1]))
+
+                    if not isinstance(node, Output):
+                        max_offset = node.dist_to_center[max(node.dist_to_center, key=lambda x: node.dist_to_center[x])]
+                        max_size = max_offset - node.dist_to_center[entry[-1]]
+
                     node.delay_buffer[name] = BoundedQueue(name=name,
                                                            maxsize=max_size)
                     node.delay_buffer[name].import_data(
