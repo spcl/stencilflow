@@ -1,7 +1,7 @@
 {
  "inputs": {
-  "crlato": {
-   "data": "crlato_128_float32.dat",
+  "inA": {
+   "data": "inA_float32.dat",
    "data_type": "float32",
    "input_dims": [
     "i"
@@ -12,163 +12,73 @@
   "out"
  ],
  "dimensions": [
-  128,
-  80,
-  128
+  8,
+  8,
+  8
  ],
  "vectorization": 1,
  "program": {
-  "v_tmp": {
+  "k0": {
    "data_type": "float32",
-   "computation_string": "\nv_tmp = crlato[i]\n",
+   "computation_string": "k0 = inA[i]",
    "boundary_conditions": {
-    "crlato": {
-     "btype": "shrink",
-     "halo": [
-      "halo-2",
-      "halo-1",
-      0,
-      0,
-      "halo-1",
-      "halo-2"
-     ]
-    }
+      "inA": {
+          "type": "constant",
+          "value": 0.0
+      }
    }
   },
-  "u_tmp": {
+  "k1": {
    "data_type": "float32",
-   "computation_string": "\nu_tmp = crlato[i]\n",
+   "computation_string": "k1 = inA[i]",
    "boundary_conditions": {
-    "crlato": {
-     "btype": "shrink",
-     "halo": [
-      "halo-1",
-      "halo-2",
-      0,
-      0,
-      "halo-2",
-      "halo-1"
-     ]
-    }
+      "inA": {
+          "type": "constant",
+          "value": 0.0
+      }
    }
   },
-  "__tmp_T": {
+  "k2": {
    "data_type": "float32",
-   "computation_string": "\n__tmp_T = u_tmp[(i, j, k)] + v_tmp[((i + 1), j, k)] + v_tmp[(i, j, k)]\n",
+   "computation_string": "k2 = k1[i, j, k] + k0[i + 1, j, k] + k0[i, j, k]",
    "boundary_conditions": {
-    "u_tmp": {
-     "btype": "shrink",
-     "halo": [
-      "halo-1",
-      "halo-1",
-      0,
-      0,
-      "halo-1",
-      "halo-1"
-     ]
+    "k1": {
+       "type": "constant",
+       "value": 0.0
     },
-    "v_tmp": {
-     "btype": "shrink",
-     "halo": [
-      "halo-1",
-      "halo-1",
-      0,
-      0,
-      "halo-1",
-      "halo-1"
-     ]
+    "k0": {
+       "type": "constant",
+       "value": 0.0
     }
    }
   },
-  "__tmp_S": {
+  "k3": {
    "data_type": "float32",
-   "computation_string": "\n__tmp_S = v_tmp[(i, j, k)] + u_tmp[((i + 1), j, k)] + u_tmp[(i, j, k)]\n",
+   "computation_string": "k3 = k0[i, j, k] + k1[i + 1, j, k] + k1[i, j, k]",
    "boundary_conditions": {
-    "v_tmp": {
-     "btype": "shrink",
-     "halo": [
-      "halo-1",
-      "halo-1",
-      0,
-      0,
-      "halo-1",
-      "halo-1"
-     ]
+    "k0": {
+       "type": "constant",
+       "value": 0.0
     },
-    "u_tmp": {
-     "btype": "shrink",
-     "halo": [
-      "halo-1",
-      "halo-1",
-      0,
-      0,
-      "halo-1",
-      "halo-1"
-     ]
+    "k1": {
+       "type": "constant",
+       "value": 0.0
     }
    }
   },
   "out": {
    "data_type": "float32",
-   "computation_string": "\nout = __tmp_S[(i,j,k)] + __tmp_T[(i,j,k)]\n",
+   "computation_string": "out = k2[i,j,k] + k3[i,j,k]",
    "boundary_conditions": {
-    "__tmp_S":{
-     "btype": "shrink",
-     "halo": [
-      "halo",
-      "halo",
-      0,
-      0,
-      "halo",
-      "halo"
-     ]
+    "k2":{
+       "type": "constant",
+       "value": 0.0
     },
-    "__tmp_T": {
-     "btype": "shrink",
-     "halo": [
-      "halo",
-      "halo",
-      0,
-      0,
-      "halo",
-      "halo"
-     ]
+    "k3": {
+       "type": "constant",
+       "value": 0.0
     }
     }
    }
- },
- "constants": {
-  "eddlat": {
-   "value": "5729.58",
-   "data_type": "float32"
-  },
-  "eddlon": {
-   "value": "5729.58",
-   "data_type": "float32"
-  },
-  "tau_smag": {
-   "value": "0.3",
-   "data_type": "float32"
-  },
-  "weight_smag": {
-   "value": "0.5",
-   "data_type": "float32"
-  },
-  "I": {
-   "value": "128",
-   "data_type": "int32"
-  },
-  "J": {
-   "value": "128",
-   "data_type": "int32"
-  },
-  "K": {
-   "value": "80",
-   "data_type": "int32"
-  },
-  "halo": {
-   "value": "1",
-   "data_type": "int32"
-  }
  }
 }
