@@ -1,0 +1,174 @@
+{
+ "inputs": {
+  "crlato": {
+   "data": "crlato_128_float32.dat",
+   "data_type": "float32",
+   "input_dims": [
+    "i"
+   ]
+  }
+ },
+ "outputs": [
+  "out"
+ ],
+ "dimensions": [
+  128,
+  80,
+  128
+ ],
+ "vectorization": 1,
+ "program": {
+  "v_tmp": {
+   "data_type": "float32",
+   "computation_string": "\nv_tmp = crlato[i]\n",
+   "boundary_conditions": {
+    "crlato": {
+     "btype": "shrink",
+     "halo": [
+      "halo-2",
+      "halo-1",
+      0,
+      0,
+      "halo-1",
+      "halo-2"
+     ]
+    }
+   }
+  },
+  "u_tmp": {
+   "data_type": "float32",
+   "computation_string": "\nu_tmp = crlato[i]\n",
+   "boundary_conditions": {
+    "crlato": {
+     "btype": "shrink",
+     "halo": [
+      "halo-1",
+      "halo-2",
+      0,
+      0,
+      "halo-2",
+      "halo-1"
+     ]
+    }
+   }
+  },
+  "__tmp_T": {
+   "data_type": "float32",
+   "computation_string": "\n__tmp_T = u_tmp[(i, j, k)] + v_tmp[((i + 1), j, k)] + v_tmp[(i, j, k)]\n",
+   "boundary_conditions": {
+    "u_tmp": {
+     "btype": "shrink",
+     "halo": [
+      "halo-1",
+      "halo-1",
+      0,
+      0,
+      "halo-1",
+      "halo-1"
+     ]
+    },
+    "v_tmp": {
+     "btype": "shrink",
+     "halo": [
+      "halo-1",
+      "halo-1",
+      0,
+      0,
+      "halo-1",
+      "halo-1"
+     ]
+    }
+   }
+  },
+  "__tmp_S": {
+   "data_type": "float32",
+   "computation_string": "\n__tmp_S = v_tmp[(i, j, k)] + u_tmp[((i + 1), j, k)] + u_tmp[(i, j, k)]\n",
+   "boundary_conditions": {
+    "v_tmp": {
+     "btype": "shrink",
+     "halo": [
+      "halo-1",
+      "halo-1",
+      0,
+      0,
+      "halo-1",
+      "halo-1"
+     ]
+    },
+    "u_tmp": {
+     "btype": "shrink",
+     "halo": [
+      "halo-1",
+      "halo-1",
+      0,
+      0,
+      "halo-1",
+      "halo-1"
+     ]
+    }
+   }
+  },
+  "out": {
+   "data_type": "float32",
+   "computation_string": "\nout = __tmp_S[(i,j,k)] + __tmp_T[(i,j,k)]\n",
+   "boundary_conditions": {
+    "__tmp_S":{
+     "btype": "shrink",
+     "halo": [
+      "halo",
+      "halo",
+      0,
+      0,
+      "halo",
+      "halo"
+     ]
+    },
+    "__tmp_T": {
+     "btype": "shrink",
+     "halo": [
+      "halo",
+      "halo",
+      0,
+      0,
+      "halo",
+      "halo"
+     ]
+    }
+    }
+   }
+ },
+ "constants": {
+  "eddlat": {
+   "value": "5729.58",
+   "data_type": "float32"
+  },
+  "eddlon": {
+   "value": "5729.58",
+   "data_type": "float32"
+  },
+  "tau_smag": {
+   "value": "0.3",
+   "data_type": "float32"
+  },
+  "weight_smag": {
+   "value": "0.5",
+   "data_type": "float32"
+  },
+  "I": {
+   "value": "128",
+   "data_type": "int32"
+  },
+  "J": {
+   "value": "128",
+   "data_type": "int32"
+  },
+  "K": {
+   "value": "80",
+   "data_type": "int32"
+  },
+  "halo": {
+   "value": "1",
+   "data_type": "int32"
+  }
+ }
+}
