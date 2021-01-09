@@ -85,6 +85,29 @@ class KernelChainGraph:
         if self.log_level >= LogLevel.MODERATE:
             print("Compute delay buffer sizes.")
         self.compute_delay_buffer()  # compute the delay buffer sizes
+
+        for node in self.graph.nodes():
+            if node.name == "__tmp_T" or node.name == "__tmp_T_sqr_s_1351":
+                name = "u_tmp"
+                max_size = self.dimensions[0]*self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+            if node.name == "__tmp_S" or node.name == "__tmp_S_sqr_uv_1352":
+                name = "v_tmp"
+                max_size = self.dimensions[0] * self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+            if node.name == "__tmp_T_sqr_s_1351":
+                name = "ms_sdfg_1330___local_frac_1_dx_1660"
+                max_size = self.dimensions[0]*self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+            if node.name == "__tmp_S_sqr_uv_1352":
+                name = "ms_sdfg_1330___local_frac_1_dx_1660"
+                max_size = self.dimensions[0] * self.dimensions[1]
+                node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+
         if self.log_level >= LogLevel.MODERATE:
             print("Add channels to the graph edges.")
         # plot kernel graphs if flag set to true
