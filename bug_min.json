@@ -12,9 +12,9 @@
   "out"
  ],
  "dimensions": [
-  8,
-  8,
-  8
+  256,
+  256,
+  256
  ],
  "vectorization": 1,
  "program": {
