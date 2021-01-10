@@ -1,0 +1,94 @@
+{
+ "inputs": {
+  "inA": {
+   "data": "inA_float32.dat",
+   "data_type": "float32",
+   "input_dims": [
+    "i"
+   ]
+  }
+ },
+ "outputs": [
+  "out"
+ ],
+ "dimensions": [
+  8,
+  8,
+  8
+ ],
+ "vectorization": 1,
+ "program": {
+  "k0": {
+   "data_type": "float32",
+   "computation_string": "k0 = inA[i]",
+   "boundary_conditions": {
+      "inA": {
+          "type": "constant",
+          "value": 0.0
+      }
+   }
+  },
+  "k1": {
+   "data_type": "float32",
+   "computation_string": "k1 = inA[i]",
+   "boundary_conditions": {
+      "inA": {
+          "type": "constant",
+          "value": 0.0
+      }
+   }
+  },
+  "k2": {
+   "data_type": "float32",
+   "computation_string": "k2 = k1[i, j, k] + k0[i + 1, j, k] + k0[i, j, k]",
+   "boundary_conditions": {
+    "k1": {
+       "type": "constant",
+       "value": 0.0
+    },
+    "k0": {
+       "type": "constant",
+       "value": 0.0
+    }
+   }
+  },
+  "k3": {
+   "data_type": "float32",
+   "computation_string": "k3 = k0[i, j, k] + k4[i + 1, j, k] + k4[i, j, k]",
+   "boundary_conditions": {
+    "k0": {
+       "type": "constant",
+       "value": 0.0
+    },
+    "k4": {
+       "type": "constant",
+       "value": 0.0
+    }
+   }
+  },
+   "k4": {
+   "data_type": "float32",
+   "computation_string": "k4 = k1[i, j, k] + k1[i+1, j, k]",
+   "boundary_conditions": {
+    "k1": {
+       "type": "constant",
+       "value": 0.0
+    }
+   }
+  },
+  "out": {
+   "data_type": "float32",
+   "computation_string": "out = k2[i,j,k] + k3[i,j,k]",
+   "boundary_conditions": {
+    "k2":{
+       "type": "constant",
+       "value": 0.0
+    },
+    "k3": {
+       "type": "constant",
+       "value": 0.0
+    }
+    }
+   }
+ }
+}
