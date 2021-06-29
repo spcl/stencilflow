@@ -398,8 +398,10 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
                 gearbox_entry, gearbox_exit = state.add_map(f"gearbox_{node.name}",
                                                             gearbox_iterators,
                                                             schedule=dace.ScheduleType.FPGA_Device)
-                gearbox_tasklet = state.add_tasklet(f"gearbox_{node.name}", {"from_memory", "buffer_in"}, {"to_compute", "buffer_out"},
-                                                    f"""
+                if input_vector_length > 1:
+                    gearbox_tasklet = state.add_tasklet(f"gearbox_{node.name}", {"from_memory", "buffer_in"},
+                                                        {"to_compute", "buffer_out"},
+                                                        f"""
 const auto flit = (gb == 0) ? from_memory.pop() : buffer_in;
 dace::vec<{node.data_type.base_type.ctype}, {input_vector_length}> val;
 for (unsigned w = 0; w < {input_vector_length}; ++w) {{
@@ -407,7 +409,16 @@ for (unsigned w = 0; w < {input_vector_length}; ++w) {{
 }}
 {gearbox_out_stream_name}.push(val);
 buffer_out = flit;""",
-                                                    language=dace.Language.CPP)
+                                                        language=dace.Language.CPP)
+                else:
+                    gearbox_tasklet = state.add_tasklet(f"gearbox_{node.name}", {"from_memory", "buffer_in"},
+                                                        {"to_compute", "buffer_out"},
+                                                        f"""
+const auto flit = (gb == 0) ? from_memory.pop() : buffer_in;
+dace::vec<{node.data_type.base_type.ctype}, {input_vector_length}> val = flit[gb];
+{gearbox_out_stream_name}.push(val);
+buffer_out = flit;""",
+                                                        language=dace.Language.CPP)
                 state.add_memlet_path(gearbox_in_stream_read,
                                       gearbox_entry,
                                       gearbox_tasklet,
@@ -513,8 +524,10 @@ buffer_out = flit;""",
         gearbox_entry, gearbox_exit = state.add_map(f"gearbox_{node.name}",
                                                     gearbox_iterators,
                                                     schedule=dace.ScheduleType.FPGA_Device)
-        gearbox_tasklet = state.add_tasklet(f"gearbox_{node.name}", {"from_compute", "buffer_in"}, {"to_memory", "buffer_out"},
-                                            f"""
+        if vector_length > 1:
+            gearbox_tasklet = state.add_tasklet(f"gearbox_{node.name}", {"from_compute", "buffer_in"},
+                                                {"to_memory", "buffer_out"},
+                                                f"""
 const auto val = from_compute;
 for (unsigned w = 0; w < {vector_length}; ++w) {{
     buffer_in[gb * {vector_length} + w] = val[w];
@@ -523,7 +536,18 @@ buffer_out = buffer_in;
 if (gb == {gearbox_factor} - 1) {{
   to_memory.push(buffer_out);
 }}""",
-                                            language=dace.Language.CPP)
+                                                language=dace.Language.CPP)
+        else:
+            gearbox_tasklet = state.add_tasklet(f"gearbox_{node.name}", {"from_compute", "buffer_in"},
+                                                {"to_memory", "buffer_out"},
+                                                f"""
+const auto val = from_compute;
+buffer_in[gb] = val;
+buffer_out = buffer_in;
+if (gb == {gearbox_factor} - 1) {{
+  to_memory.push(buffer_out);
+}}""",
+                                                language=dace.Language.CPP)
         state.add_memlet_path(read_node,
                               gearbox_entry,
                               gearbox_tasklet,
