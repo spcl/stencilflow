@@ -402,7 +402,7 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
                                                     f"""
 const auto flit = (gb == 0) ? from_memory.pop() : buffer_in;
 dace::vec<{node.data_type.base_type.ctype}, {input_vector_length}> val;
-for (int w = 0; w < {input_vector_length}; ++w) {{
+for (unsigned w = 0; w < {input_vector_length}; ++w) {{
   val[w] = flit[gb * {input_vector_length} + w];
 }}
 {gearbox_out_stream_name}.push(val);
@@ -462,15 +462,18 @@ buffer_out = flit;""",
                                                        num_accesses=1))
 
     def add_output(node, bank):
+
+        # Always write 512-bit vectors to memory
+        memory_veclen = 64 // node.data_type.bytes
+        gearbox_factor = memory_veclen // vector_length
+        memory_dtype = dace.dtypes.vector(node.data_type, memory_veclen)
+        memory_shape = list(shape)
+        memory_shape[-1] //= memory_veclen
+
         # Host-side array, which will be an output argument
         try:
             sdfg.add_array(node.name + "_host", shape, node.data_type)
-            _, array = sdfg.add_array(node.name,
-                                      vshape,
-                                      dace.dtypes.vector(
-                                          node.data_type, vector_length),
-                                      storage=StorageType.FPGA_Global,
-                                      transient=True)
+            _, array = sdfg.add_array(node.name, memory_shape, memory_dtype, storage=StorageType.FPGA_Global, transient=True)
             array.location["bank"] = bank
         except NameError:
             # This array is also read
@@ -485,50 +488,80 @@ buffer_out = flit;""",
         copy_host = post_state.add_write(node.name + "_host")
         post_state.add_memlet_path(copy_fpga,
                                    copy_host,
-                                   memlet=Memlet.simple(
-                                       copy_fpga,
-                                       ", ".join(memcopy_indices),
-                                       num_accesses=memcopy_accesses))
+                                   memlet=Memlet(f"{copy_fpga.data}[{', '.join(f'0:{s}' for s in memory_shape)}]"))
 
-        entry, exit = state.add_map("write_" + node.name,
-                                    iterators,
-                                    schedule=ScheduleType.FPGA_Device)
-
+        # Stream from compute
         src = chain.graph.in_edges(node)
         if len(src) > 1:
             raise RuntimeError("Only one writer per output supported")
         src = next(iter(src))[0]
-
-        in_memlet = "_" + src.name
-
-        tasklet_code = "memory = " + in_memlet
-
-        tasklet = state.add_tasklet("write_" + node.name, {in_memlet},
-                                    {"memory"}, tasklet_code)
-
-        vectorized_pars = copy.copy(parameters)
-        # if vector_length > 1:
-        #     vectorized_pars[-1] = "{}*{}".format(vector_length,
-        #                                          vectorized_pars[-1])
-
         stream_name = "{}_to_write_{}".format(src.name, node.name)
         read_node = state.add_read(stream_name)
 
+        # Gearbox into the expected vector width
+        gearbox_out_stream_name = f"{node.name}_gearbox_out"
+        gearbox_buffer_name = f"{node.name}_gearbox_buffer"
+        sdfg.add_array(gearbox_buffer_name, [1], memory_dtype, storage=dace.StorageType.FPGA_Local, transient=True)
+        sdfg.add_stream(gearbox_out_stream_name, memory_dtype, 512, storage=dace.StorageType.FPGA_Local, transient=True);
+        gearbox_read = state.add_read(gearbox_buffer_name)
+        gearbox_write = state.add_write(gearbox_buffer_name)
+        gearbox_out_stream_write = state.add_write(gearbox_out_stream_name)
+        buffer_iterators = copy.copy(iterators)
+        buffer_iterators[parameters[-1]] += f"/{gearbox_factor}"
+        gearbox_iterators = copy.copy(buffer_iterators)
+        gearbox_iterators["gb"] = f"0:{gearbox_factor}"
+        gearbox_entry, gearbox_exit = state.add_map(f"gearbox_{node.name}",
+                                                    gearbox_iterators,
+                                                    schedule=dace.ScheduleType.FPGA_Device)
+        gearbox_tasklet = state.add_tasklet(f"gearbox_{node.name}", {"from_compute", "buffer_in"}, {"to_memory", "buffer_out"},
+                                            f"""
+const auto val = from_compute;
+for (unsigned w = 0; w < {vector_length}; ++w) {{
+    buffer_in[gb * {vector_length} + w] = val[w];
+}}
+buffer_out = buffer_in;
+if (gb == {gearbox_factor} - 1) {{
+  to_memory.push(buffer_out);
+}}""",
+                                            language=dace.Language.CPP)
         state.add_memlet_path(read_node,
-                              entry,
-                              tasklet,
-                              dst_conn=in_memlet,
-                              memlet=Memlet.simple(stream_name,
-                                                   "0",
-                                                   num_accesses=1))
+                              gearbox_entry,
+                              gearbox_tasklet,
+                              dst_conn="from_compute",
+                              memlet=Memlet(f"{read_node.data}[0]"))
+        state.add_memlet_path(gearbox_tasklet,
+                              gearbox_exit,
+                              gearbox_out_stream_write,
+                              src_conn="to_memory",
+                              memlet=Memlet(f"{gearbox_out_stream_name}[0]", dynamic=True))
+        state.add_memlet_path(gearbox_read,
+                              gearbox_entry,
+                              gearbox_tasklet,
+                              dst_conn="buffer_in",
+                              memlet=Memlet(f"{gearbox_buffer_name}[0]"))
+        state.add_memlet_path(gearbox_tasklet,
+                              gearbox_exit,
+                              gearbox_write,
+                              src_conn="buffer_out",
+                              memlet=Memlet(f"{gearbox_buffer_name}[0]"))
 
-        state.add_memlet_path(tasklet,
-                              exit,
+        # Write 512-bit vectors from a buffered stream
+        buffer_entry, buffer_exit = state.add_map("buffer_" + node.name,
+                                                  buffer_iterators,
+                                                  schedule=dace.ScheduleType.FPGA_Device)
+        buffer_tasklet = state.add_tasklet(f"buffer_{node.name}",
+                                           {"from_gearbox"}, {"to_memory"}, "to_memory = from_gearbox")
+        gearbox_out_stream_read = state.add_read(gearbox_out_stream_name)
+        state.add_memlet_path(gearbox_out_stream_read,
+                              buffer_entry,
+                              buffer_tasklet,
+                              dst_conn="from_gearbox",
+                              memlet=Memlet(f"{gearbox_out_stream_name}[0]"))
+        state.add_memlet_path(buffer_tasklet,
+                              buffer_exit,
                               write_node,
-                              src_conn="memory",
-                              memlet=Memlet.simple(node.name,
-                                                   ", ".join(vectorized_pars),
-                                                   num_accesses=1))
+                              src_conn="to_memory",
+                              memlet=Memlet(f"{write_node.data}[{', '.join(parameters)}]"))
 
     def add_kernel(node):
 
