@@ -423,7 +423,7 @@ buffer_out = flit;""",
                                       gearbox_write,
                                       src_conn="buffer_out",
                                       memlet=Memlet(f"{gearbox_buffer_name}[0]"))
-                sdfg.add_stream(gearbox_out_stream_name, input_vtype, storage=dace.StorageType.FPGA_Local, transient=True);
+                sdfg.add_stream(gearbox_out_stream_name, input_vtype, 16, storage=dace.StorageType.FPGA_Local, transient=True);
                 gearbox_out_stream_write = state.add_write(gearbox_out_stream_name)
                 state.add_memlet_path(gearbox_tasklet,
                                       gearbox_exit,
@@ -624,8 +624,8 @@ buffer_out = flit;""",
             add_input(node, bank)
             bank = (bank + 1) % NUM_BANKS
         elif isinstance(node, Output):
-            add_output(node, bank)
-            bank = (bank + 1) % NUM_BANKS
+            # Generate these separately after
+            pass
         elif isinstance(node, Kernel):
             # Generate these separately after
             pass
@@ -633,10 +633,16 @@ buffer_out = flit;""",
             raise RuntimeError("Unexpected node type: {}".format(
                 node.node_type))
 
-    # Finally generate the compute kernels
+    # Generate the compute kernels
     for node in chain.graph.nodes():
         if isinstance(node, Kernel):
             add_kernel(node)
+
+    # Finally generate the output components
+    for node in chain.graph.nodes():
+        if isinstance(node, Output):
+            add_output(node, bank)
+            bank = (bank + 1) % NUM_BANKS
 
     return sdfg
 
