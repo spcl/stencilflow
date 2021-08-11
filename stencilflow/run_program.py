@@ -99,6 +99,8 @@ def run_program(stencil_file,
         value="-fp-relaxed -cl-no-signed-zeros -no-interleaving=default"
         " -global-ring -duplicate-ring -cl-fast-relaxed-math -cl-single-precision-constant"
     )
+    # Required because of the alignment call
+    dace.config.Config.set("compiler", "allow_view_arguments", value=True)
     if mode == "emulation":
         dace.config.Config.set("compiler",
                                "intel_fpga",

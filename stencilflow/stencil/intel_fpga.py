@@ -149,6 +149,7 @@ class ExpandStencilIntelFPGA(dace.library.ExpandTransformation):
             [k + "_out" for k in node.output_fields.keys()] +
             [name + "_buffer_out" for name, _ in buffer_sizes.items()],
             schedule=dace.ScheduleType.FPGA_Device)
+        nested_sdfg.parent_nsdfg_node = nested_sdfg_tasklet
         # Map all symbols
         for f, (dim_mask, _) in node.accesses.items():
             if not any(dim_mask):

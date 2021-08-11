@@ -292,6 +292,7 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
                                       input_vtype,
                                       storage=StorageType.FPGA_Global,
                                       transient=True)
+            array.location["memorytype"] = "ddr"
             array.location["bank"] = bank
             access_node = state.add_read(node.name)
 
@@ -405,6 +406,7 @@ def generate_sdfg(name, chain, synthetic_reads=False, specialize_scalars=False):
                                           node.data_type, vector_length),
                                       storage=StorageType.FPGA_Global,
                                       transient=True)
+            array.location["memorytype"] = "ddr"
             array.location["bank"] = bank
         except NameError:
             # This array is also read
