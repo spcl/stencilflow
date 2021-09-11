@@ -12,9 +12,9 @@
   "out"
  ],
  "dimensions": [
-  256,
-  256,
-  256
+  10,
+  10,
+  10
  ],
  "vectorization": 1,
  "program": {
@@ -40,7 +40,7 @@
   },
   "k2": {
    "data_type": "float32",
-   "computation_string": "k2 = k1[i, j, k] + k0[i + 1, j, k] + k0[i, j, k]",
+   "computation_string": "k2 = k1[i, j, k] + k0[i+1, j, k] + k0[i, j, k]",
    "boundary_conditions": {
     "k1": {
        "type": "constant",
@@ -54,7 +54,7 @@
   },
   "k3": {
    "data_type": "float32",
-   "computation_string": "k3 = k0[i, j, k] + k1[i + 1, j, k] + k1[i, j, k]",
+   "computation_string": "k3 = k0[i, j, k] + k1[i+1, j+1, k+1] + k1[i, j, k]",
    "boundary_conditions": {
     "k0": {
        "type": "constant",
@@ -68,7 +68,7 @@
   },
   "out": {
    "data_type": "float32",
-   "computation_string": "out = k2[i,j,k] + k3[i,j,k]",
+   "computation_string": "out = k2[i, j, k] + k3[i, j, k]",
    "boundary_conditions": {
     "k2":{
        "type": "constant",
