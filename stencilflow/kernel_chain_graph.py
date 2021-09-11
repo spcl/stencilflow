@@ -15,6 +15,8 @@ import functools
 import operator
 import re
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from typing import Any, List, Dict, Tuple
 
@@ -817,6 +819,14 @@ if __name__ == "__main__":
                         type=int)
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
+    parser.add_argument("-opt", action="store_true")
+    parser.add_argument("-opt_goal", default=["min_fast_mem", 12000], nargs="+")
+    """
+        choices:
+        - min_com_vol, FAST_MEM_BOUND, SLOW_MEM_BOUND
+        - min_fast_mem, COM_VOL_BOUND
+        - opt_ratio, RATIO
+    """
     args = parser.parse_args()
     args.log_level = stencilflow.log_level.LogLevel(args.log_level)
     program_description = stencilflow.parse_json(args.stencil_file)
@@ -836,6 +846,17 @@ if __name__ == "__main__":
                         write_output=False,
                         log_level=LogLevel(args.log_level))
         sim.simulate()
+
+    # choose optimization goal
+    if args.opt:
+        from stencilflow import Optimizer
+        opt = Optimizer(self.kernel_nodes, self.dimensions)
+        if args.opt_goal[0] == "min_com_vol":
+            opt.minimize_comm_vol(fast_memory_bound=args.opt_goal[1], slow_memory_bound=args.opt_goal[2])
+        if args.opt_goal[0] == "min_fast_mem":
+            opt.minimize_fast_mem(communication_volume_bound=args.opt_goal[1])
+        if args.opt_goal[0] == "opt_ratio":
+            opt.optimize_to_ratio(ratio=args.opt_goal[1])
 
     # output a report if argument -report is true
     if args.report:
