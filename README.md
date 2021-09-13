@@ -95,7 +95,7 @@ Publication
 If you use StencilFlow, cite us:
 ```bibtex
 @inproceedings{dace,
-  author    = {Johannes de Fine Licht, Andreas Kuster, Tiziano De Matteis, Tal Ben-Nun, Dominic Hofer, Torsten Hoefler},
+  author    = {Johannes de~Fine~Licht, Andreas Kuster, Tiziano De~Matteis, Tal Ben-Nun, Dominic Hofer, Torsten Hoefler},
   title     = {StencilFlow: Mapping Large Stencil Programs to Distributed Spatial Computing Systems},
   year      = {2021},
   booktitle = {Proceedings of the IEEE/ACM International Symposium on Code Generation and Optimization (CGO'21)},
