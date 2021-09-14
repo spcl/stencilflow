@@ -5,3 +5,4 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null 2>&1 && pwd)"
 source $DIR/venv/bin/activate
 (cd $DIR && $DIR/venv/bin/pip install -r requirements.txt)
 (cd $DIR && $DIR/venv/bin/pip install --editable dace)
+source $DIR/venv/bin/activate
