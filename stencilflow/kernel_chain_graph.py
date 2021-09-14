@@ -497,6 +497,13 @@ class KernelChainGraph:
         for node in order:
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
+
+                # add internal buffer latency for internal computation
+                if not isinstance(node, Output):
+                    for entry in node.input_paths[inp]:
+                        name = entry[-1]
+                        entry[2] += node.dist_to_center[name]
+
                 # compute maximum delay size per input
                 max_delay = max(node.input_paths[inp])
                 max_delay[2] += 1  # add an extra delay cycle for the processing in the kernel node
@@ -506,17 +513,16 @@ class KernelChainGraph:
                     name = entry[-1]
                     max_size = stencilflow.convert_3d_to_1d(
                         dimensions=self.dimensions,
-                        index=stencilflow.list_subtract_cwise(
-                            max_delay[:-1], entry[:-1]))
+                        index=stencilflow.list_subtract_cwise(max_delay[:-1], entry[:-1]))
+                    node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                    node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
 
-                    if not isinstance(node, Output):
-                        max_offset = node.dist_to_center[max(node.dist_to_center, key=lambda x: node.dist_to_center[x])]
-                        max_size = max_offset - node.dist_to_center[entry[-1]]
+                # remove internal buffer latency for internal computation
+                if not isinstance(node, Output):
+                    for entry in node.input_paths[inp]:
+                        name = entry[-1]
+                        entry[2] -= node.dist_to_center[name]
 
-                    node.delay_buffer[name] = BoundedQueue(name=name,
-                                                           maxsize=max_size)
-                    node.delay_buffer[name].import_data(
-                        [None] * node.delay_buffer[name].maxsize)
             # set input node delay buffers to 1
             if isinstance(node, Input):
                 node.delay_buffer = BoundedQueue(name=node.name,
