@@ -15,6 +15,9 @@ import functools
 import operator
 import re
 import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from typing import Any, List, Dict, Tuple
 
@@ -289,14 +292,14 @@ class KernelChainGraph:
                                 name = src.name + "_" + dest.name
                                 channel = {
                                     "name":
-                                    name,
+                                        name,
                                     "delay_buffer":
-                                    self.kernel_nodes[dest.name].delay_buffer[
-                                        src.name],
+                                        self.kernel_nodes[dest.name].delay_buffer[
+                                            src.name],
                                     "internal_buffer":
-                                    dest.internal_buffer[src.name],
+                                        dest.internal_buffer[src.name],
                                     "data_type":
-                                    src.data_type
+                                        src.data_type
                                 }
                                 # add channel reference to global channel dictionary
                                 self.channels[name] = channel
@@ -314,18 +317,18 @@ class KernelChainGraph:
                                 name = src.name + "_" + dest.name
                                 channel = {
                                     "name":
-                                    name,
+                                        name,
                                     "delay_buffer":
-                                    self.kernel_nodes[dest.name].delay_buffer[
-                                        src.name],
+                                        self.kernel_nodes[dest.name].delay_buffer[
+                                            src.name],
                                     "internal_buffer":
-                                    dest.internal_buffer[src.name],
+                                        dest.internal_buffer[src.name],
                                     "data_type":
-                                    src.data_type,
+                                        src.data_type,
                                     "input_dims":
-                                    self.inputs[src.name]["input_dims"]
-                                    if "input_dims" in self.inputs[src.name]
-                                    else None
+                                        self.inputs[src.name]["input_dims"]
+                                        if "input_dims" in self.inputs[src.name]
+                                        else None
                                 }
                                 # add channel reference to global channel dictionary
                                 self.channels[name] = channel
@@ -342,13 +345,13 @@ class KernelChainGraph:
                             name = src.name + "_" + dest.name
                             channel = {
                                 "name":
-                                name,
+                                    name,
                                 "delay_buffer":
-                                self.output_nodes[dest.name].delay_buffer[
-                                    src.name],
+                                    self.output_nodes[dest.name].delay_buffer[
+                                        src.name],
                                 "internal_buffer": {},
                                 "data_type":
-                                src.data_type
+                                    src.data_type
                             }
                             # add channel reference to global channel dictionary
                             self.channels[name] = channel
@@ -386,7 +389,7 @@ class KernelChainGraph:
                 else:
                     i["input_dims"] = stencilflow.ITERATORS[len(stencilflow.
                                                                 ITERATORS) -
-                                                        self.kernel_dimensions:]
+                                                            self.kernel_dimensions:]
         self.outputs = inp["outputs"]
         # handle stencil program output dimensions
         if self.kernel_dimensions == 1:  # 1D
@@ -394,8 +397,8 @@ class KernelChainGraph:
                 self.program[entry]["computation_string"] = \
                     self.program[entry]["computation_string"].replace("[", "[i, j,")  # add two extra indices
             self.dimensions = [
-                1, 1
-            ] + inp["dimensions"]  # add two extra dimensions
+                                  1, 1
+                              ] + inp["dimensions"]  # add two extra dimensions
         elif self.kernel_dimensions == 2:  # 2D
             for entry in self.program:
                 self.program[entry]["computation_string"] = self.program[entry]["computation_string"] \
@@ -489,28 +492,37 @@ class KernelChainGraph:
             order = list(nx.topological_sort(self.graph))
         except nx.exception.NetworkXUnfeasible:
             cycle = next(nx.algorithms.cycles.simple_cycles(self.graph))
-            raise ValueError("Cycle detected: {}".format(
-                [c.name for c in cycle]))
+            raise ValueError("Cycle detected: {}".format([c.name for c in cycle]))
         # go through all nodes
         for node in order:
             # process delay buffer (no additional delay buffer will appear because of the topological order)
             for inp in node.input_paths:
+
+                # add internal buffer latency for internal computation
+                if not isinstance(node, Output):
+                    for entry in node.input_paths[inp]:
+                        name = entry[-1]
+                        entry[2] += node.dist_to_center[name]
+
                 # compute maximum delay size per input
                 max_delay = max(node.input_paths[inp])
-                max_delay[
-                    2] += 1  # add an extra delay cycle for the processing in the kernel node
+                max_delay[2] += 1  # add an extra delay cycle for the processing in the kernel node
                 # loop over all inputs and set their size relative to the max size to have data ready at the exact
                 # same time
                 for entry in node.input_paths[inp]:
                     name = entry[-1]
                     max_size = stencilflow.convert_3d_to_1d(
                         dimensions=self.dimensions,
-                        index=stencilflow.list_subtract_cwise(
-                            max_delay[:-1], entry[:-1]))
-                    node.delay_buffer[name] = BoundedQueue(name=name,
-                                                           maxsize=max_size)
-                    node.delay_buffer[name].import_data(
-                        [None] * node.delay_buffer[name].maxsize)
+                        index=stencilflow.list_subtract_cwise(max_delay[:-1], entry[:-1]))
+                    node.delay_buffer[name] = BoundedQueue(name=name, maxsize=max_size)
+                    node.delay_buffer[name].import_data([None] * node.delay_buffer[name].maxsize)
+
+                # remove internal buffer latency for internal computation
+                if not isinstance(node, Output):
+                    for entry in node.input_paths[inp]:
+                        name = entry[-1]
+                        entry[2] -= node.dist_to_center[name]
+
             # set input node delay buffers to 1
             if isinstance(node, Input):
                 node.delay_buffer = BoundedQueue(name=node.name,
@@ -716,7 +728,7 @@ class KernelChainGraph:
                         u.name, v.name, entry.name, entry.maxsize))
                     total_fast += entry.maxsize
         print("buffer size slow memory: {} \nbuffer size fast memory: {}".format(
-                total_slow, total_fast))
+            total_slow, total_fast))
 
     def operation_count(self):
         """For each operation type found in the ASTs, return a tuple of
@@ -789,6 +801,14 @@ if __name__ == "__main__":
                         type=int)
     parser.add_argument("-report", action="store_true")
     parser.add_argument("-simulate", action="store_true")
+    parser.add_argument("-opt", action="store_true")
+    parser.add_argument("-opt_goal", default=["min_fast_mem", 12000], nargs="+")
+    """
+        choices:
+        - min_com_vol, FAST_MEM_BOUND, SLOW_MEM_BOUND
+        - min_fast_mem, COM_VOL_BOUND
+        - opt_ratio, RATIO
+    """
     args = parser.parse_args()
     args.log_level = stencilflow.log_level.LogLevel(args.log_level)
     program_description = stencilflow.parse_json(args.stencil_file)
@@ -808,6 +828,18 @@ if __name__ == "__main__":
                         write_output=False,
                         log_level=LogLevel(args.log_level))
         sim.simulate()
+
+    # choose optimization goal
+    if args.opt:
+        from stencilflow import Optimizer
+
+        opt = Optimizer(self.kernel_nodes, self.dimensions)
+        if args.opt_goal[0] == "min_com_vol":
+            opt.minimize_comm_vol(fast_memory_bound=args.opt_goal[1], slow_memory_bound=args.opt_goal[2])
+        if args.opt_goal[0] == "min_fast_mem":
+            opt.minimize_fast_mem(communication_volume_bound=args.opt_goal[1])
+        if args.opt_goal[0] == "opt_ratio":
+            opt.optimize_to_ratio(ratio=args.opt_goal[1])
 
     # output a report if argument -report is true
     if args.report:

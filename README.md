@@ -13,6 +13,7 @@ To run the code, the following software must be available:
 - Python 3.6.x or newer.
 - The `virtualenv` module (installed with `pip install virtualenv`).
 - A C++17-capable compiler (e.g., GCC 7.x or Clang 6.x).
+- graphviz (for graph plotting support)
 - One or both FPGA compilers:
   - Intel FPGA OpenCL SDK (tested with 18.1.1 and 19.1)
   - Xilinx Vitis (tested with 2020.2) 
@@ -45,6 +46,13 @@ kernel source files themselves in:
 
 ```bash
 .dacecache/<kernel name>/src/intel_fpga/device
+```
+
+To run low-level analysis of the buffer size and stencil program visualization, you can invoke the executable `stencilflow/kernel_chain_graph.py`.
+Example usage:
+
+```bash
+stencilflow/kernel_chain_graph.py -stencil_file test/stencils/jacobi3d_32x32x32_8itr_8vec.json -plot -simulate -report -optimize
 ```
 
 Verification
@@ -81,3 +89,16 @@ It is a known issue that launching multiple Intel FPGA kernels in quick
 succession (such as is done in the tests) can sometimes fail sporadically,
 seemingly due to file I/O issues. Running individual programs should never fail.
 
+Publication
+-----------
+
+If you use StencilFlow, cite us:
+```bibtex
+@inproceedings{dace,
+  author    = {Johannes de~Fine~Licht, Andreas Kuster, Tiziano De~Matteis, Tal Ben-Nun, Dominic Hofer, Torsten Hoefler},
+  title     = {StencilFlow: Mapping Large Stencil Programs to Distributed Spatial Computing Systems},
+  year      = {2021},
+  booktitle = {Proceedings of the IEEE/ACM International Symposium on Code Generation and Optimization (CGO'21)},
+  series = {CGO '21}
+}
+```

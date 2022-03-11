@@ -28,7 +28,7 @@ from stencilflow.stencil._common import make_iterators
 
 import networkx as nx
 
-MINIMUM_CHANNEL_DEPTH = 2048
+MINIMUM_CHANNEL_DEPTH = 1024
 
 NUM_BANKS = 4
 
